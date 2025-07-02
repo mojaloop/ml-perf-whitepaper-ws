@@ -1,19 +1,10 @@
-# Ignore all test result directories
-*/
+# This directory is meant to store test results
+# By default, we track the directory structure but not actual test data
 
-# But keep the structure documentation
-!RESULTS-STRUCTURE.md
-!.gitignore
+# Uncomment the lines below if you want to ignore test data:
+# [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+# **/*.log
+# **/*.json
+# **/*.csv
 
-# Keep any aggregated reports
-!aggregated/
-!aggregated/reports/*.pdf
-!aggregated/reports/*.md
-
-# Ignore large raw data files
-*.log
-*.json
-*.csv
-
-# But keep example/template files
-!00-template/
+# Currently tracking everything for initial setup
