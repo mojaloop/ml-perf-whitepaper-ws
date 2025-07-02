@@ -1,0 +1,19 @@
+# Ignore all test result directories
+*/
+
+# But keep the structure documentation
+!RESULTS-STRUCTURE.md
+!.gitignore
+
+# Keep any aggregated reports
+!aggregated/
+!aggregated/reports/*.pdf
+!aggregated/reports/*.md
+
+# Ignore large raw data files
+*.log
+*.json
+*.csv
+
+# But keep example/template files
+!00-template/

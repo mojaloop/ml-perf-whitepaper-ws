@@ -350,6 +350,68 @@ results/<test-name>-<timestamp>/
 └── analysis-report.html
 ```
 
+### Capturing K6 Raw Results
+
+```bash
+# During test execution, K6 outputs to stdout
+# Capture raw output:
+kubectl logs -f k6-<test-name> > results/k6-raw-output-<test-name>.log
+
+# Export K6 metrics in JSON format
+kubectl exec k6-<test-name> -- k6 stats export > results/k6-metrics-<test-name>.json
+
+# Get detailed summary after test completes
+kubectl logs k6-<test-name> --tail=200 > results/k6-summary-<test-name>.txt
+```
+
+### Taking Grafana Dashboard Screenshots
+
+```bash
+# Option 1: Automated screenshots using Grafana API
+./capture-grafana-dashboards.sh --test <test-name>
+
+# This captures:
+# - Performance Overview dashboard
+# - Service Health dashboard  
+# - Infrastructure Metrics dashboard
+# - K6 Load Testing dashboard
+
+# Option 2: Manual screenshots for specific moments
+# 1. Open Grafana dashboard
+./open-dashboard.sh --dashboard performance-overview
+
+# 2. Set time range to test duration
+# 3. Take screenshots at key moments:
+#    - Peak TPS achievement
+#    - Steady state performance
+#    - Any anomalies or interesting patterns
+
+# Save screenshots with descriptive names:
+# - 1000tps-achieved-timestamp.png
+# - steady-state-30min.png
+# - latency-distribution-peak.png
+
+# Store in: results/<test-name>-<timestamp>/dashboards/
+```
+
+### Critical Dashboards to Capture
+
+1. **Performance Overview** (MUST capture)
+   - Shows TPS, success rate, latency percentiles
+   - Capture at: test start, peak TPS, test end
+
+2. **Service Health** (MUST capture)
+   - Individual service metrics during 1000 TPS
+   - Focus on: ML-API-Adapter, Central-Ledger, Account-Lookup
+
+3. **Resource Utilization** (MUST capture)
+   - CPU, memory, network for all nodes
+   - Capture during: peak load and steady state
+
+4. **Error Analysis** (if errors occur)
+   - Error rates, types, and distribution
+   - Capture when: error rate > 0.5%
+
 ## ✅ Success Criteria
 
 ### For 1000 TPS Test:
