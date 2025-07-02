@@ -9,7 +9,7 @@
 <div align="center">
 
 ### **[→ Follow the Setup Journey](SETUP_JOURNEY.md)**
-*A guided path to achieving 1000 TPS in 2-3 days*
+*A guided path to achieving 1000 TPS in up to 2 weeks*
 
 </div>
 
@@ -26,13 +26,13 @@ A **complete, reproducible methodology** for performance testing Mojaloop at sca
 ## 📊 Proven Results
 
 ```
-Achievement: 1000 TPS sustained for 2+ hours
-Success Rate: 99.73%
+Achievement: 1000 TPS sustained for 1,000,000 transactions
+Success Rate: 100%
 P95 Latency: 187ms
 Infrastructure: AWS EKS with 15 nodes
 Configuration: 8 DFSPs with asymmetric load
 Security: Full stack enabled
-Cost: $0.41 per million transactions
+Cost: $x per million transactions
 ```
 
 ## 🗺️ Repository Structure
@@ -41,12 +41,12 @@ Cost: $0.41 per million transactions
 ml-perf-whitepaper-ws/
 ├── 📍 SETUP_JOURNEY.md                    # Your guide to 1000 TPS
 ├── 📁 phases/                             # Your journey in 8 phases
-│   ├── 01-prerequisites/                  # ✓ Get ready (30 min)
+│   ├── 01-prerequisites/                  # ✓ Get ready (2-4 hrs)
 │   │   ├── README.md                      # Start here
 │   │   ├── scripts/                       # Tool installation
 │   │   └── validation/                    # Readiness checks
 │   │
-│   ├── 02-infrastructure/                 # ✓ Build AWS foundation (2-3 hrs)
+│   ├── 02-infrastructure/                 # ✓ Build AWS foundation (4-8 hrs)
 │   │   ├── README.md                      # Phase guide
 │   │   ├── terraform/                     # Infrastructure as code
 │   │   │   ├── vpc/                       # Network setup
@@ -54,7 +54,7 @@ ml-perf-whitepaper-ws/
 │   │   │   └── eks-k6/                    # K6 cluster
 │   │   └── scripts/                       # Deployment automation
 │   │
-│   ├── 03-kubernetes/                     # ✓ Deploy platform services (1-2 hrs)
+│   ├── 03-kubernetes/                     # ✓ Deploy platform services (3-6 hrs)
 │   │   ├── README.md                      # Phase guide
 │   │   ├── platform-services/             # Base platform
 │   │   │   ├── istio/                     # Service mesh
@@ -62,25 +62,25 @@ ml-perf-whitepaper-ws/
 │   │   │   └── monitoring/                # Prometheus & Grafana
 │   │   └── scripts/                       # Installation scripts
 │   │
-│   ├── 04-mojaloop/                       # ✓ Install Mojaloop + 8 DFSPs (2-3 hrs)
+│   ├── 04-mojaloop/                       # ✓ Install Mojaloop + 8 DFSPs (4-8 hrs)
 │   │   ├── README.md                      # Phase guide
 │   │   ├── helm-values/                   # Mojaloop configuration
 │   │   ├── dfsp-setup/                    # 8 DFSP configurations
 │   │   ├── security-stack/                # mTLS, JWS, ILP setup
 │   │   └── scripts/                       # Deployment & validation
 │   │
-│   ├── 05-k6-infrastructure/              # ✓ Isolated load testing (1-2 hrs)
+│   ├── 05-k6-infrastructure/              # ✓ Isolated load testing (3-6 hrs)
 │   │   ├── README.md                      # Phase guide
 │   │   ├── k6-operator/                   # K6 deployment
 │   │   ├── test-scenarios/                # Load test definitions
 │   │   └── scripts/                       # K6 cluster setup
 │   │
-│   ├── 06-first-test/                     # ✓ Validate everything works (30 min)
+│   ├── 06-first-test/                     # ✓ Validate everything works (2-4 hrs)
 │   │   ├── README.md                      # Phase guide
 │   │   ├── validation-tests/              # Small-scale tests
 │   │   └── scripts/                       # Test execution
 │   │
-│   ├── 07-performance-tests/              # ✓ Achieve 1000 TPS (4-6 hrs)
+│   ├── 07-performance-tests/              # ✓ Achieve 1000 TPS (2-5 days iterating)
 │   │   ├── README.md                      # Phase guide
 │   │   ├── test-suite/                    # Full test scenarios
 │   │   │   ├── 01-baseline-100tps/        # Warm-up test
@@ -91,7 +91,7 @@ ml-perf-whitepaper-ws/
 │   │   ├── monitoring/                    # Real-time dashboards
 │   │   └── scripts/                       # Test orchestration
 │   │
-│   └── 08-analysis/                       # ✓ Generate insights (1-2 hrs)
+│   └── 08-analysis/                       # ✓ Generate insights (4-8 hrs)
 │       ├── README.md                      # Phase guide
 │       ├── analysis-tools/                # Data processing
 │       ├── report-templates/              # Output formats
@@ -107,38 +107,9 @@ ml-perf-whitepaper-ws/
     └── ISSUE_TEMPLATE/                    # Bug reports, questions
 ```
 
-## 🚦 Choose Your Path
+## 🚦 Getting Started
 
-### For Different Audiences:
-
-<table>
-<tr>
-<td width="33%">
-
-**🏃 "Just Show Me Results"**
-```bash
-cd phases
-./run-all.sh --quick
-```
-*Automated deployment with defaults*
-
-</td>
-<td width="33%">
-
-**🎓 "I Want to Learn"**
-Start with [SETUP_JOURNEY.md](SETUP_JOURNEY.md) and follow each phase to understand the architecture
-
-</td>
-<td width="33%">
-
-**🔧 "I Have Infrastructure"**
-Jump to your phase:
-- [Phase 04: Mojaloop](phases/04-mojaloop/)
-- [Phase 07: Testing](phases/07-performance-tests/)
-
-</td>
-</tr>
-</table>
+Start with [SETUP_JOURNEY.md](SETUP_JOURNEY.md) and follow each phase to understand the architecture and achieve 1000 TPS.
 
 ## 💡 Key Insights
 
@@ -162,7 +133,7 @@ Before starting, you'll need:
 - AWS account with appropriate limits
 - Basic tools: kubectl, helm, terraform
 - Budget: ~$400-500/day during testing
-- Time: 2-3 days total (8-10 hours active)
+- Time: up to 2 weeks total (including iterative tuning)
 
 See [Phase 01: Prerequisites](phases/01-prerequisites/) for detailed requirements.
 
