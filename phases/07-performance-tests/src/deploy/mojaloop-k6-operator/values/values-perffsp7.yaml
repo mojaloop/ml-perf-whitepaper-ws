@@ -1,0 +1,44 @@
+# Values for perffsp7 k6 instance
+image:
+  repository: grafana/k6
+  tag: "0.49.0"
+  pullPolicy: IfNotPresent
+
+k6:
+  targetTxnCount: 100000
+  fspMode: "8-DFSP"
+  abortOnError: true
+  callbackTimeoutMs: 10000
+  transferAmount: "100"
+  currency: "USD"
+  alsEndpoint: "http://moja-account-lookup-service"
+  quotesEndpoint: "http://moja-quoting-service"
+  transfersEndpoint: "http://moja-ml-api-adapter-service"
+  targetTps: 100
+  fspPairs:
+    - source: perffsp7
+      dest: perffsp4
+      weight: 0.3333 # ~33.33 TPS
+    - source: perffsp7
+      dest: perffsp6
+      weight: 0.3333 # ~33.33 TPS
+    - source: perffsp7
+      dest: perffsp8
+      weight: 0.3333 # ~33.33 TPS
+
+resources:
+  limits:
+    cpu: "1"
+    memory: "2Gi"
+  requests:
+    cpu: "0.5"
+    memory: "1Gi"
+
+nodeSelector:
+  fspiop-dfsp: perffsp7
+
+# output:
+#   enabled: false
+#   type: "influxdb"
+#   url: "http://influxdb.influxdb.svc.cluster.local:8086"
+#   db: "k6"

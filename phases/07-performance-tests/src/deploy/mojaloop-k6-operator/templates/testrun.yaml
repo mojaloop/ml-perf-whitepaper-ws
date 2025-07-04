@@ -1,0 +1,45 @@
+apiVersion: k6.io/v1alpha1
+kind: TestRun
+metadata:
+  name: {{ .Release.Name }}-k6-test
+  namespace: {{ .Release.Namespace }}
+spec:
+  parallelism: {{ .Values.parallelism }}
+  script:
+    configMap:
+      name: {{ .Release.Name }}-k6-script
+      file: fspiop-e2e-parameterized-with-callbacks.js
+  arguments: --quiet
+  runner:
+    env:
+      - name: TARGET_TXN_COUNT
+        value: "{{ .Values.k6.targetTxnCount }}"
+      - name: TARGET_TPS
+        value: "{{ .Values.k6.targetTps }}"
+      - name: FSP_MODE
+        value: "{{ .Values.k6.fspMode }}"
+      - name: FSP_PAIRS_JSON
+        value: {{ .Values.k6.fspPairs | toJson | quote }}
+      - name: K6_SCRIPT_ABORT_ON_ERROR
+        value: "{{ .Values.k6.abortOnError }}"
+      - name: CALLBACK_TIMEOUT_MS
+        value: "{{ .Values.k6.callbackTimeoutMs }}"
+      - name: TRANSFER_AMOUNT
+        value: "{{ .Values.k6.transferAmount }}"
+      - name: CURRENCY
+        value: "{{ .Values.k6.currency }}"
+      - name: ALS_ENDPOINT
+        value: "{{ .Values.k6.alsEndpoint }}"
+      - name: QUOTES_ENDPOINT
+        value: "{{ .Values.k6.quotesEndpoint }}"
+      - name: TRANSFERS_ENDPOINT
+        value: "{{ .Values.k6.transfersEndpoint }}"
+      - name: PARALLELISM
+        value: "{{ .Values.parallelism }}"
+    resources:
+      limits:
+        cpu: {{ .Values.resources.limits.cpu | quote }}
+        memory: {{ .Values.resources.limits.memory | quote }}
+      requests:
+        cpu: {{ .Values.resources.requests.cpu | quote }}
+        memory: {{ .Values.resources.requests.memory | quote }}

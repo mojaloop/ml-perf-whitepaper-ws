@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-k6-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: mojaloop-k6-test
+data:
+  fspiop-e2e-parameterized-with-callbacks.js: |
+{{ .Files.Get "scripts/fspiop-e2e-parameterized-with-callbacks.js" | indent 4 }}

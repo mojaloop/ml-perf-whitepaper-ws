@@ -1,0 +1,39 @@
+
+# Default values for mojaloop-k6-operator
+# k6Operator:
+#   enabled: true
+#   watchNamespace: ""
+
+image:
+  repository: grafana/k6
+  tag: "0.49.0"
+  pullPolicy: IfNotPresent
+
+parallelism: 1
+
+k6:
+  targetTxnCount: 100000
+  targetTps: 1000
+  fspMode: "8-DFSP"
+  abortOnError: true
+  callbackTimeoutMs: 10000
+  transferAmount: "100"
+  currency: "USD"
+  alsEndpoint: "http://moja-account-lookup-service"
+  quotesEndpoint: "http://moja-quoting-service"
+  transfersEndpoint: "http://moja-ml-api-adapter-service"
+
+resources:
+  limits:
+    cpu: "1"
+    memory: "500Mi"
+  requests:
+    cpu: "1"
+    memory: "500Mi"
+
+# Optional: InfluxDB output configuration
+# output:
+#   enabled: false
+#   type: "influxdb"
+#   url: "http://influxdb:8086"
+#   db: "k6"
