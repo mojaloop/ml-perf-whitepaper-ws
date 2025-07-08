@@ -57,6 +57,11 @@ P8 --> MLAPI
 @enduml
 ```
 
+### Architecture Overview
+
+![Mojaloop Switch Architecture](diagrams/mojaloop-switch-architecture.svg)
+*Complete Mojaloop architecture showing all core components, data stores, and messaging systems*
+
 ## 📋 Pre-deployment Setup
 
 ```bash
@@ -110,6 +115,11 @@ kubectl apply -f dfsp-deployments/
 </details>
 
 ## 🏦 DFSP Configuration
+
+### SDK-Scheme-Adapter Architecture
+
+![SDK-Scheme-Adapter](diagrams/sdk-scheme-adapter-architecture.svg)
+*How DFSPs connect to Mojaloop through the SDK-Scheme-Adapter*
 
 ### Performance Testing DFSPs
 

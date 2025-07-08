@@ -1,0 +1,52 @@
+@startuml k6-testing-architecture
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+package "K6 Testing VPC\n10.1.0.0/16" {
+    package "K6 EKS Cluster" {
+        [K6 Operator] as K6OP
+        [K6 Test Jobs] as K6J
+        database "Metrics Storage" as MS
+        
+        K6OP --> K6J : Creates/Manages
+        K6J --> MS : Store results
+    }
+    
+    [Network Load Balancer] as NLB
+}
+
+package "Mojaloop VPC\n10.0.0.0/16" {
+    package "Mojaloop EKS Cluster" {
+        [Mojaloop Services] as ML
+        [SDK Adapters] as SDK
+        [DFSPs] as DFSP
+    }
+}
+
+cloud "Monitoring Stack" {
+    [Prometheus] as PROM
+    [Grafana] as GRAF
+}
+
+K6J --> NLB : Generate Load
+NLB ..> ML : VPC Peering\n1000 TPS
+ML --> SDK
+SDK --> DFSP
+
+K6J --> PROM : Export Metrics
+ML --> PROM : Export Metrics
+PROM --> GRAF : Visualize
+
+note right of K6J
+  - 8 x t3.2xlarge nodes
+  - Isolated from Mojaloop
+  - Clean measurements
+end note
+
+note left of ML
+  - 15 x c5.4xlarge nodes
+  - Production configuration
+  - Full security enabled
+end note
+
+@enduml

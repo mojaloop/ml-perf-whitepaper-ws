@@ -8,6 +8,14 @@
 
 ## 🎯 Test Strategy
 
+### Complete P2P Transfer Flow
+![P2P Transfer Flow](diagrams/p2p-transfer-complete-flow.svg)
+*End-to-end P2P transfer showing all phases: discovery, quote, and transfer*
+
+### 8 DFSP Test Architecture
+![8 DFSP Test Architecture](diagrams/8-dfsp-test-architecture.svg)
+*How 1000 TPS is distributed across 8 DFSPs with asymmetric load patterns*
+
 ```plantuml
 @startuml
 !theme plain

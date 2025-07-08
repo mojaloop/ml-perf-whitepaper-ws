@@ -4,6 +4,9 @@
 
 ## 🔐 Security Components Overview
 
+![Security Architecture](diagrams/security-architecture-overview.png)
+*Complete security model showing mTLS, JWS, and ILP integration*
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                   Security Stack                             │
@@ -96,6 +99,11 @@ SDK-Scheme-Adapter → Sign(message, private_key) → Mojaloop
                                                       ↓
                                             Verify(signature, public_key)
 ```
+
+### SDK Security Implementation
+
+![SDK Security Flow](diagrams/sdk-security-flow.svg)
+*JWS signature validation flow in the SDK-Scheme-Adapter*
 
 ### Generate JWS Keys
 
