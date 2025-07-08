@@ -25,6 +25,11 @@ Running K6 on the same cluster as Mojaloop:
 - Isolated monitoring
 - Guaranteed performance
 
+### K6 Testing Architecture
+
+![K6 Testing Architecture](diagrams/k6-testing-architecture.svg)
+*Isolated K6 infrastructure with VPC peering to Mojaloop*
+
 ## 📋 Pre-deployment Checks
 
 ```bash

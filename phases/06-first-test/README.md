@@ -143,6 +143,22 @@ You should see:
 - Latency percentiles (P50, P95, P99)
 - Resource utilization below 10%
 
+## 📊 Understanding the Test Flow
+
+### Transaction Flow Diagrams
+
+#### 1. Participant Lookup (Discovery)
+![Participant Lookup Flow](diagrams/participant-lookup-flow.svg)
+*How Mojaloop discovers the receiving DFSP for a given MSISDN*
+
+#### 2. Quote Phase
+![Quote Phase Sequence](diagrams/quote-phase-sequence.svg)
+*Quote calculation and agreement between DFSPs*
+
+#### 3. Transfer Fulfillment
+![Transfer Fulfillment Flow](diagrams/transfer-fulfillment-flow.svg)
+*Final transfer execution with ILP validation*
+
 ## 🔍 Validation Points
 
 ### 1. Transaction Success
