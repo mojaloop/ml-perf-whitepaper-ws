@@ -1,6 +1,6 @@
 # Infrastructure high level architecture
 
-## 1. verview
+## 1. Overview
 
 The infrastructure reproduces a real worl design of a Mojaloop implemenation. 
 
@@ -20,41 +20,77 @@ graph LR
   
 
   subgraph pm [Payment manager]
-    dfsp-1-sdk
-    dfsp-2-sdk
-    dfsp-3-sdk
+    
+    subgraph dfsp-501
+      dfsp-501-sdk+TTK
+      dfsp-501-k6
+    end 
+
+    subgraph dfsp-502
+      dfsp-502-sdk+TTK
+      dfsp-502-k6
+    end 
+
+    subgraph dfsp-503
+      dfsp-503-sdk+TTK
+      dfsp-503-k6
+    end 
+  
+      subgraph dfsp-504
+      dfsp-504-sdk+TTK
+      dfsp-504-k6
+    end 
+
+    subgraph dfsp-505
+      dfsp-505-sdk+TTK
+      dfsp-505-k6
+    end 
+
+    subgraph dfsp-506
+      dfsp-506-sdk+TTK
+      dfsp-506-k6
+    end 
+
+    subgraph dfsp-507
+      dfsp-507-sdk+TTK
+      dfsp-507-k6
+    end 
+
+    subgraph dfsp-508
+      dfsp-508-sdk+TTK
+      dfsp-508-k6
+    end 
+
   end
 
-subgraph dfsp-1
-  dfsp-1-sim
-  dfsp-1-k6
-end 
 
-subgraph dfsp-2
-  dfsp-2-sim
-  dfsp-2-k6
-end 
-
-subgraph dfsp-3
-  dfsp-3-sim
-  dfsp-3-k6
-end 
 
   cc .-> sw
   cc .-> pm
 
-  sw <--> dfsp-1-sdk
-  dfsp-1-sdk <--> dfsp-1-sim
-  dfsp-1-sim <--> dfsp-1-k6
+  sw <--> dfsp-501-sdk+TTK
+  dfsp-501-sdk+TTK <--> dfsp-501-k6
 
-  sw <--> dfsp-2-sdk
-  dfsp-2-sdk <--> dfsp-2-sim
-  dfsp-2-sim <--> dfsp-2-k6
+  sw <--> dfsp-502-sdk+TTK
+  dfsp-502-sdk+TTK <-->  dfsp-502-k6
 
-  sw <--> dfsp-3-sdk
-  dfsp-3-sdk <--> dfsp-3-sim
-  dfsp-3-sim <--> dfsp-3-k6
+  sw <--> dfsp-503-sdk+TTK
+  dfsp-503-sdk+TTK <--> dfsp-503-k6
 
+    sw <--> dfsp-504-sdk+TTK
+  dfsp-504-sdk+TTK <--> dfsp-504-k6
+
+  sw <--> dfsp-505-sdk+TTK
+  dfsp-505-sdk+TTK <-->  dfsp-505-k6
+
+  sw <--> dfsp-506-sdk+TTK
+  dfsp-506-sdk+TTK <--> dfsp-506-k6
+
+  sw <--> dfsp-507-sdk+TTK
+  dfsp-507-sdk+TTK <-->  dfsp-507-k6
+
+  sw <--> dfsp-508-sdk+TTK
+  dfsp-508-sdk+TTK <--> dfsp-508-k6
 ```
 
 
