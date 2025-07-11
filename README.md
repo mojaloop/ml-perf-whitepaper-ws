@@ -1,15 +1,15 @@
 # Mojaloop Performance Testing Whitepaper
 
-> **The Challenge**: Can Mojaloop handle 1000 transactions per second with full production security enabled?
+> **The Challenge**: Can Mojaloop handle 1000 transactions per second with full production security enabled? Where are the limits given the configuration and how to reach it?
 >
-> **The Answer**: Yes. This repository proves it with a fully reproducible methodology.
+> **The Answer**: This repository proves it with a fully reproducible methodology.
 
 ## 🚀 Start Your Journey
 
 <div align="center">
 
 ### **[→ Follow the Setup Journey](SETUP_JOURNEY.md)**
-*A guided path to achieving 1000 TPS in up to 2 weeks*
+*A guided path to achieving 1000 TPS in up to 2 weeks, plus how to push the bounderies to max out the given configuration*
 
 </div>
 
@@ -132,7 +132,7 @@ Start with [SETUP_JOURNEY.md](SETUP_JOURNEY.md) and follow each phase to underst
 Before starting, you'll need:
 - AWS account with appropriate limits
 - Basic tools: kubectl, helm, terraform
-- Budget: ~$400-500/day during testing
+- Budget: ~$TBD/day during testing
 - Time: up to 2 weeks total (including iterative tuning)
 
 See [Phase 01: Prerequisites](phases/01-prerequisites/) for detailed requirements.
