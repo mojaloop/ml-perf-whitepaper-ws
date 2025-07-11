@@ -1,0 +1,32 @@
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUREekNDQWZlZ0F3SUJBZ0lVZm5Ba3gwT1FqazZrUS9URThlbitYRFlqcVVRd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0Z6RVZNQk1HQTFVRUF3d01NVEF1TVRVeUxqRTRNeTR4TUI0WERUSTFNRGN3TnpFME5UWXdOMW9YRFRNMQpNRGN3TlRFME5UWXdOMW93RnpFVk1CTUdBMVVFQXd3TU1UQXVNVFV5TGpFNE15NHhNSUlCSWpBTkJna3Foa2lHCjl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFzbzVjdGFpeG51bmdPWXlxMGt2Z3RHRFpVUHZtY2tFMXRDdzEKRGM3Q2tMalZXaFE3cWpDN1Zhc0xBZkZWTWlKYTdFOGFzVm9JZzJBRVJmL3MxRHdYQndHaEtLSTRid2tjK05HZgpRMGNUZHpnRnd4ZjRpWHZzbU92VkU3OTNUS003UmZ5VmlzL25tM0MvaDI3SFgrUlJLc0RPc1YzcWFLMFNOanl0CjdEeHY2Y0xLWWtqeXdIWUlReDhsbStGYkFqVGVicUlvdGxTaVBEMjY3SG5taGcrVXZLKzBMMkRQbytUVkJYWjUKSE43WEQxcHgxTWlua0NnZGJJeDZXemxjV29WYm5KamtGTXBkeit6WGo3SldVYWlyam9QN09yVmxqeXgrS0loTApYc3drL0RvUEJEUmJOeEk3bk5UM2J1d01CS2tsMmNyLy9NVmpoYVZwbkwrNkVpeitJd0lEQVFBQm8xTXdVVEFkCkJnTlZIUTRFRmdRVTBROUl4NUlDVmVXRTk2ZUFYeU9temJiUk1xY3dId1lEVlIwakJCZ3dGb0FVMFE5SXg1SUMKVmVXRTk2ZUFYeU9temJiUk1xY3dEd1lEVlIwVEFRSC9CQVV3QXdFQi96QU5CZ2txaGtpRzl3MEJBUXNGQUFPQwpBUUVBbGdsbC9NWmZQMVBYckdQV2JkMHRxTFRPY1NaN29ZRFB4eFRrZkZRTFlUb2hNREJ2UUJhT29pQnJabFVsCmlsbXJtZ3cxc3FQYnRnL2d1S2E0RWdPK2t3cGFRb1hYaEJwUXhWbUlIUG50aW9hWU5zbFhvOStuOEtSUWNmamYKdFMzVHpsL1VuYjhqdURHMHRiSWN6U0FrOVRrZWIxVVNieEx2SkcvNmVyVUl6SWVQOGc3UWNCZi9Uc09URUovbgp3Y01ERFhXWVh2STJRWnhISnRqM0RHc1JqQ25VREY2OFdZcVFlM2F4TE81ZSt2VXJYazZMaUpDR3l4NlRwOStNCkNnUXY2OU1MYVJDZUEvdzJTb0s0MTZJaGZzZzYvYWJSVWhiZlhoR1FtRVM5R2oxOUpSYm5PdExnYlorUnhPRGUKUTJjVHFCWU5NT21QdERjSDdpemZnMW53YXc9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    server: https://tf-lb-2025070714513596200000000e-1dbbd3d15260aee1.elb.eu-north-1.amazonaws.com:16443
+  name: pm012.pm012.mojaperflab.org-cluster
+contexts:
+- context:
+    cluster: pm012.pm012.mojaperflab.org-cluster
+    user: oidc
+  name: pm012.pm012.mojaperflab.org
+current-context: pm012.pm012.mojaperflab.org
+kind: Config
+preferences: {}
+users:
+- name: oidc
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args:
+      - oidc-login
+      - get-token
+      - --oidc-issuer-url=https://zitadel.cc005.perf005.mojaperflab.org
+      - --oidc-client-id=327249715613782760
+      - --oidc-extra-scope=email
+      - --oidc-extra-scope=offline_access
+      - --oidc-extra-scope=profile
+      - --oidc-extra-scope=openid
+      command: kubectl
+      env: null
+      interactiveMode: IfAvailable
+      provideClusterInfo: false

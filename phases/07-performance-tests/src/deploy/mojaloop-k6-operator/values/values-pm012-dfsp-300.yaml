@@ -1,0 +1,47 @@
+# Values for perffsp1 k6 instance
+# image:
+#   repository: grafana/k6
+#   tag: "0.49.0"
+#   pullPolicy: IfNotPresent
+
+k6:
+  targetTxnCount: 50
+  fspMode: "8-DFSP"
+  abortOnError: true
+  callbackTimeoutMs: 10000
+  transferAmount: "1"
+  currency: "EUR"
+  alsEndpoint: "http://pm012-dfsp-300-sdk-scheme-adapter-api-svc:4001"
+  quotesEndpoint: "http://pm012-dfsp-300-sdk-scheme-adapter-api-svc:4001"
+  transfersEndpoint: "http://pm012-dfsp-300-sdk-scheme-adapter-api-svc:4001"
+  targetTps: 5
+  fspPairs:
+    - source: pm012-dfsp-300
+      dest: pm012-dfsp-400
+      weight: 1.00 # 490 TPS
+    # - source: pm012-dfsp-300
+    #   dest: pm012-dfsp-400
+    #   weight: 0.10 # 70 TPS
+    # - source: pm012-dfsp-300
+    #   dest: pm012-dfsp-600
+    #   weight: 0.10 # 70 TPS
+    # - source: pm012-dfsp-300
+    #   dest: pm012-dfsp-800
+    #   weight: 0.10 # 70 TPS
+
+resources:
+  limits:
+    cpu: "1"
+    memory: "500Mi"
+  requests:
+    cpu: "1"
+    memory: "500Mi"
+
+nodeSelector:
+  fspiop-dfsp: pm012-dfsp-300
+
+# output:
+#   enabled: false
+#   type: "influxdb"
+#   url: "http://influxdb.influxdb.svc.cluster.local:8086"
+#   db: "k6"

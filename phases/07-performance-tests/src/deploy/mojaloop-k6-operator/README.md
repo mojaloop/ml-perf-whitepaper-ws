@@ -7,7 +7,11 @@ helm repo update
 ```
 ### Install k6 Operator
 ```
-helm install k6-operator grafana/k6-operator --version 3.13.1 --namespace k6-operator-system --create-namespace
+<!-- helm install k6-operator grafana/k6-operator --version 3.13.1 --namespace k6-operator-system --create-namespace -->
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+helm install k6-operator grafana/k6-operator --namespace k6-operator --create-namespace
+
 ```
 ## Add Grafana Helm Repository:
 ```

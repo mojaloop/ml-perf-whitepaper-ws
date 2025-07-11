@@ -1,11 +1,35 @@
-// fspiop-e2e-parameterized-with-callbacks.js
-// K6 test with WebSocket callback validation for true end-to-end validation
+/*****
+ License
+ --------------
+ Copyright © 2020-2025 Mojaloop Foundation
+ The Mojaloop files are made available by the Mojaloop Foundation under the Apache License, Version 2.0 (the "License") and you may not use these files except in compliance with the License. You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, the Mojaloop files are distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+ Contributors
+ --------------
+ This is the official list of the Mojaloop project contributors for this file.
+ Names of the original copyright holders (individuals or organizations)
+ should be listed with a '*' in the first column. People who have
+ contributed from an organization can be listed under the organization
+ that actually holds the copyright for their contributions (see the
+ Mojaloop Foundation for an example). Those individuals should have
+ their names indented and be marked with a '-'. Email address can be added
+ optionally within square brackets <email>.
+
+ * Mojaloop Foundation
+ - Name Surname <name.surname@mojaloop.io>
+
+ * Shashikant Hirugade <shashi.mojaloop@gmail.com>
+
+ --------------
+ ******/
 
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter, Trend, Rate } from 'k6/metrics';
-import { WebSocket } from 'k6/experimental/websockets';
-import { setTimeout, clearTimeout } from 'k6/timers';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.1.0/index.js';
 import crypto from "k6/crypto";
 import { vu } from 'k6/execution';
@@ -111,7 +135,7 @@ const callbackTime = new Trend('callback_time', true);
 const failures = new Counter('failed_transactions');
 
 // Simple duration calculation
-const testDuration = Math.ceil(TARGET_TXN_COUNT / TARGET_TPS) + 10;
+const testDuration = Math.ceil(TARGET_TXN_COUNT / TARGET_TPS) + 1; // Add 10 seconds buffer for any delays
 
 export const options = {
   scenarios: {
@@ -123,7 +147,7 @@ export const options = {
       // preAllocatedVUs: Math.max(Math.ceil(TARGET_TPS * 2), 100),
       preAllocatedVUs: 10,
       // maxVUs: Math.max(Math.ceil(TARGET_TPS * 4), 200),
-      maxVUs: 20,
+      maxVUs: 40,
     },
   },
   thresholds: {
@@ -153,22 +177,23 @@ const ENV = {
 
 // FSP configurations with WebSocket URLs for the FSP backends
 const FSPS = {
-  perffsp1: { id: 'perffsp-1', msisdn: '19012345001', wsUrl: 'ws://perf-perffsp-1:3002' },
-  perffsp2: { id: 'perffsp-2', msisdn: '19012345002', wsUrl: 'ws://perf-perffsp-2:3002' },
-  perffsp3: { id: 'perffsp-3', msisdn: '19012345003', wsUrl: 'ws://perf-perffsp-3:3002' },
-  perffsp4: { id: 'perffsp-4', msisdn: '19012345004', wsUrl: 'ws://perf-perffsp-4:3002' },
-  perffsp5: { id: 'perffsp-5', msisdn: '19012345005', wsUrl: 'ws://perf-perffsp-5:3002' },
-  perffsp6: { id: 'perffsp-6', msisdn: '19012345006', wsUrl: 'ws://perf-perffsp-6:3002' },
-  perffsp7: { id: 'perffsp-7', msisdn: '19012345007', wsUrl: 'ws://perf-perffsp-7:3002' },
-  perffsp8: { id: 'perffsp-8', msisdn: '19012345008', wsUrl: 'ws://perf-perffsp-8:3002' },
+  'pm012-dfsp-100': { id: 'pm012-dfsp-100', msisdn: '16665551001' },
+  'pm012-dfsp-200': { id: 'pm012-dfsp-200', msisdn: '19012345002' },
+  'pm012-dfsp-300': { id: 'pm012-dfsp-300', msisdn: '22676858576' },
+  'pm012-dfsp-400': { id: 'pm012-dfsp-400', msisdn: '22672351010' },
+  'pm012-dfsp-500': { id: 'pm012-dfsp-500', msisdn: '19012345005' },
+  'pm012-dfsp-600': { id: 'pm012-dfsp-600', msisdn: '19012345006' },
+  'pm012-dfsp-700': { id: 'pm012-dfsp-700', msisdn: '19012345007' },
+  'pm012-dfsp-800': { id: 'pm012-dfsp-800', msisdn: '19012345008' },
 };
 
 function getUUIDS() {
   const random = len => randomString(len, '0123456789abcdef');
   const t = Date.now().toString(16).padStart(12, '0');
-  const uuid = `${t.substring(0,8)}-${t.substring(8,12)}-4${random(3)}-9${random(3)}-${random(12)}`;
+  // const uuid = `${t.substring(0,8)}-${t.substring(8,12)}-4${random(3)}-9${random(3)}-${random(12)}`;
   const ulid = `${t}${random(14)}`.toUpperCase();
-  return { uuid, ulid };
+  // return { uuid, ulid };
+  return ulid;
 }
 
 function generateTraceparent() {
@@ -203,16 +228,6 @@ function generateTraceparent() {
   return { traceparent, traceId };
 }
 
-function getFspiopHeaders(source, destination, resourceType) {
-  return {
-    'Content-Type': `application/vnd.interoperability.${resourceType}+json;version=1.1`,
-    'Accept': `application/vnd.interoperability.${resourceType}+json;version=1.1`,
-    'Date': new Date().toUTCString(),
-    'FSPIOP-Source': source,
-    'FSPIOP-Destination': destination || '',
-  };
-}
-
 function selectWeightedFspPair() {
   if (FSP_MODE !== '8-DFSP') {
     return FSP_PAIRS[Math.floor(Math.random() * FSP_PAIRS.length)];
@@ -233,123 +248,74 @@ function selectWeightedFspPair() {
 function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
   const startTime = Date.now();
   const { traceparent, traceId } = generateTraceparent();
-  const wsBaseUrl = sourceFsp.wsUrl;
-  const { uuid, ulid } = getUUIDS();
-  const transactionId = ulid;
-  const quoteId = uuid;
+  // const { uuid, ulid } = getUUIDS();
+  const transactionId = getUUIDS();
+  // const { uuid1, ulid1 } = getUUIDS();
 
-  let partyWs, quoteWs, transferWs;
+  const quoteId = getUUIDS();
+  let quoteResponse;
+
 
   try {
     // Phase 1: Party Lookup with Callback
     const discoveryStartTime = Date.now();
-    const partyCallbackChannel = `${traceId}/PUT/parties/MSISDN/${destFsp.msisdn}`;
-    const partyWsUrl = `${wsBaseUrl}/${partyCallbackChannel}`;
-    console.log(`Connecting to Party Lookup WebSocket: ${partyWsUrl}`);
-
-    partyWs = new WebSocket(partyWsUrl, null, { tags: { name: 'party_callback_ws' } });
-
-    partyWs.onopen = () => {
-      console.log(`Getting Party: ${ENV.ALS_ENDPOINT}/parties/MSISDN/${destFsp.msisdn}`);
-      const params = {
-        tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
-        headers: {
-          'Accept': 'application/vnd.interoperability.parties+json;version=1.1',
-          'Content-Type': 'application/vnd.interoperability.parties+json;version=1.1',
-          'FSPIOP-Source': sourceFsp.id,
-          'Date': new Date().toUTCString(),
-          'traceparent': traceparent,
-          'tracestate': `tx_end2end_start_ts=${discoveryStartTime}`
-        },
-      };
-
-      const res = http.get(`${ENV.ALS_ENDPOINT}/parties/MSISDN/${destFsp.msisdn}`, params);
-      const partyCheck = check(res, { 'ALS_FSPIOP_GET_PARTIES_RESPONSE_IS_202': (r) => r.status === 202 });
-
-      if (!partyCheck) {
-        console.error(traceId, `Party lookup failed with status: ${res.status}`);
-        failures.add(1);
-        successRate.add(0);
-        partyWs.close();
-        if (abortOnError) {
-          exec.test.abort();
-        }
-        return;
-      }
-
-      const wsTimeoutId = setTimeout(() => {
-        console.error(traceId, `WebSocket timed out on URL: ${partyWsUrl}`);
-        check(null, { 'ALS_E2E_FSPIOP_GET_PARTIES_SUCCESS': () => false });
-        failures.add(1);
-        successRate.add(0);
-        partyWs.close();
-        if (abortOnError) {
-          exec.test.abort();
-        }
-      }, ENV.CALLBACK_TIMEOUT_MS);
-
-      partyWs.onmessage = (event) => {
-        const partySuccess = check(event.data, { 'ALS_E2E_FSPIOP_GET_PARTIES_SUCCESS': (cbMessage) => cbMessage === 'SUCCESS_CALLBACK_RECEIVED' });
-        clearTimeout(wsTimeoutId);
-        if (partySuccess) {
-          discoveryTime.add(Date.now() - discoveryStartTime);
-          partyWs.close();
-          executeQuotePhase();
-        } else {
-          failures.add(1);
-          successRate.add(0);
-          partyWs.close();
-        }
-      };
-
-      partyWs.onclose = () => {
-        clearTimeout(wsTimeoutId);
-      };
-
-      partyWs.onerror = (err) => {
-        console.error(traceId, `Party WebSocket error: ${err}`);
-        check(null, { 'ALS_E2E_FSPIOP_GET_PARTIES_SUCCESS': () => false });
-        clearTimeout(wsTimeoutId);
-        failures.add(1);
-        successRate.add(0);
-        partyWs.close();
-      };
+    console.log(`Getting Party: ${ENV.ALS_ENDPOINT}/parties/MSISDN/${destFsp.msisdn}`);
+    const params = {
+      tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'FSPIOP-Source': sourceFsp.id,
+        'Date': new Date().toUTCString(),
+        'traceparent': traceparent,
+        'tracestate': `tx_end2end_start_ts=${discoveryStartTime}`
+      },
     };
-  } catch (err) {
-    console.error(traceId, `Party WebSocket initialization failed: ${err}`);
+
+    const partyResponse = http.get(`${ENV.ALS_ENDPOINT}/parties/MSISDN/${destFsp.msisdn}`, params);
+    const partyCheck = check(partyResponse, { 'ALS_FSPIOP_GET_PARTIES_RESPONSE_IS_200': (r) => r.status === 200 });
+    console.log(`Party Lookup Response: ${JSON.stringify(partyResponse.json())}`);
+    if (!partyCheck) {
+      console.error(traceId, `Party lookup failed with response: ${JSON.stringify(partyResponse)}`);
+      failures.add(1);
+      successRate.add(0);
+      if (abortOnError) {
+        exec.test.abort();
+      }
+      return;
+    } else {
+      discoveryTime.add(Date.now() - discoveryStartTime);
+      executeQuotePhase();
+    }
+    } catch (err) {
+    console.error(traceId, `Party lookup failed: ${err}`);
     failures.add(1);
     successRate.add(0);
-    if (partyWs) partyWs.close();
     if (abortOnError) {
       exec.test.abort();
     }
     return;
   }
 
+
   function executeQuotePhase() {
     try {
       const quoteStartTime = Date.now();
-      const quoteCallbackChannel = `${traceId}/PUT/quotes/${quoteId}`;
-      const quoteWsUrl = `${wsBaseUrl}/${quoteCallbackChannel}`;
-      console.log(`Connecting to Quote WebSocket: ${quoteWsUrl}`);
-
-      quoteWs = new WebSocket(quoteWsUrl, null, { tags: { name: 'quote_callback_ws' } });
-
-      quoteWs.onopen = () => {
-        const params = {
-          tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
-          headers: {
-            'Accept': 'application/vnd.interoperability.quotes+json;version=1.1',
-            'Content-Type': 'application/vnd.interoperability.quotes+json;version=1.1',
-            'FSPIOP-Source': sourceFsp.id,
-            'FSPIOP-Destination': destFsp.id,
-            'Date': new Date().toUTCString(),
-            'traceparent': traceparent,
-            'tracestate': `tx_end2end_start_ts=${quoteStartTime}`
-          },
-        };
-
-        const body = {
+      const params = {
+        tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'FSPIOP-Source': sourceFsp.id,
+          'FSPIOP-Destination': destFsp.id,
+          'Date': new Date().toUTCString(),
+          'traceparent': traceparent,
+          'tracestate': `tx_end2end_start_ts=${quoteStartTime}`
+        },
+      };
+      const body = {
+        fspId: destFsp.id,
+        quotesPostRequest: {
           quoteId,
           transactionId,
           payer: {
@@ -361,65 +327,31 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
           amountType: 'SEND',
           amount: { amount: ENV.TRANSFER_AMOUNT, currency: ENV.CURRENCY },
           transactionType: { scenario: 'TRANSFER', initiator: 'PAYER', initiatorType: 'CONSUMER' }
-        };
-
-        const res = http.post(`${ENV.QUOTES_ENDPOINT}/quotes`, JSON.stringify(body), params);
-        const quoteCheck = check(res, { 'QUOTES_FSPIOP_POST_QUOTES_RESPONSE_IS_202': (r) => r.status === 202 });
-
-        if (!quoteCheck) {
-          console.error(traceId, `Quote request failed with status: ${res.status}`);
-          failures.add(1);
-          successRate.add(0);
-          quoteWs.close();
-          if (abortOnError) {
-            exec.test.abort();
-          }
-          return;
         }
-
-        const quoteTimeoutId = setTimeout(() => {
-          console.error(traceId, `WebSocket timed out on URL: ${quoteWsUrl}`);
-          check(null, { 'QUOTES_E2E_FSPIOP_POST_QUOTES_SUCCESS': () => false });
-          failures.add(1);
-          successRate.add(0);
-          quoteWs.close();
-          if (abortOnError) {
-            exec.test.abort();
-          }
-        }, ENV.CALLBACK_TIMEOUT_MS);
-
-        quoteWs.onmessage = (event) => {
-          const quoteSuccess = check(event.data, { 'QUOTES_E2E_FSPIOP_POST_QUOTES_SUCCESS': (cbMessage) => cbMessage === 'SUCCESS_CALLBACK_RECEIVED' });
-          clearTimeout(quoteTimeoutId);
-          if (quoteSuccess) {
-            quoteTime.add(Date.now() - quoteStartTime);
-            quoteWs.close();
-            executeTransferPhase();
-          } else {
-            failures.add(1);
-            successRate.add(0);
-            quoteWs.close();
-          }
-        };
-
-        quoteWs.onclose = () => {
-          clearTimeout(quoteTimeoutId);
-        };
-
-        quoteWs.onerror = (err) => {
-          console.error(traceId, `Quote WebSocket error: ${err}`);
-          check(null, { 'QUOTES_E2E_FSPIOP_POST_QUOTES_SUCCESS': () => false });
-          clearTimeout(quoteTimeoutId);
-          failures.add(1);
-          successRate.add(0);
-          quoteWs.close();
-        };
       };
+      console.log(`Initiating Quote: ${ENV.QUOTES_ENDPOINT}/quotes`);
+      console.log(`Quote Request Body: ${JSON.stringify(body)}`);
+      quoteResponse = http.post(`${ENV.QUOTES_ENDPOINT}/quotes`, JSON.stringify(body), params);
+      const quoteCheck = check(quoteResponse, { 'QUOTES_FSPIOP_POST_QUOTES_RESPONSE_IS_200': (r) => r.status === 200 });
+      console.log(`Quote Response: ${JSON.stringify(quoteResponse.json())}`);
+
+      if (!quoteCheck) {
+        console.error(traceId, `Quote request failed with response: ${JSON.stringify(quoteResponse)}`);
+        failures.add(1);
+        successRate.add(0);
+        if (abortOnError) {
+          exec.test.abort();
+        }
+        return;
+      } else {
+        quoteTime.add(Date.now() - quoteStartTime);
+        executeTransferPhase();
+
+      }
     } catch (err) {
-      console.error(traceId, `Quote WebSocket initialization failed: ${err}`);
+      console.error(traceId, `Quote Phase Failed: ${err}`);
       failures.add(1);
       successRate.add(0);
-      if (quoteWs) quoteWs.close();
       if (abortOnError) {
         exec.test.abort();
       }
@@ -430,96 +362,61 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
     try {
       const transferStartTime = Date.now();
       const transferId = transactionId;
-      const transferCallbackChannel = `${traceId}/PUT/transfers/${transferId}`;
-      const transferWsUrl = `${wsBaseUrl}/${transferCallbackChannel}`;
-      console.log(`Connecting to Transfer WebSocket: ${transferWsUrl}`);
+      console.log(`Initiating Transfer: ${ENV.TRANSFERS_ENDPOINT}/simpleTransfers with transferId: ${transferId}`);
+      const params = {
+        tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'FSPIOP-Source': sourceFsp.id,
+          'FSPIOP-Destination': destFsp.id,
+          'Date': new Date().toUTCString(),
+          'traceparent': traceparent,
+          'tracestate': `tx_end2end_start_ts=${transferStartTime}`
+        },
+      };
 
-      transferWs = new WebSocket(transferWsUrl, null, { tags: { name: 'transfer_callback_ws' } });
+      const quoteResponseBody = quoteResponse.json();
 
-      transferWs.onopen = () => {
-        const params = {
-          tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
-          headers: {
-            'Accept': 'application/vnd.interoperability.transfers+json;version=1.1',
-            'Content-Type': 'application/vnd.interoperability.transfers+json;version=1.1',
-            'FSPIOP-Source': sourceFsp.id,
-            'FSPIOP-Destination': destFsp.id,
-            'Date': new Date().toUTCString(),
-            'traceparent': traceparent,
-            'tracestate': `tx_end2end_start_ts=${transferStartTime}`
-          },
-        };
-
-        const body = {
+      const body = {
+        fspId: destFsp.id,
+        transfersPostRequest: {
           transferId,
           payerFsp: sourceFsp.id,
           payeeFsp: destFsp.id,
           amount: { amount: ENV.TRANSFER_AMOUNT, currency: ENV.CURRENCY },
-          ilpPacket: 'DIICtgAAAAAAD0JAMjAyNDEyMDUxNjA4MDM5MDcYjF3nFyiGSaedeiWlO_87HCnJof_86Krj0lO8KjynIApnLm1vamFsb29wggJvZXlKeGRXOTBaVWxrSWpvaU1ERktSVUpUTmpsV1N6WkJSVUU0VkVkQlNrVXpXa0U1UlVnaUxDSjBjbUZ1YzJGamRHbHZia2xrSWpvaU1ERktSVUpUTmpsV1N6WkJSVUU0VkVkQlNrVXpXa0U1UlVvaUxDSjBjbUZ1YzJGamRHbHZibFI1Y0dVaU9uc2ljMk5sYm1GeWFXOGlPaUpVVWtGT1UwWkZVaUlzSW1sdWFYUnBZWFJ2Y2lJNklsQkJXVVZTSWl3aWFXNXBkR2xoZEc5eVZIbHdaU0k2SWtKVlUwbE9SVk5USW4wc0luQmhlV1ZsSWpwN0luQmhjblI1U1dSSmJtWnZJanA3SW5CaGNuUjVTV1JVZVhCbElqb2lUVk5KVTBST0lpd2ljR0Z5ZEhsSlpHVnVkR2xtYVdWeUlqb2lNamMzTVRNNE1ETTVNVElpTENKbWMzQkpaQ0k2SW5CaGVXVmxabk53SW4xOUxDSndZWGxsY2lJNmV5SndZWEowZVVsa1NXNW1ieUk2ZXlKd1lYSjBlVWxrVkhsd1pTSTZJazFUU1ZORVRpSXNJbkJoY25SNVNXUmxiblJwWm1sbGNpSTZJalEwTVRJek5EVTJOemc1SWl3aVpuTndTV1FpT2lKMFpYTjBhVzVuZEc9dmJHdHBkR1JtYzNBaWZYMHNJbVY0Y0dseVlYUnBiMjRpT2lJeU1ESTBMVEV5TFRBMVZERTJPakE0T2pBekxqa3dOMW9pTENKaGJXOTFiblFpT25zaVlXMXZkVzUwSWpvaU1UQXdJaXdpWTNWeWNtVnVZM2tpT2lKWVdGZ2lmWDA',
-          condition: 'GIxd5xcohkmnnXolpTv_OxwpyaH__Oiq49JTvCo8pyA',
+          ilpPacket: quoteResponseBody.quotes.body.ilpPacket,
+          condition: quoteResponseBody.quotes.body.condition,
           expiration: new Date(Date.now() + 60000).toISOString()
-        };
-
-        const res = http.post(`${ENV.TRANSFERS_ENDPOINT}/transfers`, JSON.stringify(body), params);
-        const transferCheck = check(res, { 'TRANSFERS_FSPIOP_POST_TRANSFERS_RESPONSE_IS_202': (r) => r.status === 202 });
-
-        if (!transferCheck) {
-          console.error(traceId, `Transfer request failed with status: ${res.status}`);
-          failures.add(1);
-          successRate.add(0);
-          transferWs.close();
-          if (abortOnError) {
-            exec.test.abort();
-          }
-          return;
         }
-
-        const transferTimeoutId = setTimeout(() => {
-          console.error(traceId, `WebSocket timed out on URL: ${transferWsUrl}`);
-          check(null, { 'TRANSFERS_E2E_FSPIOP_POST_TRANSFERS_SUCCESS': () => false });
-          failures.add(1);
-          successRate.add(0);
-          transferWs.close();
-          if (abortOnError) {
-            exec.test.abort();
-          }
-        }, ENV.CALLBACK_TIMEOUT_MS);
-
-        transferWs.onmessage = (event) => {
-          const transferSuccess = check(event.data, { 'TRANSFERS_E2E_FSPIOP_POST_TRANSFERS_SUCCESS': (cbMessage) => cbMessage === 'SUCCESS_CALLBACK_RECEIVED' });
-          clearTimeout(transferTimeoutId);
-          if (transferSuccess) {
-            transferTime.add(Date.now() - transferStartTime);
-            callbackTime.add(Date.now() - startTime);
-            e2eTime.add(Date.now() - startTime);
-            successRate.add(1);
-            completedTxns.add(1);
-            transferWs.close();
-          } else {
-            failures.add(1);
-            successRate.add(0);
-            transferWs.close();
-          }
-        };
-
-        transferWs.onclose = () => {
-          clearTimeout(transferTimeoutId);
-        };
-
-        transferWs.onerror = (err) => {
-          console.error(traceId, `Transfer WebSocket error: ${err}`);
-          check(null, { 'TRANSFERS_E2E_FSPIOP_POST_TRANSFERS_SUCCESS': () => false });
-          clearTimeout(transferTimeoutId);
-          failures.add(1);
-          successRate.add(0);
-          transferWs.close();
-        };
       };
+
+      console.log(`Transfer Request Body: ${JSON.stringify(body)}`);
+      const transferResponse = http.post(`${ENV.TRANSFERS_ENDPOINT}/simpleTransfers`, JSON.stringify(body), params);
+      const transferCheck = check(transferResponse, { 'TRANSFERS_FSPIOP_POST_TRANSFERS_RESPONSE_IS_200': (r) => r.status === 200 });
+      console.log(`Transfer Response: ${JSON.stringify(transferResponse.json())}`);
+
+      if (!transferCheck) {
+        console.error(traceId, `Transfer request ${transferId} failed with response: ${JSON.stringify(transferResponse)}`);
+        failures.add(1);
+        successRate.add(0);
+        if (abortOnError) {
+          exec.test.abort();
+        }
+        return;
+      } else {
+
+        transferTime.add(Date.now() - transferStartTime);
+        callbackTime.add(Date.now() - startTime);
+        e2eTime.add(Date.now() - startTime);
+        successRate.add(1);
+        completedTxns.add(1);
+      }
+
     } catch (err) {
-      console.error(traceId, `Transfer WebSocket initialization failed: ${err}`);
+      console.error(traceId, `Transfer Phase failed: ${err}`);
       failures.add(1);
       successRate.add(0);
-      if (transferWs) transferWs.close();
       if (abortOnError) {
         exec.test.abort();
       }
@@ -596,10 +493,10 @@ export function handleSummary(data) {
   };
 
   const k6Summary = textSummary(data, { indent: ' ', enableColors: false });
-  console.log('\n=== WS-PERF CALLBACK SUMMARY ===');
+  console.log('\n=== K6 TEST SUMMARY ===');
   console.log(JSON.stringify(customSummary, null, 2));
 
   return {
-    'stdout': k6Summary + '\n\n=== WS-PERF CALLBACK SUMMARY ===\n' + JSON.stringify(customSummary, null, 2) + '\n',
+    'stdout': k6Summary + '\n\n=== K6 TEST SUMMARY ===\n' + JSON.stringify(customSummary, null, 2) + '\n',
   };
 }
