@@ -61,11 +61,11 @@ function validateEnv() {
   }
 
 
-  const callbackTimeout = parseInt(__ENV.CALLBACK_TIMEOUT_MS || '10000');
-  if (isNaN(callbackTimeout) || callbackTimeout <= 0) {
-    errors.push(`Invalid CALLBACK_TIMEOUT_MS: ${__ENV.CALLBACK_TIMEOUT_MS} (must be a positive integer)`);
-    isValid = false;
-  }
+  // const callbackTimeout = parseInt(__ENV.CALLBACK_TIMEOUT_MS || '10000');
+  // if (isNaN(callbackTimeout) || callbackTimeout <= 0) {
+  //   errors.push(`Invalid CALLBACK_TIMEOUT_MS: ${__ENV.CALLBACK_TIMEOUT_MS} (must be a positive integer)`);
+  //   isValid = false;
+  // }
 
   const transferAmount = __ENV.TRANSFER_AMOUNT || '100';
   if (isNaN(parseFloat(transferAmount)) || parseFloat(transferAmount) <= 0) {
@@ -112,7 +112,7 @@ function validateEnv() {
       exec.test.abort();
     }
   } else {
-    console.log('Environment variables validated successfully.');
+    // console.log('Environment variables validated successfully.');
   }
 }
 
@@ -131,11 +131,11 @@ const e2eTime = new Trend('e2e_time', true);
 const discoveryTime = new Trend('discovery_time', true);
 const quoteTime = new Trend('quote_time', true);
 const transferTime = new Trend('transfer_time', true);
-const callbackTime = new Trend('callback_time', true);
+// const callbackTime = new Trend('callback_time', true);
 const failures = new Counter('failed_transactions');
 
 // Simple duration calculation
-const testDuration = Math.ceil(TARGET_TXN_COUNT / TARGET_TPS) + 1; // Add 10 seconds buffer for any delays
+const testDuration = Math.ceil(TARGET_TXN_COUNT / TARGET_TPS);
 
 export const options = {
   scenarios: {
@@ -145,9 +145,9 @@ export const options = {
       timeUnit: '1s',
       duration: testDuration + 's',
       // preAllocatedVUs: Math.max(Math.ceil(TARGET_TPS * 2), 100),
-      preAllocatedVUs: 10,
+      preAllocatedVUs: 1000,
       // maxVUs: Math.max(Math.ceil(TARGET_TPS * 4), 200),
-      maxVUs: 40,
+      maxVUs: 2000,
     },
   },
   thresholds: {
@@ -158,7 +158,7 @@ export const options = {
     'discovery_time': ['p(95)<3000'],
     'quote_time': ['p(95)<3000'],
     'transfer_time': ['p(95)<3000'],
-    'callback_time': ['p(95)<10000'],
+    // 'callback_time': ['p(95)<10000'],
     'checks': ['rate>0.95'],
   },
   noConnectionReuse: true
@@ -170,15 +170,15 @@ const ENV = {
   QUOTES_ENDPOINT: __ENV.QUOTES_ENDPOINT || 'http://moja-quoting-service',
   TRANSFERS_ENDPOINT: __ENV.TRANSFERS_ENDPOINT || 'http://moja-ml-api-adapter-service',
   USE_PERF_FSP: __ENV.USE_PERF_FSP === 'true' || FSP_MODE === 'PERF-FSP',
-  CALLBACK_TIMEOUT_MS: parseInt(__ENV.CALLBACK_TIMEOUT_MS || '10000'),
+  // CALLBACK_TIMEOUT_MS: parseInt(__ENV.CALLBACK_TIMEOUT_MS || '10000'),
   TRANSFER_AMOUNT: __ENV.TRANSFER_AMOUNT || '100',
   CURRENCY: __ENV.CURRENCY || 'USD',
 };
 
 // FSP configurations with WebSocket URLs for the FSP backends
 const FSPS = {
-  'pm012-dfsp-100': { id: 'pm012-dfsp-100', msisdn: '16665551001' },
-  'pm012-dfsp-200': { id: 'pm012-dfsp-200', msisdn: '19012345002' },
+  'dfsp-101': { id: 'dfsp-101', msisdn: '123456789' },
+  'dfsp-102': { id: 'dfsp-102', msisdn: '987654321' },
   'pm012-dfsp-300': { id: 'pm012-dfsp-300', msisdn: '22676858576' },
   'pm012-dfsp-400': { id: 'pm012-dfsp-400', msisdn: '22672351010' },
   'pm012-dfsp-500': { id: 'pm012-dfsp-500', msisdn: '19012345005' },
@@ -195,6 +195,13 @@ function getUUIDS() {
   // return { uuid, ulid };
   return ulid;
 }
+
+function requestId() {
+  const random = len => randomString(len, '0123456789abcdef');
+  const t = Date.now().toString(16).padStart(12, '0');
+  return `${t.substring(0,8)}-${t.substring(8,12)}-4${random(3)}-9${random(3)}-${random(12)}`;
+}
+
 
 function generateTraceparent() {
   const byteToHex = [];
@@ -259,7 +266,7 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
   try {
     // Phase 1: Party Lookup with Callback
     const discoveryStartTime = Date.now();
-    console.log(`Getting Party: ${ENV.ALS_ENDPOINT}/parties/MSISDN/${destFsp.msisdn}`);
+    // console.log(`Getting Party: ${ENV.ALS_ENDPOINT}/parties/MSISDN/${destFsp.msisdn}`);
     const params = {
       tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
       headers: {
@@ -268,13 +275,14 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
         'FSPIOP-Source': sourceFsp.id,
         'Date': new Date().toUTCString(),
         'traceparent': traceparent,
-        'tracestate': `tx_end2end_start_ts=${discoveryStartTime}`
+        'tracestate': `tx_end2end_start_ts=${discoveryStartTime}`,
+        'x-request-id': requestId()
       },
     };
 
     const partyResponse = http.get(`${ENV.ALS_ENDPOINT}/parties/MSISDN/${destFsp.msisdn}`, params);
     const partyCheck = check(partyResponse, { 'ALS_FSPIOP_GET_PARTIES_RESPONSE_IS_200': (r) => r.status === 200 });
-    console.log(`Party Lookup Response: ${JSON.stringify(partyResponse.json())}`);
+    // console.log(`Party Lookup Response: ${JSON.stringify(partyResponse.json())}`);
     if (!partyCheck) {
       console.error(traceId, `Party lookup failed with response: ${JSON.stringify(partyResponse)}`);
       failures.add(1);
@@ -296,6 +304,7 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
     }
     return;
   }
+  // executeQuotePhase();
 
 
   function executeQuotePhase() {
@@ -329,14 +338,19 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
           transactionType: { scenario: 'TRANSFER', initiator: 'PAYER', initiatorType: 'CONSUMER' }
         }
       };
-      console.log(`Initiating Quote: ${ENV.QUOTES_ENDPOINT}/quotes`);
-      console.log(`Quote Request Body: ${JSON.stringify(body)}`);
+      // console.log(`Initiating Quote: ${ENV.QUOTES_ENDPOINT}/quotes`);
+      // console.log(`Quote Request Body: ${JSON.stringify(body)}`);
+      // console.log(`[${new Date().toISOString()}] QuoteId : ${body.quotesPostRequest.quoteId}`);
       quoteResponse = http.post(`${ENV.QUOTES_ENDPOINT}/quotes`, JSON.stringify(body), params);
       const quoteCheck = check(quoteResponse, { 'QUOTES_FSPIOP_POST_QUOTES_RESPONSE_IS_200': (r) => r.status === 200 });
-      console.log(`Quote Response: ${JSON.stringify(quoteResponse.json())}`);
+      // console.log(`Quote Response: ${JSON.stringify(quoteResponse.json())}`);
+      // console.log(`[${new Date().toISOString()}] QuoteId : ${body.quotesPostRequest.quoteId} time: ${Date.now() - quoteStartTime}`);
 
+      
       if (!quoteCheck) {
         console.error(traceId, `Quote request failed with response: ${JSON.stringify(quoteResponse)}`);
+        console.log(`[${new Date().toISOString()}] QuoteId : ${body.quotesPostRequest.quoteId} time: ${Date.now() - quoteStartTime}, status: fail`);
+
         failures.add(1);
         successRate.add(0);
         if (abortOnError) {
@@ -344,6 +358,7 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
         }
         return;
       } else {
+        // console.log(`[${new Date().toISOString()}] QuoteId : ${body.quotesPostRequest.quoteId} time: ${Date.now() - quoteStartTime}, status: success`);
         quoteTime.add(Date.now() - quoteStartTime);
         executeTransferPhase();
 
@@ -362,7 +377,7 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
     try {
       const transferStartTime = Date.now();
       const transferId = transactionId;
-      console.log(`Initiating Transfer: ${ENV.TRANSFERS_ENDPOINT}/simpleTransfers with transferId: ${transferId}`);
+      // console.log(`Initiating Transfer: ${ENV.TRANSFERS_ENDPOINT}/simpleTransfers with transferId: ${transferId}`);
       const params = {
         tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
         headers: {
@@ -391,13 +406,18 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
         }
       };
 
-      console.log(`Transfer Request Body: ${JSON.stringify(body)}`);
+      // console.log(`Transfer Request Body: ${JSON.stringify(body)}`);
+      // console.log(`[${new Date().toISOString()}] TransferId : ${transferId}`);
+
       const transferResponse = http.post(`${ENV.TRANSFERS_ENDPOINT}/simpleTransfers`, JSON.stringify(body), params);
       const transferCheck = check(transferResponse, { 'TRANSFERS_FSPIOP_POST_TRANSFERS_RESPONSE_IS_200': (r) => r.status === 200 });
-      console.log(`Transfer Response: ${JSON.stringify(transferResponse.json())}`);
+
+      // console.log(`Transfer Response: ${JSON.stringify(transferResponse.json())}`);
 
       if (!transferCheck) {
         console.error(traceId, `Transfer request ${transferId} failed with response: ${JSON.stringify(transferResponse)}`);
+        console.log(`[${new Date().toISOString()}] TransferId : ${transferId} time: ${Date.now() - transferStartTime} status: fail`);
+
         failures.add(1);
         successRate.add(0);
         if (abortOnError) {
@@ -405,9 +425,10 @@ function executeFspiopTransactionWithCallbacks(sourceFsp, destFsp) {
         }
         return;
       } else {
+        // console.log(`[${new Date().toISOString()}] TransferId : ${transferId} time: ${Date.now() - transferStartTime} status: sucess`);
 
         transferTime.add(Date.now() - transferStartTime);
-        callbackTime.add(Date.now() - startTime);
+        // callbackTime.add(Date.now() - startTime);
         e2eTime.add(Date.now() - startTime);
         successRate.add(1);
         completedTxns.add(1);
@@ -476,12 +497,12 @@ export function handleSummary(data) {
         data.metrics.e2e_time.values &&
         data.metrics.e2e_time.values['p(95)']
       ) || 0,
-      callback_time_p95: (
-        data.metrics &&
-        data.metrics.callback_time &&
-        data.metrics.callback_time.values &&
-        data.metrics.callback_time.values['p(95)']
-      ) || 0,
+      // callback_time_p95: (
+      //   data.metrics &&
+      //   data.metrics.callback_time &&
+      //   data.metrics.callback_time.values &&
+      //   data.metrics.callback_time.values['p(95)']
+      // ) || 0,
       http_req_duration_p95: (
         data.metrics &&
         data.metrics.http_req_duration &&
