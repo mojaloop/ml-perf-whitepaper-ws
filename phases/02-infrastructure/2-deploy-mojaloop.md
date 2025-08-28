@@ -18,4 +18,23 @@ helm repo update
 helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --create-namespace
 helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.0.0
 helm -n mojaloop test moja --logs
+
+
+helm -n monitoring upgrade --install promfana mojaloop/promfana --create-namespace
+cat <<EOF | kubectl create -f -
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+    name: hn-nodes-custom
+    namespace: mojaloop # mojaloop namespace
+spec:
+    ingress:
+    - from:
+    - ipBlock:
+        cidr: 10.1.26.0/24 # pods CIDR
+    podSelector: {}
+    policyTypes:
+    - Ingress
+    EOF
+
 ```
