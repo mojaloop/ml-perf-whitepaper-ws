@@ -192,7 +192,7 @@ SSH_KEY_NAME=ndelma-gtm-202504091000
 export AMI_ID=ami-044415bb13eee2391
 
 # Launch node sw-001
-INSTANCE_1=$(aws ec2 run-instances \
+INSTANCE_0=$(aws ec2 run-instances \
   --region $AWS_REGION \
   --image-id $AMI_ID \
   --instance-type m4.2xlarge \
@@ -211,7 +211,7 @@ INSTANCE_1=$(aws ec2 run-instances \
 INSTANCE_1=$(aws ec2 run-instances \
   --region $AWS_REGION \
   --image-id $AMI_ID \
-  --instance-type m4.2xlarge \
+  --instance-type m4.xlarge \
   --key-name ${SSH_KEY_NAME} \
   --security-group-ids $SG_ID \
   --subnet-id $SUBNET_ID \
@@ -222,6 +222,43 @@ INSTANCE_1=$(aws ec2 run-instances \
   --query 'Instances[0].InstanceId' \
   --output text \
   --profile gtmlab)
+
+# Launch node dfsp-102
+INSTANCE_2=$(aws ec2 run-instances \
+  --region $AWS_REGION \
+  --image-id $AMI_ID \
+  --instance-type m4.xlarge \
+  --key-name ${SSH_KEY_NAME} \
+  --security-group-ids $SG_ID \
+  --subnet-id $SUBNET_ID \
+  --associate-public-ip-address \
+  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${PROJECT_NAME}-dfsp-102},{Key=Project,Value=${PROJECT_NAME}},{Key=Role,Value=ml-dfsp},{Key=NodeNumber,Value=101}]" \
+                      "ResourceType=volume,Tags=[{Key=Name,Value=${PROJECT_NAME}-dfsp-101},{Key=Project,Value=${PROJECT_NAME}}]" \
+  --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=64,VolumeType=gp3,DeleteOnTermination=true}' \
+  --query 'Instances[0].InstanceId' \
+  --output text \
+  --profile gtmlab)
+
+
+
+
+### test only
+# Launch node dfsp-202
+INSTANCE_2=$(aws ec2 run-instances \
+  --region $AWS_REGION \
+  --image-id $AMI_ID \
+  --instance-type m4.xlarge \
+  --key-name ${SSH_KEY_NAME} \
+  --security-group-ids $SG_ID \
+  --subnet-id $SUBNET_ID \
+  --associate-public-ip-address \
+  --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${PROJECT_NAME}-dfsp-202},{Key=Project,Value=${PROJECT_NAME}},{Key=Role,Value=ml-dfsp},{Key=NodeNumber,Value=202}]" \
+                      "ResourceType=volume,Tags=[{Key=Name,Value=${PROJECT_NAME}-dfsp-202},{Key=Project,Value=${PROJECT_NAME}}]" \
+  --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=64,VolumeType=gp3,DeleteOnTermination=true}' \
+  --query 'Instances[0].InstanceId' \
+  --output text \
+  --profile gtmlab)
+
 ```
 
 
@@ -258,6 +295,8 @@ sudo microk8s enable metrics-server
 echo "alias kubectl='microk8s kubectl'" >> ~/.bashrc
 echo "alias helm='microk8s helm3'" >> ~/.bashrc
 
+source ~/.bashrc
+newgrp microk8s
 
 mkdir -p ~/.kube
 sudo microk8s config > ~/.kube/config
@@ -269,6 +308,7 @@ chmod 600 ~/.kube/config
 
 ## (Optional) 
 
+### Allow kubeapi on public IP
 ```bash
 echo "--bind-address=0.0.0.0" >> /var/snap/microk8s/current/args/kube-apiserver
 
@@ -279,4 +319,45 @@ sudo microk8s stop
 sudo microk8s start
 
 microk8s config > ~/.kube/microk8s.config
+```
+
+## retreive some parameters
+```bash
+  export AWS_REGION=eu-west-2
+
+  # Set project name (from your infrastructure)
+  export PROJECT_NAME=perf-test-202507311044
+
+  # Set SSH key name and AMI ID (from the infrastructure file)
+  export SSH_KEY_NAME=ndelma-gtm-202504091000
+  export AMI_ID=ami-044415bb13eee2391
+
+  # Retrieve VPC ID by querying the existing VPC
+  export VPC_ID=$(aws ec2 describe-vpcs \
+    --region $AWS_REGION \
+    --filters "Name=tag:Name,Values=${PROJECT_NAME}-vpc" \
+    --query 'Vpcs[0].VpcId' \
+    --output text \
+    --profile gtmlab)
+
+  # Retrieve Subnet ID
+  export SUBNET_ID=$(aws ec2 describe-subnets \
+    --region $AWS_REGION \
+    --filters "Name=tag:Name,Values=${PROJECT_NAME}-public-subnet" \
+    --query 'Subnets[0].SubnetId' \
+    --output text \
+    --profile gtmlab)
+
+  # Retrieve Security Group ID
+  export SG_ID=$(aws ec2 describe-security-groups \
+    --region $AWS_REGION \
+    --filters "Name=group-name,Values=${PROJECT_NAME}-sg" \
+    --query 'SecurityGroups[0].GroupId' \
+    --output text \
+    --profile gtmlab)
+
+  # Verify the variables are set correctly
+  echo "VPC_ID: $VPC_ID"
+  echo "SUBNET_ID: $SUBNET_ID"
+  echo "SG_ID: $SG_ID"
 ```
