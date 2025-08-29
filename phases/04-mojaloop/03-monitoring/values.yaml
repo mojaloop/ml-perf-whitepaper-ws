@@ -1,0 +1,52 @@
+grafana:
+  enabled: true
+  adminPassword: "admin" 
+  ingress:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+    hosts:
+      - grafana.local
+    path: /
+    pathType: Prefix
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      folder: /tmp/dashboards
+    datasources:
+      enabled: true
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+  ingress:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+    hosts:
+      - prometheus.local
+    path: /
+    pathType: Prefix
+
+alertmanager:
+  ingress:
+    enabled: true
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+    hosts:
+      - alertmanager.local
+    path: /
+    pathType: Prefix
+
+dashboards:
+  default:
+    node-exporter-full:
+      gnetId: 1860
+      revision: 24
+      datasource: Prometheus
+    custom-dashboard:
+      file: /var/lib/grafana/dashboards/my-dashboard.json
