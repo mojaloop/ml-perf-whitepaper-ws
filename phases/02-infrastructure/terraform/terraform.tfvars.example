@@ -1,0 +1,20 @@
+# Example Terraform Variables File
+# Copy this file to terraform.tfvars and customize as needed
+
+# Path to configuration file (relative to terraform directory)
+# config_file_path = "../config.yaml"
+
+# Override project name from config.yaml
+# override_project_name = "my-custom-project"
+
+# Override AWS region from config.yaml
+# override_region = "us-east-1"
+
+# Override AMI ID from config.yaml
+# override_ami_id = "ami-12345678"
+
+# Whether to create bastion host
+# create_bastion = true
+
+# Override allowed SSH CIDR blocks for bastion
+# allowed_ssh_cidr_blocks = ["203.0.113.0/24", "198.51.100.0/24"]

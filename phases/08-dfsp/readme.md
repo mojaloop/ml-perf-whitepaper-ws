@@ -25,3 +25,7 @@ No public domain name is used. So CoreDNS must be set resolve the local domain n
 sudo systemctl restart systemd-resolved
 getent hosts account-lookup-service.local
 ```
+
+## Provisioning
+
+*provide the ttk collection to provision the simulators and mojaloop*
