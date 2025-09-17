@@ -1,3 +1,0 @@
-- job_name: 'custom-app'
-  static_configs:
-    - targets: ['my-app.namespace.svc.cluster.local:8080']
