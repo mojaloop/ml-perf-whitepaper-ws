@@ -1,0 +1,15 @@
+# Terraform generated artifacts
+artifacts/*.yaml
+artifacts/*.txt
+artifacts/ssh-config
+artifacts/hosts
+
+# Terraform state files (sensitive - do not commit!)
+artifacts/*.tfstate
+artifacts/*.tfstate.*
+artifacts/*.plan
+artifacts/.terraform.lock.hcl
+
+# Old generated files (if any)
+inventory-generated.yaml
+ssh-config.generated

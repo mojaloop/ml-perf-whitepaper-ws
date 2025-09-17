@@ -5,6 +5,7 @@
 ```bash
 sudo apt update
 sudo apt upgrade -y
+sudo reboot
 
 sudo snap install microk8s --classic --channel=1.30/stable
 
@@ -41,7 +42,7 @@ chmod 600 ~/.kube/config
 
 
 
-## (Optional) 
+## () 
 
 ### Allow kubeapi on public IP
 ```bash

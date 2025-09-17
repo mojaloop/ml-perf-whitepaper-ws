@@ -1,5 +1,7 @@
 
 
+## Deploy
+
 ```bash
 kubectl create ns mojaloop
 # deploy backend
@@ -9,7 +11,7 @@ helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 --val
 kubectl install -f network-policy.yaml # allow monitoring to scrap in ml ns
 ```
 
-### Set DNS
+## Set DNS
 
 No public domain name is used. So CoreDNS must be set resolve the local domain names of each FSP
 
@@ -26,3 +28,6 @@ sudo systemctl restart systemd-resolved
 getent hosts account-lookup-service.local
 ```
 
+## Provision
+
+*provision mojaloop*
