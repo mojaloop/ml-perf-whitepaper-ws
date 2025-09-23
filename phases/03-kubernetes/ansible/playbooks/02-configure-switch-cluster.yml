@@ -96,6 +96,21 @@
           delay: 15
           changed_when: false
 
+    - name: Load node configuration from config.yaml
+      set_fact:
+        node_config: "{{ config.vms.switch.instances | selectattr('name', 'equalto', inventory_hostname) | first }}"
+
+    - name: Apply node labels using kubectl
+      shell: |
+        microk8s kubectl label node {{ inventory_hostname }} \
+          {% for label, value in node_config.k8s.node_labels.items() %}{{ label }}={{ value }} {% endfor %} \
+          --overwrite
+      delegate_to: "{{ primary_node }}"
+      register: label_result
+      changed_when: "'labeled' in label_result.stdout"
+      retries: 5
+      delay: 10
+
     - name: Verify cluster formation
       shell: microk8s kubectl get nodes
       register: cluster_nodes
@@ -103,15 +118,14 @@
       run_once: true
       delegate_to: "{{ primary_node }}"
 
+    - name: Display cluster status with labels
+      shell: microk8s kubectl get nodes --show-labels
+      register: cluster_nodes_labels
+      changed_when: false
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
     - name: Display cluster status
       debug:
-        msg: "Cluster nodes:\n{{ cluster_nodes.stdout }}"
+        msg: "Cluster nodes:\n{{ cluster_nodes_labels.stdout }}"
       run_once: true
-
-    - name: Label nodes with their roles
-      shell: |
-        microk8s kubectl label node {{ item }} node-role.kubernetes.io/control-plane=true --overwrite
-        microk8s kubectl label node {{ item }} node-role.kubernetes.io/worker=true --overwrite
-      loop: "{{ groups['switch'] }}"
-      when: inventory_hostname == primary_node
-      changed_when: false
