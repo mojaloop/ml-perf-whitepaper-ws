@@ -65,6 +65,33 @@ output "internal_security_group_id" {
   value       = aws_security_group.internal.id
 }
 
+# Performance Optimization Outputs
+output "placement_group_id" {
+  description = "ID of the cluster placement group"
+  value       = local.placement_group_enabled ? aws_placement_group.cluster[0].id : null
+}
+
+output "placement_group_name" {
+  description = "Name of the cluster placement group"
+  value       = local.placement_group_enabled ? aws_placement_group.cluster[0].name : null
+}
+
+# Load Balancer Outputs
+output "nlb_dns_name" {
+  description = "DNS name of the Network Load Balancer"
+  value       = local.nlb_config != null && local.nlb_config.enabled ? aws_lb.switch_nlb[0].dns_name : null
+}
+
+output "nlb_zone_id" {
+  description = "Zone ID of the Network Load Balancer"
+  value       = local.nlb_config != null && local.nlb_config.enabled ? aws_lb.switch_nlb[0].zone_id : null
+}
+
+output "nlb_arn" {
+  description = "ARN of the Network Load Balancer"
+  value       = local.nlb_config != null && local.nlb_config.enabled ? aws_lb.switch_nlb[0].arn : null
+}
+
 # SSH Connection Commands
 output "ssh_bastion_command" {
   description = "SSH command to connect to bastion"
@@ -201,7 +228,15 @@ QUICK SETUP:
 
   3. Connect to any node:
      ssh sw1-n1
+     ssh sw1-kafka
+     ssh sw1-mysql
      ssh fsp101
+
+LOAD BALANCER (NLB):
+  DNS: ${local.nlb_config != null && local.nlb_config.enabled ? aws_lb.switch_nlb[0].dns_name : "N/A"}
+  URL: http://${local.nlb_config != null && local.nlb_config.enabled ? aws_lb.switch_nlb[0].dns_name : "N/A"}
+
+PLACEMENT GROUP: ${local.placement_group_enabled ? aws_placement_group.cluster[0].name : "N/A"}
 
 FILES GENERATED:
   - artifacts/inventory.yaml     : Ansible inventory

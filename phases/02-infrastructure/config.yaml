@@ -7,9 +7,18 @@ aws:
   region: eu-west-2
   availability_zone: eu-west-2a
 
+  # Performance optimizations
+  placement_group:
+    enabled: true
+    name: "${project.name}-cluster-pg"
+    strategy: cluster  # All instances in same rack for lowest latency
+
+  cloudwatch:
+    detailed_monitoring: true  # 1-minute metrics instead of 5-minute
+
 # Project Configuration
 project:
-  name: perf-test-202509190122
+  name: p-202509230414
   environment: perf-test
 
 # SSH Configuration
@@ -135,14 +144,16 @@ vms:
       create_before_destroy: false
       ignore_changes: []
 
-  # Switch Nodes (Mojaloop Core) - HA cluster with 3 nodes
+  # Switch Nodes (Mojaloop Core) - 5-node cluster (3 generic + Kafka + MySQL)
   switch:
     # Default configuration for all switch nodes
     defaults:
-      instance_type: m4.2xlarge
+      instance_type: c5n.2xlarge  # Network optimized: 25 Gbps, ENA, EBS optimized
       root_volume:
         size: 128
         type: gp3
+        iops: 16000      # Maximum IOPS for gp3
+        throughput: 1000  # Maximum throughput for gp3 (MiB/s)
         delete_on_termination: true
       lifecycle:
         prevent_destroy: false
@@ -150,42 +161,92 @@ vms:
         ignore_changes: []
       k8s:
         role: mixed  # Options: control, worker, mixed (both control and worker)
+      performance:
+        ena_support: true          # Enhanced Networking Adapter
+        ebs_optimized: true        # Dedicated EBS bandwidth
+        placement_group: true      # Use cluster placement group
 
-    # Individual switch node configurations for 3-node HA cluster
+    # Individual switch node configurations
     instances:
+      # Generic nodes for Mojaloop services, MongoDB, Redis
       - name: sw1-n1
-        instance_type: m4.2xlarge  # Can override default
+        instance_type: c5n.2xlarge
         k8s:
-          role: mixed  # Can override to 'control' or 'worker' if needed
+          role: mixed
           is_primary: true  # First node to initialize the cluster
+          node_labels:
+            node-role: generic
+            services: "mojaloop,mongodb,redis"
         tags:
-          Role: ml-sw
+          Role: ml-sw-generic
           NodeNumber: "1"
 
       - name: sw1-n2
-        instance_type: m4.2xlarge
+        instance_type: c5n.2xlarge
         k8s:
           role: mixed
+          node_labels:
+            node-role: generic
+            services: "mojaloop,mongodb,redis"
         tags:
-          Role: ml-sw
+          Role: ml-sw-generic
           NodeNumber: "2"
 
       - name: sw1-n3
-        instance_type: m4.2xlarge
+        instance_type: c5n.2xlarge
         k8s:
           role: mixed
+          node_labels:
+            node-role: generic
+            services: "mojaloop,mongodb,redis"
         tags:
-          Role: ml-sw
+          Role: ml-sw-generic
           NodeNumber: "3"
+
+      # Dedicated Kafka node
+      - name: sw1-kafka
+        instance_type: c5n.2xlarge
+        root_volume:
+          size: 500
+          type: io2
+          iops: 20000     # High IOPS for Kafka message throughput
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: kafka
+            dedicated: "kafka"
+        tags:
+          Role: ml-sw-kafka
+          Service: kafka
+
+      # Dedicated MySQL node
+      - name: sw1-mysql
+        instance_type: r5.2xlarge  # Memory optimized for database: 64GB RAM
+        root_volume:
+          size: 200
+          type: io2
+          iops: 20000     # High IOPS for database operations
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: mysql
+            dedicated: "mysql"
+        tags:
+          Role: ml-sw-mysql
+          Service: mysql
 
   # DFSP Nodes (Digital Financial Service Providers)
   dfsps:
     # Default configuration for all DFSPs (can be overridden per DFSP)
     defaults:
-      instance_type: m4.xlarge
+      instance_type: m4.xlarge  # Keep existing for DFSPs
       root_volume:
         size: 128
         type: gp3
+        iops: 10000      # High IOPS for DFSP operations
+        throughput: 500   # Good throughput for gp3
         delete_on_termination: true
       lifecycle:
         prevent_destroy: false
@@ -193,6 +254,8 @@ vms:
         ignore_changes: []
       k8s:
         role: mixed  # Single node always runs both control and worker
+      performance:
+        placement_group: true  # Include DFSPs in placement group for low latency
 
     # Individual DFSP configurations
     instances:
@@ -292,6 +355,30 @@ terraform:
     prevent_destroy: false  # Set to true in production
     create_before_destroy: false
     ignore_changes: []  # Add attributes to ignore, e.g., ["ami", "user_data"]
+
+# Load Balancer Configuration
+load_balancers:
+  switch_nlb:
+    enabled: true
+    type: network  # NLB for TCP/UDP traffic (works with single AZ)
+    scheme: internal   # Internal-only, accessible via bastion
+    target_type: instance
+    health_check:
+      port: 30080
+      protocol: TCP
+      interval: 30
+      healthy_threshold: 2
+      unhealthy_threshold: 3
+    listeners:
+      - port: 80
+        protocol: TCP
+        target_port: 30080  # NodePort for ingress controller
+      - port: 443
+        protocol: TCP
+        target_port: 30443  # NodePort for ingress controller
+    target_nodes: switch_generic  # Only generic switch nodes (not Kafka/MySQL)
+    tags:
+      Purpose: "Mojaloop TCP load balancing"
 
 # Output Configuration
 outputs:

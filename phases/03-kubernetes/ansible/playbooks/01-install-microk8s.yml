@@ -25,12 +25,24 @@
           - net-tools
         state: present
 
-    - name: Install MicroK8s via snap
-      snap:
-        name: microk8s
-        classic: yes
-        channel: "{{ config.k8s.microk8s_version | default('1.30/stable') }}"
+    - name: Check if MicroK8s is already installed
+      shell: snap list microk8s 2>/dev/null | grep -q microk8s
+      register: microk8s_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install MicroK8s via snap command
+      shell: |
+        snap install microk8s --classic --channel={{ config.k8s.microk8s_version | default('1.30/stable') }}
+      when: microk8s_check.rc != 0
       register: microk8s_install
+
+    - name: Refresh MicroK8s if already installed
+      shell: |
+        snap refresh microk8s --channel={{ config.k8s.microk8s_version | default('1.30/stable') }}
+      when: microk8s_check.rc == 0
+      register: microk8s_refresh
+      changed_when: "'has no updates available' not in microk8s_refresh.stderr"
 
     - name: Add ubuntu user to microk8s group
       user:
