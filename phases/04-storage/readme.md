@@ -27,7 +27,7 @@ helm upgrade --install longhorn longhorn/longhorn \
 
 
 kubectl get storageclass
-kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+# kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
 
 ```

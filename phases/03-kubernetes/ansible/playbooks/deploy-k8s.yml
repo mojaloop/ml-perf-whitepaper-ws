@@ -1,0 +1,64 @@
+---
+# Main playbook to deploy K8s clusters
+# Run with: ansible-playbook deploy-k8s.yml
+
+- import_playbook: 01-install-microk8s.yml
+  tags:
+    - install
+    - microk8s
+
+- import_playbook: 02-configure-switch-cluster.yml
+  tags:
+    - configure
+    - switch
+    - cluster
+
+- import_playbook: 03-configure-fsp-clusters.yml
+  tags:
+    - configure
+    - fsp
+    - cluster
+
+- import_playbook: 05-enable-remote-access.yml
+  tags:
+    - remote-access
+    - configure
+
+- import_playbook: 04-generate-kubeconfigs.yml
+  tags:
+    - kubeconfig
+    - config
+
+- name: Display deployment summary
+  hosts: localhost
+  gather_facts: no
+  vars:
+    config: "{{ lookup('file', '../../../02-infrastructure/config.yaml') | from_yaml }}"
+    kubeconfig_dir: "{{ artifacts_dir }}/kubeconfigs"
+  tasks:
+    - name: Show deployment summary
+      debug:
+        msg: |
+          ========================================================================
+          Kubernetes Deployment Complete!
+          ========================================================================
+
+          Switch Cluster:
+          - Name: {{ config.k8s.switch_cluster_name }}
+          - Nodes: {{ groups['switch'] | length }}
+          - Kubeconfig: {{ kubeconfig_dir }}/kubeconfig-{{ config.k8s.switch_cluster_name }}.yaml
+
+          FSP Clusters:
+          {% for fsp in groups['dfsps'] %}
+          - {{ fsp }}: {{ kubeconfig_dir }}/kubeconfig-{{ fsp }}.yaml
+          {% endfor %}
+
+          Next Steps:
+          1. Export the kubeconfig for the cluster you want to access
+          2. Use kubectl to interact with the clusters
+
+          Example:
+          export KUBECONFIG={{ kubeconfig_dir }}/kubeconfig-{{ config.k8s.switch_cluster_name }}.yaml
+          kubectl get nodes
+
+          ========================================================================

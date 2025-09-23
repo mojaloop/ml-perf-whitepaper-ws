@@ -35,8 +35,8 @@ graph LR
     k6-208 --> sim-208 <--> sdk-208
   end
 
-  subgraph sw
-    mojaloop --- databases
+  subgraph sw1
+    lb-ml --- mojaloop --- databases
   end
 
   sdk-201 <--> perf-vpc
@@ -48,6 +48,10 @@ graph LR
   sdk-207 <--> perf-vpc
   sdk-208 <--> perf-vpc
 
-  perf-vpc <--> mojaloop
+  perf-vpc <--> lb-ml
+
+  perf-vpc --- monitoring
+
+  perf-vpc --- bastion --- internet((internet))
 
 ```
