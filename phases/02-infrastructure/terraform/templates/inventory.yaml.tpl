@@ -4,8 +4,8 @@
 all:
   vars:
     ansible_user: ubuntu
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o ProxyCommand="ssh -W %h:%p -q ubuntu@${bastion_public_ip}"'
     ansible_python_interpreter: /usr/bin/python3
+    # SSH config handles ProxyJump - no need for ProxyCommand here
 
     # Project variables
     project_name: ${project_name}
@@ -30,7 +30,7 @@ all:
       hosts:
 %{ for name, node in switch_nodes ~}
         ${name}:
-          ansible_host: ${node.private_ip}
+          ansible_host: ${name}  # Use hostname from SSH config
           private_ip: ${node.private_ip}
           instance_id: ${node.instance_id}
           instance_type: m4.2xlarge
@@ -42,7 +42,7 @@ all:
       hosts:
 %{ for name, node in dfsp_nodes ~}
         ${name}:
-          ansible_host: ${node.private_ip}
+          ansible_host: ${name}  # Use hostname from SSH config
           private_ip: ${node.private_ip}
           instance_id: ${node.instance_id}
           instance_type: m4.xlarge
@@ -68,6 +68,4 @@ all:
       children:
         k8s_control_plane:
         k8s_workers:
-      vars:
-        k8s_pod_network_cidr: "10.244.0.0/16"
-        k8s_service_cidr: "10.96.0.0/12"
+      # Note: k8s networking vars are now in config.yaml and read by Ansible
