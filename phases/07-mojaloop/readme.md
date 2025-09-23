@@ -8,7 +8,7 @@ kubectl create ns mojaloop
 #helm repo add mojaloop http://mojaloop.io/helm/repo/
 helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 --values=values.yaml
 
-kubectl install -f network-policy.yaml # allow monitoring to scrap in ml ns
+kubectl apply -f network-policy.yaml # allow monitoring to scrap in ml ns
 ```
 
 ## Set DNS
@@ -23,10 +23,10 @@ No public domain name is used. So CoreDNS must be set resolve the local domain n
     }
 ```
 
-```bash
+<!-- ```bash
 sudo systemctl restart systemd-resolved
 getent hosts account-lookup-service.local
-```
+``` -->
 
 ## Provision
 
