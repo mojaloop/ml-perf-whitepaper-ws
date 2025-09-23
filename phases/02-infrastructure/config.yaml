@@ -175,8 +175,13 @@ vms:
           role: mixed
           is_primary: true  # First node to initialize the cluster
           node_labels:
-            node-role: generic
-            services: "mojaloop,mongodb,redis"
+            workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+            workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+            workload-class.mojaloop.io/CORE-HANDLERS: "true"
+            workload-class.mojaloop.io/ALS-ORACLES: "true"
+            workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+            workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+            workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
         tags:
           Role: ml-sw-generic
           NodeNumber: "1"
@@ -186,8 +191,13 @@ vms:
         k8s:
           role: mixed
           node_labels:
-            node-role: generic
-            services: "mojaloop,mongodb,redis"
+            workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+            workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+            workload-class.mojaloop.io/CORE-HANDLERS: "true"
+            workload-class.mojaloop.io/ALS-ORACLES: "true"
+            workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+            workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+            workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
         tags:
           Role: ml-sw-generic
           NodeNumber: "2"
@@ -197,8 +207,13 @@ vms:
         k8s:
           role: mixed
           node_labels:
-            node-role: generic
-            services: "mojaloop,mongodb,redis"
+            workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+            workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+            workload-class.mojaloop.io/CORE-HANDLERS: "true"
+            workload-class.mojaloop.io/ALS-ORACLES: "true"
+            workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+            workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+            workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
         tags:
           Role: ml-sw-generic
           NodeNumber: "3"
@@ -214,8 +229,12 @@ vms:
         k8s:
           role: worker    # Worker only, not a control plane node
           node_labels:
-            node-role: kafka
-            dedicated: "kafka"
+            workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+            workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+          node_taints:
+            - key: dedicated
+              value: kafka
+              effect: NoSchedule
         tags:
           Role: ml-sw-kafka
           Service: kafka
@@ -231,11 +250,36 @@ vms:
         k8s:
           role: worker    # Worker only, not a control plane node
           node_labels:
-            node-role: mysql
-            dedicated: "mysql"
+            workload-class.mojaloop.io/RDBMS-ALS-LIVE: "true"
+            workload-class.mojaloop.io/RDBMS-CENTRAL-LEDGER-LIVE: "true"
+          node_taints:
+            - key: dedicated
+              value: mysql
+              effect: NoSchedule
         tags:
           Role: ml-sw-mysql
           Service: mysql
+
+      # Dedicated Monitoring node
+      - name: sw1-monitoring
+        instance_type: m5.2xlarge  # Balanced compute/memory for monitoring stack
+        root_volume:
+          size: 256
+          type: gp3
+          iops: 12000     # High IOPS for metrics/logs storage
+          throughput: 750  # Good throughput for time-series data
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            workload-class.mojaloop.io/MONITORING: "true"
+          node_taints:
+            - key: dedicated
+              value: monitoring
+              effect: NoSchedule
+        tags:
+          Role: ml-sw-monitoring
+          Service: monitoring
 
   # DFSP Nodes (Digital Financial Service Providers)
   dfsps:
