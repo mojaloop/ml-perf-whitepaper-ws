@@ -111,7 +111,7 @@ resource "aws_lb_listener" "switch_tcp_443" {
 resource "aws_lb_target_group_attachment" "switch_tcp_80" {
   for_each = {
     for instance in local.switch_instances : instance.name => instance
-    if can(instance.k8s.node_labels.node-role) && instance.k8s.node_labels.node-role == "generic"
+    if lookup(instance.k8s.node_labels, "node-role", "") == "generic"
   }
 
   target_group_arn = aws_lb_target_group.switch_tcp_80[0].arn
@@ -126,8 +126,7 @@ resource "aws_lb_target_group_attachment" "switch_tcp_443" {
     if (local.nlb_config != null &&
         local.nlb_config.enabled &&
         length(local.nlb_config.listeners) > 1 &&
-        can(instance.k8s.node_labels.node-role) &&
-        instance.k8s.node_labels.node-role == "generic")
+        lookup(instance.k8s.node_labels, "node-role", "") == "generic")
   }
 
   target_group_arn = aws_lb_target_group.switch_tcp_443[0].arn
