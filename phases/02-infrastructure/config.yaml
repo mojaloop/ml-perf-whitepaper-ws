@@ -18,7 +18,7 @@ aws:
 
 # Project Configuration
 project:
-  name: p-202509230414
+  name: p-202509240943
   environment: perf-test
 
 # SSH Configuration
@@ -182,6 +182,7 @@ vms:
             workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
             workload-class.mojaloop.io/QUOTING-SERVICE: "true"
             workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+            node-role: generic
         tags:
           Role: ml-sw-generic
           NodeNumber: "1"
@@ -198,6 +199,7 @@ vms:
             workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
             workload-class.mojaloop.io/QUOTING-SERVICE: "true"
             workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+            node-role: generic
         tags:
           Role: ml-sw-generic
           NodeNumber: "2"
@@ -214,6 +216,7 @@ vms:
             workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
             workload-class.mojaloop.io/QUOTING-SERVICE: "true"
             workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+            node-role: generic
         tags:
           Role: ml-sw-generic
           NodeNumber: "3"
@@ -229,6 +232,7 @@ vms:
         k8s:
           role: worker    # Worker only, not a control plane node
           node_labels:
+            node-role: kafka
             workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
             workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
           node_taints:
@@ -250,6 +254,7 @@ vms:
         k8s:
           role: worker    # Worker only, not a control plane node
           node_labels:
+            node-role: mysql
             workload-class.mojaloop.io/RDBMS-ALS-LIVE: "true"
             workload-class.mojaloop.io/RDBMS-CENTRAL-LEDGER-LIVE: "true"
           node_taints:
@@ -272,6 +277,7 @@ vms:
         k8s:
           role: worker    # Worker only, not a control plane node
           node_labels:
+            node-role: monitoring
             workload-class.mojaloop.io/MONITORING: "true"
           node_taints:
             - key: dedicated
