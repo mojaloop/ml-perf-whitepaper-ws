@@ -111,6 +111,17 @@
       retries: 5
       delay: 10
 
+    - name: Apply node taints if defined
+      shell: |
+        microk8s kubectl taint node {{ inventory_hostname }} \
+          {{ item.key }}={{ item.value }}:{{ item.effect }} \
+          --overwrite
+      loop: "{{ node_config.k8s.node_taints | default([]) }}"
+      delegate_to: "{{ primary_node }}"
+      register: taint_result
+      changed_when: "'tainted' in taint_result.stdout or 'updated' in taint_result.stdout"
+      when: node_config.k8s.node_taints is defined
+
     - name: Verify cluster formation
       shell: microk8s kubectl get nodes
       register: cluster_nodes

@@ -16,14 +16,10 @@ helm repo update
 
 kubectl create namespace longhorn-system
 
-
+# Install with values file that includes tolerations for tainted nodes
 helm upgrade --install longhorn longhorn/longhorn \
   --namespace longhorn-system \
-  --set csi.kubeletRootDir="/var/snap/microk8s/common/var/lib/kubelet" \
-  --set defaultSettings.createDefaultDiskLabeledNodesOnly=false \
-  --set defaultSettings.replicaSoftAntiAffinity=true \
-  --set defaultSettings.defaultReplicaCount=1 \
-  --set defaultSettings.nodeDownPodDeletionPolicy="delete-both-statefulset-and-deployment-pod"
+  --values ml-perf-whitepaper-ws/phases/04-storage/values.yaml
 
 
 kubectl get storageclass

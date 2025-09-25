@@ -22,6 +22,36 @@ kafka:
     default.replication.factor=1
     transaction.state.log.replication.factor=1
 
+  # Kafka metrics configuration
+  metrics:
+    kafka:
+      enabled: true
+      # JMX exporter configuration
+      jmx:
+        enabled: true
+        config: |-
+          lowercaseOutputName: true
+          lowercaseOutputLabelNames: true
+          ssl: false
+          rules:
+          - pattern: kafka.controller<type=(.+), name=(.+)><>Value
+            name: kafka_controller_$1_$2
+          - pattern: kafka.server<type=(.+), name=(.+)PerSec\w*><>Count
+            name: kafka_server_$1_$2_total
+          - pattern: kafka.server<type=(.+), name=(.+)PerSec\w*, topic=(.+)><>Count
+            name: kafka_server_$1_$2_total
+            labels:
+              topic: "$3"
+        ports:
+          metrics: 5556
+
+      # Service annotations for Prometheus discovery
+      service:
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "5556"
+          prometheus.io/path: "/metrics"
+
   controller:
     replicaCount: 1
     persistence:
@@ -43,6 +73,12 @@ kafka:
         value: "kafka"
         effect: "NoSchedule"
 
+    # Pod annotations for metrics
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "5556"
+      prometheus.io/path: "/metrics"
+
   broker:
     replicaCount: 1
     persistence:
@@ -60,6 +96,12 @@ kafka:
         operator: "Equal"
         value: "kafka"
         effect: "NoSchedule"
+
+    # Pod annotations for metrics
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "5556"
+      prometheus.io/path: "/metrics"
 
   ## ZooKeeper chart configuration
   ## https://github.com/bitnami/charts/blob/main/bitnami/zookeeper/values.yaml
@@ -157,11 +199,36 @@ mysql:
     usePasswordFiles: false
     customPasswordFiles: {}
 
+  # MySQL metrics configuration
+  metrics:
+    enabled: true
+    # Service configuration for metrics
+    service:
+      type: ClusterIP
+      port: 9104
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9104"
+        prometheus.io/path: "/metrics"
+    # Resources for the metrics exporter
+    resources:
+      limits:
+        memory: 256Mi
+      requests:
+        memory: 128Mi
+        cpu: 100m
+
   ## MySQL Primary parameters
   primary:
     persistence:
       enabled: true
       size: 50Gi
+
+    # Pod annotations for primary
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9104"
+      prometheus.io/path: "/metrics"
 
     # Place MySQL on dedicated MySQL nodes
     # Using affinity to allow placement on either ALS or Central Ledger nodes
@@ -290,3 +357,191 @@ mysql:
         GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
         FLUSH PRIVILEGES;"
       echo "******* Database '$DB_NAME' config complete *******"
+
+## MongoDB Configuration with Metrics
+cl-mongodb:
+  enabled: true
+  fullnameOverride: "cl-mongodb"
+
+  auth:
+    enabled: true
+    rootUser: root
+    rootPassword: "adminpass"
+    usernames:
+      - 'mojaloop'
+    passwords:
+      - 'password'
+    databases:
+      - 'mlos'
+
+  # MongoDB metrics configuration
+  metrics:
+    enabled: true
+    port: 9216
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9216"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  # Pod annotations
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9216"
+    prometheus.io/path: "/metrics"
+
+  persistence:
+    enabled: false
+
+## TTK MongoDB with Metrics
+ttk-mongodb:
+  enabled: true
+  fullnameOverride: "ttk-mongodb"
+
+  auth:
+    enabled: true
+    rootUser: root
+    rootPassword: "adminpass"
+    usernames:
+      - 'ttk'
+    passwords:
+      - 'ttk'
+    databases:
+      - 'ttk'
+
+  # MongoDB metrics configuration
+  metrics:
+    enabled: true
+    port: 9216
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9216"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9216"
+    prometheus.io/path: "/metrics"
+
+  persistence:
+    enabled: false
+
+## Redis Configuration with Metrics
+ttksims-redis:
+  enabled: true
+  architecture: standalone
+  fullnameOverride: ttksims-redis
+
+  auth:
+    enabled: false
+
+  # Redis metrics configuration
+  metrics:
+    enabled: true
+    port: 9121
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  master:
+    persistence:
+      enabled: false
+
+    # Pod annotations
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
+
+## Auth Service Redis with Metrics
+auth-svc-redis:
+  enabled: true
+  architecture: standalone
+  fullnameOverride: auth-svc-redis
+
+  auth:
+    enabled: false
+
+  # Redis metrics configuration
+  metrics:
+    enabled: true
+    port: 9121
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  master:
+    persistence:
+      enabled: false
+
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
+
+## Proxy Cache Redis Cluster with Metrics
+proxy-cache-redis:
+  enabled: true
+  usePassword: false
+  fullnameOverride: proxy-cache-redis
+  clusterDomain: cluster.local
+
+  persistence:
+    enabled: false
+
+  cluster:
+    init: true
+    nodes: 6
+    replicas: 1
+
+  # Redis Cluster metrics configuration
+  metrics:
+    enabled: true
+    port: 9121
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  # Pod annotations for all cluster nodes
+  redis:
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
