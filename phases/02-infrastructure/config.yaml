@@ -18,7 +18,7 @@ aws:
 
 # Project Configuration
 project:
-  name: p-202509240943
+  name: p-202509242053
   environment: perf-test
 
 # SSH Configuration
@@ -327,39 +327,39 @@ vms:
           Role: ml-dfsp
           NodeNumber: "103"
 
-      # - name: fsp104
-      #   instance_type: m4.xlarge
-      #   tags:
-      #     Role: ml-dfsp
-      #     NodeNumber: "104"
+      - name: fsp104
+        instance_type: m4.xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "104"
 
-      # - name: fsp105
-      #   instance_type: m4.xlarge
-      #   tags:
-      #     Role: ml-dfsp
-      #     NodeNumber: "105"
+      - name: fsp105
+        instance_type: m4.xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "105"
 
-      # - name: fsp106
-      #   instance_type: m4.xlarge
-      #   tags:
-      #     Role: ml-dfsp
-      #     NodeNumber: "106"
+      - name: fsp106
+        instance_type: m4.xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "106"
 
-      # - name: fsp107
-      #   instance_type: m4.xlarge
-      #   tags:
-      #     Role: ml-dfsp
-      #     NodeNumber: "107"
+      - name: fsp107
+        instance_type: m4.xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "107"
 
-      # - name: fsp108
-      #   instance_type: m4.xlarge
-      #   root_volume:
-      #     size: 128  # Override for larger disk
-      #     type: gp3
-      #     delete_on_termination: true
-      #   tags:
-      #     Role: ml-dfsp
-      #     NodeNumber: "108"
+      - name: fsp108
+        instance_type: m4.xlarge
+        # root_volume:
+        #   size: 128  # Override for larger disk
+        #   type: gp3
+        #   delete_on_termination: true
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "108"
 
 # Kubernetes Configuration
 k8s:

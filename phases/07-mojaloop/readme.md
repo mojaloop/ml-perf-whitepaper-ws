@@ -6,7 +6,7 @@
 kubectl create ns mojaloop
 # deploy backend
 #helm repo add mojaloop http://mojaloop.io/helm/repo/
-helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 --values=values.yaml
+helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 --values=ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml
 
 kubectl apply -f network-policy.yaml # allow monitoring to scrap in ml ns
 ```
