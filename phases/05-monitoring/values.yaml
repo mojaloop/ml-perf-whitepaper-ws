@@ -2116,24 +2116,100 @@ grafana:
         datasource: Prometheus
     kube-prometheus:
       alertmanager-overview:
-        gnetId: 9578
-        revision: 4
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/alertmanager-overview.json
         datasource: Prometheus
-      kubernetes-apiserver:
-        gnetId: 12006
-        revision: 1
-        datasource: Prometheus  
-      kubernetes-cluster-monitoring:
-        gnetId: 7249
-        revision: 1
+      apiserver:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/apiserver.json
         datasource: Prometheus
-      node-exporter:
-        gnetId: 1860
-        revision: 29
+      cluster-total:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/cluster-total.json
         datasource: Prometheus
-      kubernetes-pods:
-        gnetId: 6417
-        revision: 1
+      controller-manager:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/controller-manager.json
+        datasource: Prometheus
+      grafana-overview:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/grafana-overview.json
+        datasource: Prometheus
+      k8s-resources-cluster:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-cluster.json
+        datasource: Prometheus
+      k8s-resources-multicluster:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-multicluster.json
+        datasource: Prometheus
+      k8s-resources-namespace:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-namespace.json
+        datasource: Prometheus
+      k8s-resources-node:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-node.json
+        datasource: Prometheus
+      k8s-resources-pod:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-pod.json
+        datasource: Prometheus
+      k8s-resources-windows-cluster:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-windows-cluster.json
+        datasource: Prometheus
+      k8s-resources-windows-namespace:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-windows-namespace.json
+        datasource: Prometheus
+      k8s-resources-windows-pod:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-windows-pod.json
+        datasource: Prometheus
+      k8s-resources-workload:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-workload.json
+        datasource: Prometheus
+      k8s-resources-workloads-namespace:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-resources-workloads-namespace.json
+        datasource: Prometheus
+      k8s-windows-cluster-rsrc-use:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-windows-cluster-rsrc-use.json
+        datasource: Prometheus
+      k8s-windows-node-rsrc-use:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/k8s-windows-node-rsrc-use.json
+        datasource: Prometheus
+      kubelet:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/kubelet.json
+        datasource: Prometheus
+      namespace-by-pod:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/namespace-by-pod.json
+        datasource: Prometheus
+      namespace-by-workload:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/namespace-by-workload.json
+        datasource: Prometheus
+      node-cluster-rsrc-use:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/node-cluster-rsrc-use.json
+        datasource: Prometheus
+      node-rsrc-use:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/node-rsrc-use.json
+        datasource: Prometheus
+      nodes:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/nodes.json
+        datasource: Prometheus
+      nodes-aix:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/nodes-aix.json
+        datasource: Prometheus
+      nodes-darwin:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/nodes-darwin.json
+        datasource: Prometheus
+      persistentvolumesusage:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/persistentvolumesusage.json
+        datasource: Prometheus
+      pod-total:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/pod-total.json
+        datasource: Prometheus
+      prometheus:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/prometheus.json
+        datasource: Prometheus
+      prometheus-remote-write:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/prometheus-remote-write.json
+        datasource: Prometheus
+      proxy:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/proxy.json
+        datasource: Prometheus
+      scheduler:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/scheduler.json
+        datasource: Prometheus
+      workload-total:
+        url: https://raw.githubusercontent.com/mojaloop/helm/fix/grafana-promteheus-upgrade/monitoring/dashboards/kube-prometheus/workload-total.json
         datasource: Prometheus
 
   ## Reference to external ConfigMap per provider. Use provider name as key and ConfiMap name as value.
