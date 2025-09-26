@@ -3,15 +3,15 @@
 # Declare variables to be passed into your templates.
 
 simulators:
-  fsp203:
+  fsp207:
     ingress:
       enabled: true
       hosts:
-        - sim-fsp203.local
+        - sim-fsp207.local
     config:
       schemeAdapter:
         env:
-          DFSP_ID: "fsp203"
+          DFSP_ID: "fsp207"
           # Point to Mojaloop services in mojaloop namespace
           ALS_ENDPOINT: "account-lookup-service.mojaloop.svc.cluster.local"
           QUOTES_ENDPOINT: "quoting-service.mojaloop.svc.cluster.local"
@@ -73,7 +73,7 @@ simulators:
               -----END PUBLIC KEY-----
       backend:
         env:
-          DFSP_ID: "fsp203"
+          DFSP_ID: "fsp207"
 
 
 # Usage:

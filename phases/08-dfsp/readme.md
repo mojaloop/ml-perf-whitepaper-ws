@@ -2,11 +2,7 @@
 ## Install the DFSP
 
 ```bash
-export KUBECONFIG=~/.kube/perf-fsp201
-helm -n dfsps upgrade --install moja mojaloop/mojaloop --version 17.1.0 --values=values-fsp201.yaml
-
-export KUBECONFIG=~/.kube/perf-fsp202
-helm -n dfsps upgrade --install moja mojaloop/mojaloop --version 17.1.0 --values=values-fsp202.yaml
+./ml-perf-whitepaper-ws/phases/08-dfsp/deploy.bash
 ```
 
 ## Set DNS on each FSP
