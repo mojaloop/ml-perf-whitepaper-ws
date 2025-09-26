@@ -8,7 +8,7 @@ kubectl create ns mojaloop
 #helm repo add mojaloop http://mojaloop.io/helm/repo/
 helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 --values=ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml
 
-kubectl apply -f network-policy.yaml # allow monitoring to scrap in ml ns
+kubectl apply -f ml-perf-whitepaper-ws/phases/07-mojaloop/network-policy.yaml # allow monitoring to scrap in ml ns
 ```
 
 ## Set DNS

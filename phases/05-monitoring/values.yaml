@@ -687,7 +687,7 @@ prometheus:
     ingress:
       ## If true, Prometheus server Ingress will be created
       ##
-      enabled: false
+      enabled: true
 
       ## Prometheus server Ingress annotations
       ##
@@ -703,7 +703,7 @@ prometheus:
       ## Must be provided if Ingress is enabled
       ##
       hosts:
-      #   - prometheus.local
+        - prometheus.local
       #   - prometheus.domain.com
       #   - domain.com/prometheus
 
@@ -1191,7 +1191,216 @@ prometheus:
 
     ## Records configuration
     ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
-    recording_rules.yml: {}
+    recording_rules.yml:
+      groups:
+        # Node-level recording rules
+        - name: node.rules
+          interval: 30s
+          rules:
+            - record: instance:node_num_cpu:sum
+              expr: |
+                count without (cpu, mode) (
+                  node_cpu_seconds_total{job="node-exporter",mode="idle"}
+                )
+            - record: instance:node_cpu_utilisation:rate5m
+              expr: |
+                1 - avg without (cpu) (
+                  sum without (mode) (rate(node_cpu_seconds_total{job="node-exporter", mode=~"idle|iowait|steal"}[5m]))
+                )
+            - record: instance:node_load1_per_cpu:ratio
+              expr: |
+                (
+                  node_load1{job="node-exporter"}
+                /
+                  instance:node_num_cpu:sum{job="node-exporter"}
+                )
+            - record: instance:node_memory_utilisation:ratio
+              expr: |
+                1 - (
+                  (
+                    node_memory_MemAvailable_bytes{job="node-exporter"}
+                    or
+                    (
+                      node_memory_Buffers_bytes{job="node-exporter"}
+                      +
+                      node_memory_Cached_bytes{job="node-exporter"}
+                      +
+                      node_memory_MemFree_bytes{job="node-exporter"}
+                      +
+                      node_memory_Slab_bytes{job="node-exporter"}
+                    )
+                  )
+                /
+                  node_memory_MemTotal_bytes{job="node-exporter"}
+                )
+            - record: instance:node_vmstat_pgmajfault:rate5m
+              expr: |
+                rate(node_vmstat_pgmajfault{job="node-exporter"}[5m])
+            - record: instance_device:node_disk_io_time_seconds:rate5m
+              expr: |
+                rate(node_disk_io_time_seconds_total{job="node-exporter", device!=""}[5m])
+            - record: instance_device:node_disk_io_time_weighted_seconds:rate5m
+              expr: |
+                rate(node_disk_io_time_weighted_seconds_total{job="node-exporter", device!=""}[5m])
+            - record: instance:node_network_receive_bytes_excluding_lo:rate5m
+              expr: |
+                sum without (device) (
+                  rate(node_network_receive_bytes_total{job="node-exporter", device!="lo"}[5m])
+                )
+            - record: instance:node_network_transmit_bytes_excluding_lo:rate5m
+              expr: |
+                sum without (device) (
+                  rate(node_network_transmit_bytes_total{job="node-exporter", device!="lo"}[5m])
+                )
+            - record: instance:node_network_receive_drop_excluding_lo:rate5m
+              expr: |
+                sum without (device) (
+                  rate(node_network_receive_drop_total{job="node-exporter", device!="lo"}[5m])
+                )
+            - record: instance:node_network_transmit_drop_excluding_lo:rate5m
+              expr: |
+                sum without (device) (
+                  rate(node_network_transmit_drop_total{job="node-exporter", device!="lo"}[5m])
+                )
+
+        # Cluster-level CPU recording rules
+        - name: cluster.rules
+          interval: 30s
+          rules:
+            - record: cluster:node_cpu:sum_rate5m
+              expr: |
+                sum(rate(node_cpu_seconds_total{job="node-exporter",mode!="idle",mode!="iowait",mode!="steal"}[5m]))
+            - record: cluster:node_cpu:ratio
+              expr: |
+                avg(1 - rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[5m]))
+            - record: instance:node_cpu:rate:sum
+              expr: |
+                sum(rate(node_cpu_seconds_total{job="node-exporter"}[5m])) without (cpu,mode)
+            - record: instance:node_network_receive_bytes:rate:sum
+              expr: |
+                sum(rate(node_network_receive_bytes_total{job="node-exporter"}[5m])) without (device)
+            - record: instance:node_network_transmit_bytes:rate:sum
+              expr: |
+                sum(rate(node_network_transmit_bytes_total{job="node-exporter"}[5m])) without (device)
+            - record: instance:node_cpu:ratio
+              expr: |
+                sum without(cpu, mode) (rate(node_cpu_seconds_total{job="node-exporter",mode!="idle"}[5m])) / on(instance) instance:node_num_cpu:sum{job="node-exporter"}
+
+        # Container and pod level recording rules
+        - name: k8s.rules
+          interval: 30s
+          rules:
+            - record: node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m
+              expr: |
+                sum by (cluster, namespace, pod, container) (
+                  rate(container_cpu_usage_seconds_total{job="kubernetes-nodes-cadvisor", image!=""}[5m])
+                )
+            - record: node_namespace_pod_container:container_memory_working_set_bytes
+              expr: |
+                container_memory_working_set_bytes{job="kubernetes-nodes-cadvisor", image!=""}
+            - record: node_namespace_pod_container:container_memory_rss
+              expr: |
+                container_memory_rss{job="kubernetes-nodes-cadvisor", image!=""}
+            - record: node_namespace_pod_container:container_memory_cache
+              expr: |
+                container_memory_cache{job="kubernetes-nodes-cadvisor", image!=""}
+            - record: node_namespace_pod_container:container_memory_swap
+              expr: |
+                container_memory_swap{job="kubernetes-nodes-cadvisor", image!=""}
+            - record: cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests
+              expr: |
+                sum by (cluster, namespace, pod, container) (
+                  kube_pod_container_resource_requests{resource="cpu",job="kube-state-metrics"}
+                )
+            - record: cluster:namespace:pod_cpu:active:kube_pod_container_resource_limits
+              expr: |
+                sum by (cluster, namespace, pod, container) (
+                  kube_pod_container_resource_limits{resource="cpu",job="kube-state-metrics"}
+                )
+            - record: cluster:namespace:pod_memory:active:kube_pod_container_resource_requests
+              expr: |
+                sum by (cluster, namespace, pod, container) (
+                  kube_pod_container_resource_requests{resource="memory",job="kube-state-metrics"}
+                )
+            - record: cluster:namespace:pod_memory:active:kube_pod_container_resource_limits
+              expr: |
+                sum by (cluster, namespace, pod, container) (
+                  kube_pod_container_resource_limits{resource="memory",job="kube-state-metrics"}
+                )
+
+        # API Server SLO recording rules
+        - name: apiserver.rules
+          interval: 30s
+          rules:
+            - record: apiserver_request:availability30d
+              expr: |
+                avg_over_time(apiserver_request:availability5m{verb="all"}[30d])
+              labels:
+                verb: all
+            - record: apiserver_request:availability30d
+              expr: |
+                avg_over_time(apiserver_request:availability5m{verb="read"}[30d])
+              labels:
+                verb: read
+            - record: apiserver_request:availability30d
+              expr: |
+                avg_over_time(apiserver_request:availability5m{verb="write"}[30d])
+              labels:
+                verb: write
+            - record: apiserver_request:availability5m
+              expr: |
+                1 - (
+                  sum(rate(apiserver_request_total{job="kubernetes-apiservers",code=~"5.."}[5m]))
+                  /
+                  sum(rate(apiserver_request_total{job="kubernetes-apiservers"}[5m]))
+                )
+              labels:
+                verb: all
+            - record: apiserver_request:availability5m
+              expr: |
+                1 - (
+                  sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[5m]))
+                  /
+                  sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET"}[5m]))
+                )
+              labels:
+                verb: read
+            - record: apiserver_request:availability5m
+              expr: |
+                1 - (
+                  sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb!~"LIST|GET",code=~"5.."}[5m]))
+                  /
+                  sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb!~"LIST|GET"}[5m]))
+                )
+              labels:
+                verb: write
+            - record: code_resource:apiserver_request_total:rate5m
+              expr: |
+                sum by (cluster, code, resource) (
+                  rate(apiserver_request_total{job="kubernetes-apiservers"}[5m])
+                )
+            - record: apiserver_request:burnrate1h
+              expr: |
+                (
+                  (
+                    sum(rate(apiserver_request_total{job="kubernetes-apiservers",code=~"5.."}[1h]))
+                    /
+                    sum(rate(apiserver_request_total{job="kubernetes-apiservers"}[1h]))
+                  )
+                )
+              labels:
+                verb: all
+            - record: apiserver_request:burnrate6h
+              expr: |
+                (
+                  (
+                    sum(rate(apiserver_request_total{job="kubernetes-apiservers",code=~"5.."}[6h]))
+                    /
+                    sum(rate(apiserver_request_total{job="kubernetes-apiservers"}[6h]))
+                  )
+                )
+              labels:
+                verb: all
     ## DEPRECATED DEFAULT VALUE, unless explicitly naming your files, please use recording_rules.yml
     rules: {}
 
@@ -1574,21 +1783,72 @@ prometheus:
   # adds additional scrape configs to prometheus.yml
   # must be a string so you have to add a | after extraScrapeConfigs:
   # example adds prometheus-blackbox-exporter scrape config
-  extraScrapeConfigs:
-    # - job_name: 'prometheus-blackbox-exporter'
-    #   metrics_path: /probe
-    #   params:
-    #     module: [http_2xx]
-    #   static_configs:
-    #     - targets:
-    #       - https://example.com
-    #   relabel_configs:
-    #     - source_labels: [__address__]
-    #       target_label: __param_target
-    #     - source_labels: [__param_target]
-    #       target_label: instance
-    #     - target_label: __address__
-    #       replacement: prometheus-blackbox-exporter:9115
+  extraScrapeConfigs: |
+    # Additional job to make kube-state-metrics available with the expected job name
+    - job_name: 'kube-state-metrics'
+      static_configs:
+        - targets: ['promfana-kube-state-metrics:8080']
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: instance
+          replacement: kube-state-metrics
+
+    # Create job aliases for kube-prometheus dashboard compatibility
+    # These duplicate existing metrics with expected job labels
+    - job_name: 'apiserver'
+      kubernetes_sd_configs:
+        - role: endpoints
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: default;kubernetes;https
+        - target_label: job
+          replacement: apiserver
+
+    - job_name: 'kubelet'
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kubernetes_sd_configs:
+        - role: node
+      relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/$1/proxy/metrics
+        - target_label: job
+          replacement: kubelet
+
+    - job_name: 'cadvisor'
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kubernetes_sd_configs:
+        - role: node
+      relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        - target_label: job
+          replacement: cadvisor
 
   # Adds option to add alert_relabel_configs to avoid duplicate alerts in alertmanager
   # useful in H/A prometheus with different external labels but the same alerts
