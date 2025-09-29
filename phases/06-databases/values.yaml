@@ -1,11 +1,22 @@
 # Database values for Mojaloop Performance Testing
 # This file configures MySQL and Kafka with proper node placement
 
-## Reference: https://github.com/bitnami/charts/blob/main/bitnami/kafka/values.yaml
+## Global settings to allow bitnamilegacy images
+global:
+  security:
+    allowInsecureImages: true
+
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/kafka/values.yaml
 kafka:
   enabled: true
 
   fullnameOverride: "kafka"
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/kafka
+    tag: "3.8.1-debian-12-r0"
 
   listeners:
     client:
@@ -104,7 +115,7 @@ kafka:
       prometheus.io/path: "/metrics"
 
   ## ZooKeeper chart configuration
-  ## https://github.com/bitnami/charts/blob/main/bitnami/zookeeper/values.yaml
+  ## https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/zookeeper/values.yaml
   zookeeper:
     enabled: false
     persistence:
@@ -178,9 +189,15 @@ kafka:
 
     waitForKafka: true
 
-## Reference: https://github.com/bitnami/charts/blob/main/bitnami/mysql/values.yaml
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/mysql/values.yaml
 mysql:
   enabled: true
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mysql
+    tag: "8.0.40-debian-12-r3"
 
   tls:
     enabled: false
@@ -202,6 +219,11 @@ mysql:
   # MySQL metrics configuration
   metrics:
     enabled: true
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mysqld-exporter
+      tag: "0.15.1-debian-12-r9"
     # Service configuration for metrics
     service:
       type: ClusterIP
@@ -363,6 +385,12 @@ cl-mongodb:
   enabled: true
   fullnameOverride: "cl-mongodb"
 
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mongodb
+    tag: "7.0.15-debian-12-r0"
+
   auth:
     enabled: true
     rootUser: root
@@ -378,6 +406,11 @@ cl-mongodb:
   metrics:
     enabled: true
     port: 9216
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mongodb-exporter
+      tag: "0.41.2-debian-12-r0"
     service:
       annotations:
         prometheus.io/scrape: "true"
@@ -404,6 +437,12 @@ ttk-mongodb:
   enabled: true
   fullnameOverride: "ttk-mongodb"
 
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mongodb
+    tag: "7.0.15-debian-12-r0"
+
   auth:
     enabled: true
     rootUser: root
@@ -419,6 +458,11 @@ ttk-mongodb:
   metrics:
     enabled: true
     port: 9216
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mongodb-exporter
+      tag: "0.41.2-debian-12-r0"
     service:
       annotations:
         prometheus.io/scrape: "true"
@@ -445,6 +489,12 @@ ttksims-redis:
   architecture: standalone
   fullnameOverride: ttksims-redis
 
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: "7.4.1-debian-12-r0"
+
   auth:
     enabled: false
 
@@ -452,6 +502,11 @@ ttksims-redis:
   metrics:
     enabled: true
     port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
     service:
       annotations:
         prometheus.io/scrape: "true"
@@ -480,6 +535,12 @@ auth-svc-redis:
   architecture: standalone
   fullnameOverride: auth-svc-redis
 
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: "7.4.1-debian-12-r0"
+
   auth:
     enabled: false
 
@@ -487,6 +548,11 @@ auth-svc-redis:
   metrics:
     enabled: true
     port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
     service:
       annotations:
         prometheus.io/scrape: "true"
@@ -515,6 +581,12 @@ proxy-cache-redis:
   fullnameOverride: proxy-cache-redis
   clusterDomain: cluster.local
 
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis-cluster
+    tag: "7.4.1-debian-12-r1"
+
   persistence:
     enabled: false
 
@@ -527,6 +599,11 @@ proxy-cache-redis:
   metrics:
     enabled: true
     port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
     service:
       annotations:
         prometheus.io/scrape: "true"
