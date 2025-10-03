@@ -1,0 +1,14 @@
+{
+  "order": [
+    {
+      "name": "for_golden_path",
+      "type": "folder",
+      "labels": []
+    },
+    {
+      "name": "msisdn-onboarding",
+      "type": "file",
+      "labels": []
+    }
+  ]
+}
