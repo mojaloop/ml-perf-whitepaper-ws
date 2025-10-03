@@ -27,9 +27,9 @@ simulators:
 
           # JWS Configuration
           JWS_SIGN: true
-          VALIDATE_INBOUND_JWS: false
-          JWS_SIGN_PUT_PARTIES: false
-          VALIDATE_INBOUND_PUT_PARTIES_JWS: false
+          VALIDATE_INBOUND_JWS: true
+          JWS_SIGN_PUT_PARTIES: true
+          VALIDATE_INBOUND_PUT_PARTIES_JWS: true
 
         secrets:
           jws:
@@ -312,30 +312,238 @@ defaults:
           # the CA, cert and key will be generated for you by this chart. To use this functionality
           # you only need specify the config documented in steps (2, 3, 4) a few lines up.
           #
-          # inbound:
-          #   key: |
-          #     -----BEGIN CERTIFICATE-----
-          #     ...
-          #     -----END CERTIFICATE-----
-          #   cacert: |
-          #     -----BEGIN CERTIFICATE-----
-          #     ...
-          #     -----END CERTIFICATE-----
-          #   cert: |
-          #     -----BEGIN RSA PRIVATE KEY-----
-          #     ...
-          #     -----END RSA PRIVATE KEY-----
+          inbound:
+            key: |
+              -----BEGIN PRIVATE KEY-----
+              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
+              DGLBK5AFv27ma+Rf4ZbO0Vlgt1mm
+              -----END PRIVATE KEY-----
+            cacert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              -----END CERTIFICATE-----
+            cert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              tINjFf1DBnReLafPO5eVeb7qsmzCDgDWJQ==
+              -----END CERTIFICATE-----
           #
           # To set the same values for each of inbound and outbound, specify the values for
           # inbound as above, then the values for outbound using yaml anchors:
           #
           # inbound: &inbound
-          #   key: |
-          #     ..
-          #   cacert: |
-          #     ..
-          #   cert: |
-          #     ..
+            key: |
+              -----BEGIN PRIVATE KEY-----
+              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
+              DGLBK5AFv27ma+Rf4ZbO0Vlgt1mm
+              -----END PRIVATE KEY-----
+            cacert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              -----END CERTIFICATE-----
+            cert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              tINjFf1DBnReLafPO5eVeb7qsmzCDgDWJQ==
+              -----END CERTIFICATE-----
           # outbound: *inbound
           inbound: &inbound
           # DO NOT REMOVE COMMENT
@@ -401,8 +609,8 @@ defaults:
 
         # Enable mutual TLS authentication. Useful when not running in a secure
         # environment, i.e. when you're running it locally against your own implementation.
-        INBOUND_MUTUAL_TLS_ENABLED: false
-        OUTBOUND_MUTUAL_TLS_ENABLED: false
+        INBOUND_MUTUAL_TLS_ENABLED: true
+        OUTBOUND_MUTUAL_TLS_ENABLED: true
         TEST_MUTUAL_TLS_ENABLED: false
 
         # Enable JWS verification and signing
