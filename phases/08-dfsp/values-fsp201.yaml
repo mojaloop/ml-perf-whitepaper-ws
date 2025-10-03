@@ -13,12 +13,13 @@ simulators:
         env:
           DFSP_ID: "fsp201"
           # Point to Mojaloop services in mojaloop namespace
-          ALS_ENDPOINT: "account-lookup-service.mojaloop.svc.cluster.local"
-          QUOTES_ENDPOINT: "quoting-service.mojaloop.svc.cluster.local"
-          TRANSFERS_ENDPOINT: "ml-api-adapter-service.mojaloop.svc.cluster.local"
-          PEER_ENDPOINT: "ml-api-adapter-service.mojaloop.svc.cluster.local"
-          BULK_QUOTES_ENDPOINT: "bulk-quoting.mojaloop.svc.cluster.local"
-          BULK_TRANSFERS_ENDPOINT: "bulk-api-adapter.mojaloop.svc.cluster.local"
+          ALS_ENDPOINT: "account-lookup-service.local"
+          QUOTES_ENDPOINT: "quoting-service.local"
+          TRANSFERS_ENDPOINT: "ml-api-adapter.local"
+          PEER_ENDPOINT: "ml-api-adapter.local"
+          BULK_QUOTES_ENDPOINT: "bulk-quoting.local"
+          BULK_TRANSFERS_ENDPOINT: "bulk-api-adapter.local"
+          PATCH_NOTIFICATION_GRACE_TIME_MS: "0"
 
           # Disable Kafka if not needed
           EVENT_HANDLER_DISABLED: true
@@ -185,14 +186,14 @@ defaultProbes: &defaultProbes
   livenessProbe:
     enabled: true
     initialDelaySeconds: 3
-    periodSeconds: 30
+    periodSeconds: 180
     timeoutSeconds: 10
     successThreshold: 1
     failureThreshold: 3
   readinessProbe:
     enabled: true
     initialDelaySeconds: 3
-    periodSeconds: 5
+    periodSeconds: 180
     timeoutSeconds: 5
     successThreshold: 1
     failureThreshold: 3
@@ -213,15 +214,15 @@ ingress:
   ## https://kubernetes.github.io/ingress-nginx/user-guide/tls/#automated-certificate-management-with-kube-lego
   # kubernetes.io/tls-acme: "true""
 
-  ## nginx ingress controller >= v0.22.0
-  # annotations:
-  #   nginx.ingress.kubernetes.io/rewrite-target: '/$2'
-  # ingressPathRewriteRegex: (/|$)(.*)
+  # nginx ingress controller >= v0.22.0
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: '/$2'
+  ingressPathRewriteRegex: (/|$)(.*)
 
   ## nginx ingress controller < v0.22.0
   # annotations:
   #   nginx.ingress.kubernetes.io/rewrite-target: '/'
-  ingressPathRewriteRegex: "/"
+  # ingressPathRewriteRegex: "/"
   className: "nginx"
   pathType: "ImplementationSpecific"
 

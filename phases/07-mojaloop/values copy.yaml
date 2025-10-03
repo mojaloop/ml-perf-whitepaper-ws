@@ -205,7 +205,7 @@ account-lookup-service:
       ##
       pullSecrets: []
 
-    replicaCount: 1
+    replicaCount: 16
     command: '["node", "src/index.js", "server", "--api"]'
 
     nameOverride: ""
@@ -1575,7 +1575,7 @@ quoting-service:
       registry: docker.io
       repository: mojaloop/quoting-service
       tag: v17.12.1
-    replicaCount: 1
+    replicaCount: 8
     config:
       hub_participant: *HUB_PARTICIPANT
       ## DB Configuration
@@ -1692,7 +1692,7 @@ quoting-service:
       registry: docker.io
       repository: mojaloop/quoting-service
       tag: v17.12.1
-    replicaCount: 1
+    replicaCount: 12
     config:
       hub_participant: *HUB_PARTICIPANT
       ## DB Configuration
@@ -1853,7 +1853,7 @@ ml-api-adapter:
       ##
       pullSecrets: []
 
-    replicaCount: 1
+    replicaCount: 8
     command: '["node", "src/api/index.js"]'
 
     ## Enable diagnostic mode in the deployment
@@ -2122,7 +2122,7 @@ ml-api-adapter:
       ##
       pullSecrets: []
 
-    replicaCount: 1
+    replicaCount: 24
     command: '["node", "src/handlers/index.js", "handler", "--notification"]'
 
     ## Enable diagnostic mode in the deployment
@@ -2169,11 +2169,11 @@ ml-api-adapter:
         pullPolicy: IfNotPresent
       readinessProbe:
         enabled: true
-        initialDelaySeconds: 240
+        initialDelaySeconds: 120
         periodSeconds: 15
       livenessProbe:
         enabled: true
-        initialDelaySeconds: 180
+        initialDelaySeconds: 90
         periodSeconds: 15
       config:
         log_level: info
@@ -2458,7 +2458,7 @@ centralledger:
       ##
       pullSecrets: []
 
-    replicaCount: 1
+    replicaCount: 4
     command: '["node", "src/api/index.js"]'
 
     ## Enable diagnostic mode in the deployment
@@ -2744,7 +2744,7 @@ centralledger:
       ##
       pullSecrets: []
 
-    replicaCount: 1
+    replicaCount: 12
     command: '["node", "src/handlers/index.js", "handler", "--prepare"]'
 
     ## Enable diagnostic mode in the deployment
@@ -3902,7 +3902,7 @@ centralledger:
       ##
       pullSecrets: []
 
-    replicaCount: 1
+    replicaCount: 12
     command: '["node", "src/handlers/index.js", "handler", "--fulfil"]'
 
     ## Enable diagnostic mode in the deployment
@@ -8823,7 +8823,7 @@ thirdparty:
       tolerations: []
 
 simulator:
-  enabled: true
+  enabled: false
   # Default values for simulators.
   # This is a YAML-formatted file.
   # Declare variables to be passed into your templates.
@@ -9036,7 +9036,7 @@ simulator:
   resources: {}
 
 mojaloop-simulator:
-  enabled: true
+  enabled: false
   # Default values for mojaloop-simulator.
   # This is a YAML-formatted file.
   # Declare variables to be passed into your templates.

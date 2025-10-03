@@ -12,7 +12,7 @@ No public domain name is used. So CoreDNS must be set resolve the local domain n
 ```json
 # Set DFS core DNS
     hosts {
-      18.134.155.127 account-lookup-service.local quoting-service.local ml-api-adapter.local
+      10.110.2.48 account-lookup-service.local quoting-service.local ml-api-adapter.local
       fallthrough
     }
 ```
