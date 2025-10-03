@@ -5,7 +5,7 @@
 aws:
   profile: gtmlab
   region: eu-west-2
-  availability_zone: eu-west-2a
+  availability_zone: eu-west-2c
 
   # Performance optimizations
   placement_group:
@@ -148,7 +148,7 @@ vms:
   switch:
     # Default configuration for all switch nodes
     defaults:
-      instance_type: c5n.2xlarge  # Network optimized: 25 Gbps, ENA, EBS optimized
+      instance_type: m4.xlarge  #  c5n.2xlarge Network optimized: 25 Gbps, ENA, EBS optimized
       root_volume:
         size: 128
         type: gp3
@@ -170,7 +170,7 @@ vms:
     instances:
       # Generic nodes for Mojaloop services, MongoDB, Redis
       - name: sw1-n1
-        instance_type: c5n.2xlarge
+        instance_type: m4.2xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           is_primary: true  # First node to initialize the cluster
@@ -188,7 +188,7 @@ vms:
           NodeNumber: "1"
 
       - name: sw1-n2
-        instance_type: c5n.2xlarge
+        instance_type: m4.2xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           node_labels:
@@ -205,7 +205,7 @@ vms:
           NodeNumber: "2"
 
       - name: sw1-n3
-        instance_type: c5n.2xlarge
+        instance_type: m4.2xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           node_labels:
@@ -223,7 +223,7 @@ vms:
 
       # Dedicated Kafka node
       - name: sw1-kafka
-        instance_type: c5n.2xlarge
+        instance_type: m5.2xlarge #c5n.2xlarge
         root_volume:
           size: 500
           type: io2
@@ -245,7 +245,7 @@ vms:
 
       # Dedicated MySQL node
       - name: sw1-mysql
-        instance_type: r5.2xlarge  # Memory optimized for database: 64GB RAM
+        instance_type: m5.2xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
         root_volume:
           size: 200
           type: io2
@@ -267,7 +267,7 @@ vms:
 
       # Dedicated Monitoring node
       - name: sw1-monitoring
-        instance_type: m5.2xlarge  # Balanced compute/memory for monitoring stack
+        instance_type: m5.xlarge  # Balanced compute/memory for monitoring stack
         root_volume:
           size: 256
           type: gp3
@@ -309,49 +309,49 @@ vms:
 
     # Individual DFSP configurations
     instances:
-      - name: fsp101
+      - name: fsp201
         instance_type: m4.xlarge  # Can override default
         tags:
           Role: ml-dfsp
           NodeNumber: "101"
 
-      - name: fsp102
+      - name: fsp202
         instance_type: m4.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "102"
 
-      - name: fsp103
+      - name: fsp203
         instance_type: m4.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "103"
 
-      - name: fsp104
+      - name: fsp204
         instance_type: m4.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "104"
 
-      - name: fsp105
+      - name: fsp205
         instance_type: m4.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "105"
 
-      - name: fsp106
+      - name: fsp206
         instance_type: m4.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "106"
 
-      - name: fsp107
+      - name: fsp207
         instance_type: m4.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "107"
 
-      - name: fsp108
+      - name: fsp208
         instance_type: m4.xlarge
         # root_volume:
         #   size: 128  # Override for larger disk
@@ -361,13 +361,19 @@ vms:
           Role: ml-dfsp
           NodeNumber: "108"
 
+      - name: k6
+        instance_type: m4.2xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "109"
+
 # Kubernetes Configuration
 k8s:
-  microk8s_version: "1.30/stable" # test 1.34/stable
+  microk8s_version: "1.32/stable" # test 1.34/stable
 
   # Cluster naming convention
   switch_cluster_name: "mojaloop-switch"  # All switch nodes join this cluster
-  fsp_cluster_prefix: "fsp"  # Each FSP gets {prefix}{number}, e.g., fsp101
+  fsp_cluster_prefix: "fsp"  # Each FSP gets {prefix}{number}, e.g., fsp201
 
   # Kubernetes networking
   networking:
