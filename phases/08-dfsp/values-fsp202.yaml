@@ -28,49 +28,49 @@ simulators:
           # JWS Configuration
           JWS_SIGN: true
           VALIDATE_INBOUND_JWS: true
-          JWS_SIGN_PUT_PARTIES: true
-          VALIDATE_INBOUND_PUT_PARTIES_JWS: true
+          JWS_SIGN_PUT_PARTIES: false
+          VALIDATE_INBOUND_PUT_PARTIES_JWS: false
 
         secrets:
           jws:
             privateKey: |-
               -----BEGIN PRIVATE KEY-----
-              MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCg9eU66hg4ZAE6
-              jM4U8ylXQwUz9cdmzS3JyW+1bbgv77peMKSU/wFsi4QRwmbrYze9baFnGCKnS75E
-              vCchib5vJxp3MDWzi/TGxmzgWdJRzkyCiI5C6dCgVL71MjsFgN3TN63wEf5sEU2I
-              0xUXNb4zl8Cr3f+qxlvN7F/qnuLkNzLBqXcI0/V4yCQmWjRlVB+kOTNG6bCaZPtx
-              m0M7B0d2b8z2A7ySKKO1HX3EhD5b3HpCJjdS0UNQMGfYvxaQ0PCMbQmruH5u8xgJ
-              7gYKH1lrm9YU6UriFxa8CiwySXJOhba9QPUsgDMBRphdMLrng4DSBzQ6Crrj6Xnj
-              XBsNBnnFAgMBAAECggEAGJhOOpr7h3d9gLSOk5HnhvIeBtHGCrN3zKHLl/Q7U6R4
-              N/cKoxRCJCzcLiblWX5qzL6Z0YbrQ2AWHZXzUynCdEtn6aw9tCqGT+OOasBKCMhC
-              3+CpF/vcmZsKtHAsVLKQL7gvCJCUVY7cfMUVz7F10rJzX4GVMt8p8kAI6nMqT7hG
-              LXk3vSlL7g5iXZMBqXMx5gi0f7dJ4VQSXGGKOdpaB7l8eXnNRMHx7rC3K1ertxJf
-              cVcdeUtLYdvBeN9v3kVAZ1TaSUv8M1NaCL5mDEfqj7z8v7tcCyhQc5IrD7Pf7ot4
-              kyLSDLaDYru7K7LwQWNqjj7so+hdaJ3k5sKdDiV5gQKBgQDPaZpCASSzckzNZ/6F
-              0Qfwphr9FLEMVGYSWNVujGSdVCH7TjDFhXWxY/h/D7beOCXxZKdHzi1SbeqJLG5a
-              srtglR/J/M7LxGEUTtS3VZ8nwIEKH2RBApDS/bjpBI5g5MtwSiDoYJhGIGy5izK/
-              tVw3IYIsUQBhVKLN3mLYQQBy5QKBgQDHJmaIdagkdcEmHWDoVj0E3aQvPdZJ7+I7
-              5Hblw8Qz9jKqHRslOToqvrCliXvJXmXvJxtf4YKezCaA+kuLQQJllOQ9P77AOfJw
-              N3UOz5riQpNQ1solkHGmma+ihCPz5T/7Fd2hYNLl0OQELJfP/orRvNecnLxe7awi
-              fVBMBdqLwQKBgQCULEvMkcqPbjIu1+Te0NCvSx4umCNIaIokXhElE/melYPOvINx
-              5lgmQlIja7luCCJU4aRAWxN0V3X9IoJOyfY4vMMvVj3HY0kHMQMQXGGCpwYKCCSo
-              YekQIncyGlVNEpb2y7xm2dJKGZTG1/v3RJu0/d7wXoOADT3u/czOZO3lNQKBgGk1
-              IdQ1VmMJnKnG7CQ3MqwX4t7ggvVNty9YEPyYq6abH3fcAH9lTp3x+graAAuqDXby
-              /apAth8wZGCNbxrx1BuDOJ8B3kwft0zLINKow1mLwV8T3P3RGPdqLCIy4y8z1cgD
-              s8wfa0b6+xBjeqPwKVhQBYlFLoHCJLnUsSYXDAoBAoGADmdaDIBHkGn1mKNe9bjD
-              d3vCBqbcNpGP6YJpD0roUYPtVzjAUP5+ck7hdY2IA0pCjggvqiHEn7DDpRvWJAju
-              bPD7mcEb9nlKBq0teYW1c2YK8j7nnVqmfPrbtiH8FPOqzl4J6SVtNHxE+qpPYXZf
-              R2RghKqwQaGPuZz9sW9wqN0=
+              MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+              lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+              /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+              tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+              zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+              oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+              5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+              aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+              XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+              7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+              Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+              xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+              ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+              TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+              0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+              vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+              42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+              HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+              K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+              TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+              zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+              sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+              +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+              n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+              Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+              +LkclaNA0KksCpGdo+I6J0U=
               -----END PRIVATE KEY-----
             publicKey: |-
               -----BEGIN PUBLIC KEY-----
-              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoPXlOuoYOGQBOozOFPMp
-              V0MFM/XHZs0tyclvtW24L++6XjCklP8BbIuEEcJm62M3vW2hZxgip0u+RLwnIYm+
-              bycadzA1s4v0xsZs4FnSUc5MgoiOQunQoFS+9TI7BYDd0zet8BH+bBFNiNMVFzW+
-              M5fAq93/qsZbzexf6p7i5DcywaWwl3CNP1eMgkJlo0ZVQfpDkzRumwmmT7cZtDOwd
-              Hdm/M9gO8kiijsR19xIQ+W9x6QiY3UtFDUDBn2L8WkNDwjG0Jq7h+bvMYCe4GCh
-              9Za5vWFOlK4hcWvAosMklyToW2vUD1LIAzAUaYXTC654OA0gc0Ogq64+l541wbDQ
-              Z5xQIDAQAB
+              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+              n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+              muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+              QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+              l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+              dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+              nQIDAQAB
               -----END PUBLIC KEY-----
       backend:
         env:
@@ -235,11 +235,87 @@ ingress:
 # your switch is using `FSPIOP-Source: peter` you will need a property `peter` in the following
 # object. Do not add the public keys of your simulators to this object. Instead, put them in
 # `mojaloop-simulator.simulators.$yourSimName.config.schemeAdapter.secrets.jws.publicKey`.
-sharedJWSPubKeys: null
-# switch: |-
-#   -----BEGIN PUBLIC KEY-----
-#   blah blah blah
-#   -----END PUBLIC KEY-----
+sharedJWSPubKeys:
+  Hub: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp201: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp203: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp204: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp205: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp206: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp207: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp208: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
 
 defaults:
   # Changes to this object in the parent chart, for example 'mojaloop-simulator.defaults' will be
@@ -609,8 +685,8 @@ defaults:
 
         # Enable mutual TLS authentication. Useful when not running in a secure
         # environment, i.e. when you're running it locally against your own implementation.
-        INBOUND_MUTUAL_TLS_ENABLED: true
-        OUTBOUND_MUTUAL_TLS_ENABLED: true
+        INBOUND_MUTUAL_TLS_ENABLED: false
+        OUTBOUND_MUTUAL_TLS_ENABLED: false
         TEST_MUTUAL_TLS_ENABLED: false
 
         # Enable JWS verification and signing
