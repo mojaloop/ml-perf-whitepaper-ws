@@ -1,0 +1,37 @@
+apiVersion: k6.io/v1alpha1
+kind: TestRun
+metadata:
+  name: {{ .Release.Name }}-k6-test
+  namespace: {{ .Release.Namespace }}
+spec:
+  parallelism: {{ .Values.parallelism }}
+  script:
+    configMap:
+      name: {{ .Release.Name }}-k6-script
+      file: tests.js
+  arguments: --quiet
+  runner:
+    env:
+      - name: TARGET_TXN_COUNT
+        value: {{ .Values.k6.targetTxnCount | quote }}
+      - name: TARGET_TPS
+        value: {{ .Values.k6.targetTps | quote }}
+      - name: FSP_PAIRS_JSON
+        value: {{ .Values.k6.fspPairs | toJson | quote }}
+      - name: FSP_CONFIG
+        value: {{ .Values.k6.fspConfig | quote }}
+      - name: K6_SCRIPT_ABORT_ON_ERROR
+        value: {{ .Values.k6.abortOnError | quote }}
+      - name: TRANSFER_AMOUNT
+        value: {{ .Values.k6.transferAmount | quote }}
+      - name: CURRENCY
+        value: {{ .Values.k6.currency | quote }}
+      - name: PARALLELISM
+        value: {{ .Values.parallelism | quote }}
+    resources:
+      limits:
+        cpu: {{ .Values.resources.limits.cpu | quote }}
+        memory: {{ .Values.resources.limits.memory | quote }}
+      requests:
+        cpu: {{ .Values.resources.requests.cpu | quote }}
+        memory: {{ .Values.resources.requests.memory | quote }}
