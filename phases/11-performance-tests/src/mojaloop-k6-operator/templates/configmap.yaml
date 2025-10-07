@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-k6-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: mojaloop-k6-test
+data:
+  tests.js: |
+{{ .Files.Get "scripts/tests.js" | indent 4 }}

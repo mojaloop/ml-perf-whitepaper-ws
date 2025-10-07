@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mojaloop-k6-test
+description: A Helm chart for running Mojaloop k6 load tests with k6 Operator
+version: 0.1.0
+appVersion: "1.0"
