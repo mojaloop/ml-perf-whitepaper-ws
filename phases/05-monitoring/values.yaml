@@ -37,7 +37,7 @@ prometheus:
   alertmanager:
     ## If false, alertmanager will not be installed
     ##
-    enabled: true
+    enabled: false
 
     ## Use a ClusterRole (and ClusterRoleBinding)
     ## - If set to false - we define a Role and RoleBinding in the defined namespaces ONLY

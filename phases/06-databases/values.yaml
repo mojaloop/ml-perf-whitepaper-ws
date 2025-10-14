@@ -66,10 +66,10 @@ kafka:
   controller:
     replicaCount: 1
     persistence:
-      enabled: true
+      enabled: false
       size: 50Gi
     logPersistence:
-      enabled: true
+      enabled: false
       size: 50Gi
     resourcesPreset: "xlarge"
 
@@ -93,7 +93,7 @@ kafka:
   broker:
     replicaCount: 1
     persistence:
-      enabled: true
+      enabled: false
       size: 50Gi
     resourcesPreset: "xlarge"
 
@@ -125,19 +125,19 @@ kafka:
     enabled: true
     topics:
       - name: topic-transfer-prepare
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-transfer-position
         partitions: 1
         replicationFactor: 1
       - name: topic-transfer-position-batch
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-transfer-fulfil
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-notification-event
-        partitions: 1
+        partitions: 24
         replicationFactor: 1
       - name: topic-transfer-get
         partitions: 1
@@ -146,10 +146,10 @@ kafka:
         partitions: 1
         replicationFactor: 1
       - name: topic-quotes-post
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-quotes-put
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-quotes-get
         partitions: 1
@@ -243,7 +243,7 @@ mysql:
   ## MySQL Primary parameters
   primary:
     persistence:
-      enabled: true
+      enabled: false
       size: 50Gi
 
     # Pod annotations for primary
@@ -329,7 +329,8 @@ mysql:
         DROP USER IF EXISTS $DB_USER@'%';
         CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
         GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
-        FLUSH PRIVILEGES;"
+        FLUSH PRIVILEGES;
+        SET GLOBAL max_connections = 2000;"
       echo "******* Database '$DB_NAME' config complete *******"
 
     consentOracleInit.sh: |
