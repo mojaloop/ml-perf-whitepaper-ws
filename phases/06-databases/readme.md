@@ -17,7 +17,7 @@ kubectl patch serviceaccount default \
     -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}'
 
 
-helm -n mojaloop install backend mojaloop/example-mojaloop-backend --version 17.1.0 --values=ml-perf-whitepaper-ws/phases/06-databases/values.yaml
+helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/values.yaml -f ml-perf-whitepaper-ws/phases/06-databases/override-200.yaml
 
 # # annotation for prometheus
 # kubectl -n mojaloop annotate pods mysqldb-0 prometheus.io/port=9104

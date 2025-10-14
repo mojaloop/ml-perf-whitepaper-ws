@@ -19,7 +19,7 @@ csi:
 defaultSettings:
   createDefaultDiskLabeledNodesOnly: false
   replicaSoftAntiAffinity: true
-  defaultReplicaCount: 1
+  defaultReplicaCount: "1"
   nodeDownPodDeletionPolicy: "delete-both-statefulset-and-deployment-pod"
 
   # Toleration settings for Longhorn system components
@@ -48,6 +48,22 @@ longhornUI:
       operator: "Equal"
       value: "monitoring"
       effect: "NoSchedule"
+
+# Ingress configuration for Longhorn UI
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  host: longhorn.local
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10000m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
+  tls: false
+  ## Set this to true in order to enable TLS on the ingress record
+  ## A side effect of this will be that the backend service will be connected at port 443
+  # tls: true
+  # tlsSecret: longhorn-tls-secret
 
 # Instance Manager - runs where volumes are needed
 instanceManager:
