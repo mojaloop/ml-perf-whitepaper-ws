@@ -3,13 +3,13 @@ mysql:
     resourcesPreset: "none"
     resources:
       limits:
-        cpu: '4'
+        cpu: '16'
         ephemeral-storage: 15Gi
-        memory: 4Gi
+        memory: 16Gi
       requests:
-        cpu: '2'
+        cpu: '8'
         ephemeral-storage: 5Gi
-        memory: 2Gi
+        memory: 8Gi
 
 kafka:
   controller:
@@ -27,10 +27,10 @@ kafka:
     resourcesPreset: "none"
     resources:
       limits:
-        cpu: '3'
+        cpu: '6'
         ephemeral-storage: 15Gi
-        memory: 4Gi
+        memory: 8Gi
       requests:
-        cpu: '1'
+        cpu: '4'
         ephemeral-storage: 5Gi
-        memory: 2Gi
+        memory: 4Gi
