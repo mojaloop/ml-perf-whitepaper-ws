@@ -1,0 +1,739 @@
+# Database values for Mojaloop Performance Testing
+# This file configures MySQL and Kafka with proper node placement
+
+## Global settings to allow bitnamilegacy images
+global:
+  security:
+    allowInsecureImages: true
+
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/kafka/values.yaml
+kafka:
+  enabled: true
+  fullnameOverride: "kafka"
+
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/kafka
+    tag: "3.8.1-debian-12-r0"
+
+  service:
+    ports:
+      client: 9092
+      controller: 9093
+
+  listeners:
+    client:
+      protocol: PLAINTEXT
+    controller:
+      protocol: PLAINTEXT
+    interbroker:
+      protocol: PLAINTEXT
+
+  metrics:
+    kafka:
+      enabled: false
+
+  controller:
+    # Place Kafka controller on dedicated Kafka node
+    nodeSelector:
+      workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+    # Tolerate the dedicated=kafka taint
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "kafka"
+        effect: "NoSchedule"
+
+    replicaCount: 1
+    persistence:
+      enabled: false
+    
+    resources:
+      requests:
+        cpu: "8"
+        memory: "16Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+
+    # nodeSelector:
+    #   kubernetes.io/hostname: sw1-kafka-ctrl-1
+    # tolerations:
+    #   - key: "dedicated"
+    #     operator: "Equal"
+    #     value: "kafka"
+    #     effect: "NoSchedule"
+
+    podAnnotations: {}
+
+  broker:
+    # Place Kafka broker on dedicated Kafka node
+    nodeSelector:
+      workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+    # Tolerate the dedicated=kafka taint
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "kafka"
+        effect: "NoSchedule"
+
+    replicaCount: 3
+    persistence:
+      enabled: false
+    
+    resources:
+      requests:
+        cpu: "8"
+        memory: "16Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+
+    # nodeSelector:
+    #   kubernetes.io/hostname: sw1-kafka-n1
+    #   kubernetes.io/hostname: sw1-kafka-n2
+    #   kubernetes.io/hostname: sw1-kafka-n3
+    # tolerations:
+    #   - key: "dedicated"
+    #     operator: "Equal"
+    #     value: "kafka"
+    #     effect: "NoSchedule"
+
+    podAnnotations: {}
+
+    overrideConfiguration: |
+      ########################
+      # Replication / Durability
+      ########################
+      default.replication.factor=1
+      min.insync.replicas=1
+      unclean.leader.election.enable=true
+      auto.leader.rebalance.enable=true
+
+      ########################
+      # Topic Management
+      ########################
+      auto.create.topics.enable=true
+      delete.topic.enable=true
+      num.partitions=24
+
+      ########################
+      # Performance / Threading
+      ########################
+      num.network.threads=10
+      num.io.threads=14
+      num.replica.fetchers=2
+      background.threads=4
+
+      ########################
+      # Socket Buffers
+      ########################
+      socket.send.buffer.bytes=1048576
+      socket.receive.buffer.bytes=1048576
+      socket.request.max.bytes=104857600
+
+      ########################
+      # Log Configuration
+      ########################
+      log.dirs=/tmp/kafka-logs
+      log.segment.bytes=134217728
+      log.flush.interval.messages=25000
+      log.flush.interval.ms=500
+      log.retention.hours=1
+      log.retention.bytes=536870912
+      log.cleanup.policy=delete
+      log.cleaner.enable=false
+
+      ########################
+      # Zookeeper / Controller Settings
+      ########################
+      controlled.shutdown.enable=true
+      offsets.topic.replication.factor=1
+      transaction.state.log.replication.factor=1
+      transaction.state.log.min.isr=1
+
+      ########################
+      # Request Handling / Queues
+      ########################
+      queued.max.requests=800
+      num.recovery.threads.per.data.dir=1
+
+      ########################
+      # Replication Performance
+      ########################
+      replica.fetch.min.bytes=1
+      replica.fetch.max.bytes=1048576
+      replica.fetch.wait.max.ms=300
+      fetch.max.bytes=52428800
+
+      ########################
+      # Load Testing Tweaks
+      ########################
+      group.initial.rebalance.delay.ms=0
+      producer.purgatory.purge.interval.requests=1000
+      consumer.purgatory.purge.interval.requests=1000
+
+    extraEnvVars:
+      - name: KAFKA_HEAP_OPTS
+        value: "-Xms16g -Xmx16g"
+      - name: KAFKA_JVM_PERFORMANCE_OPTS
+        value: "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:+ExplicitGCInvokesConcurrent -XX:+ParallelRefProcEnabled -Djava.awt.headless=true"
+      - name: KAFKA_NUM_NETWORK_THREADS
+        value: "10"
+      - name: KAFKA_NUM_IO_THREADS
+        value: "14"
+      - name: KAFKA_SOCKET_SEND_BUFFER_BYTES
+        value: "1048576"
+      - name: KAFKA_SOCKET_RECEIVE_BUFFER_BYTES
+        value: "1048576"
+      - name: KAFKA_SOCKET_REQUEST_MAX_BYTES
+        value: "104857600"
+      - name: KAFKA_LOG_FLUSH_INTERVAL_MESSAGES
+        value: "25000"
+      - name: KAFKA_LOG_FLUSH_INTERVAL_MS
+        value: "500"
+      - name: KAFKA_LOG_RETENTION_MS
+        value: "3600000"
+      - name: KAFKA_LOG_SEGMENT_BYTES
+        value: "134217728"
+      - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+        value: "1"
+      - name: KAFKA_MIN_INSYNC_REPLICAS
+        value: "1"
+      - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+        value: "1"
+      - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+        value: "1"
+      - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+        value: "1"
+      - name: KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE
+        value: "true"
+      - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+        value: "true"
+      - name: KAFKA_NUM_PARTITIONS
+        value: "24"
+      - name: KAFKA_LOG_CLEANER_ENABLE
+        value: "false"
+
+  zookeeper:
+    enabled: false
+
+  provisioning:
+    enabled: true
+    waitForKafka: true
+    persistence:
+      enabled: false
+    
+    topics:
+      # Heavy DB workload - fewer partitions due to DB bottleneck
+      - name: topic-transfer-prepare
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-transfer-fulfil
+        partitions: 12
+        replicationFactor: 1
+
+      # Light HTTP workload - more partitions for parallelism
+      - name: topic-quotes-post
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-quotes-put
+        partitions: 12
+        replicationFactor: 1
+
+      # Batched heavy DB workload - optimized for batch processing
+      - name: topic-transfer-position-batch
+        partitions: 8
+        replicationFactor: 1
+
+      # Light HTTP workload with 2x volume
+      - name: topic-notification-event
+        partitions: 12
+        replicationFactor: 1
+
+      # Low throughput topics - single partition
+      - name: topic-transfer-position
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-transfer-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-admin-transfer
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-quotes-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-post
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-put
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-prepare
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-fulfil
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-processing
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-post
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-put
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-get
+        partitions: 1
+        replicationFactor: 1        
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/mysql/values.yaml
+mysql:
+  enabled: true
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mysql
+    tag: "8.0.40-debian-12-r3"
+
+  tls:
+    enabled: false
+
+  fullnameOverride: "mysqldb"
+
+  auth:
+    rootPassword: "db_password"
+    createDatabase: true
+    database: mldb
+    username: "mluser"
+    password: 'ml_password'
+    replicationUser: replicator
+    replicationPassword: ""
+    existingSecret: ""
+    usePasswordFiles: false
+    customPasswordFiles: {}
+
+  # MySQL metrics configuration
+  metrics:
+    enabled: false
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mysqld-exporter
+      tag: "0.15.1-debian-12-r9"
+    # Service configuration for metrics
+    service:
+      type: ClusterIP
+      port: 9104
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9104"
+        prometheus.io/path: "/metrics"
+    # Resources for the metrics exporter
+    resources:
+      limits:
+        memory: 256Mi
+      requests:
+        memory: 128Mi
+        cpu: 100m
+
+  ## MySQL Primary parameters
+  primary:
+    persistence:
+      enabled: false
+      size: 50Gi
+    resources:
+      limits:
+        cpu: '16'
+        ephemeral-storage: 15Gi
+        memory: 16Gi
+      requests:
+        cpu: '8'
+        ephemeral-storage: 5Gi
+        memory: 8Gi
+    # Pod annotations for primary
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9104"
+      prometheus.io/path: "/metrics"
+
+    # Place MySQL on dedicated MySQL nodes
+    # Using affinity to allow placement on either ALS or Central Ledger nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: workload-class.mojaloop.io/RDBMS-ALS-LIVE
+              operator: In
+              values:
+              - "true"
+          - matchExpressions:
+            - key: workload-class.mojaloop.io/RDBMS-CENTRAL-LEDGER-LIVE
+              operator: In
+              values:
+              - "true"
+
+    # Tolerate the dedicated=mysql taint
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "mysql"
+        effect: "NoSchedule"
+
+    extraEnvVars:
+      - name: ACCOUNT_LOOKUP_DATABASE
+        value: "account_lookup"
+      - name: ACCOUNT_LOOKUP_USER
+        value: "account_lookup"
+      - name: CENTRAL_LEDGER_DATABASE
+        value: "central_ledger"
+      - name: CENTRAL_LEDGER_USER
+        value: "central_ledger"
+      - name: CONTENT_ORACLE_DATABASE
+        value: "consent_oracle"
+      - name: CONTENT_ORACLE_USER
+        value: "consent_oracle"
+      - name: AUTH_SVC_DATABASE
+        value: "auth_svc"
+      - name: AUTH_SVC_USER
+        value: "auth_svc"
+      - name: MSISDN_ORACLE_DATABASE
+        value: "oracle_msisdn"
+      - name: MSISDN_ORACLE_USER
+        value: "oracle_msisdn"
+  ## extraFlags: "--max-connect-errors=1000 --max_connections=155"
+    ##
+    extraFlags: "--max_connections=5000"
+  ## Initialize databases
+  initdbScripts:
+    accountLookupInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$ACCOUNT_LOOKUP_DATABASE
+      DB_USER=$ACCOUNT_LOOKUP_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    centralLedgerInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$CENTRAL_LEDGER_DATABASE
+      DB_USER=$CENTRAL_LEDGER_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    consentOracleInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$CONTENT_ORACLE_DATABASE
+      DB_USER=$CONTENT_ORACLE_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    msisdnOracleInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$MSISDN_ORACLE_DATABASE
+      DB_USER=$MSISDN_ORACLE_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    authSvcInit.sh: |-
+      #!/bin/bash
+      set -e
+      DB_NAME=$AUTH_SVC_DATABASE
+      DB_USER=$AUTH_SVC_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+## MongoDB Configuration with Metrics
+cl-mongodb:
+  enabled: true
+  fullnameOverride: "cl-mongodb"
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mongodb
+    tag: "7.0.15-debian-12-r0"
+
+  auth:
+    enabled: true
+    rootUser: root
+    rootPassword: "adminpass"
+    usernames:
+      - 'mojaloop'
+    passwords:
+      - 'password'
+    databases:
+      - 'mlos'
+
+  # MongoDB metrics configuration
+  metrics:
+    enabled: true
+    port: 9216
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mongodb-exporter
+      tag: "0.41.2-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9216"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  # Pod annotations
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9216"
+    prometheus.io/path: "/metrics"
+
+  persistence:
+    enabled: false
+
+## TTK MongoDB with Metrics
+ttk-mongodb:
+  enabled: true
+  fullnameOverride: "ttk-mongodb"
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mongodb
+    tag: "7.0.15-debian-12-r0"
+
+  auth:
+    enabled: true
+    rootUser: root
+    rootPassword: "adminpass"
+    usernames:
+      - 'ttk'
+    passwords:
+      - 'ttk'
+    databases:
+      - 'ttk'
+
+  # MongoDB metrics configuration
+  metrics:
+    enabled: true
+    port: 9216
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mongodb-exporter
+      tag: "0.41.2-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9216"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9216"
+    prometheus.io/path: "/metrics"
+
+  persistence:
+    enabled: false
+
+## Redis Configuration with Metrics
+ttksims-redis:
+  enabled: true
+  architecture: standalone
+  fullnameOverride: ttksims-redis
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: "7.4.1-debian-12-r0"
+
+  auth:
+    enabled: false
+
+  # Redis metrics configuration
+  metrics:
+    enabled: false
+    port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  master:
+    persistence:
+      enabled: false
+
+    # Pod annotations
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
+
+## Auth Service Redis with Metrics
+auth-svc-redis:
+  enabled: true
+  architecture: standalone
+  fullnameOverride: auth-svc-redis
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: "7.4.1-debian-12-r0"
+
+  auth:
+    enabled: false
+
+  # Redis metrics configuration
+  metrics:
+    enabled: false
+    port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  master:
+    persistence:
+      enabled: false
+
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
+
+## Proxy Cache Redis Cluster with Metrics
+proxy-cache-redis:
+  enabled: true
+  usePassword: false
+  fullnameOverride: proxy-cache-redis
+  clusterDomain: cluster.local
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis-cluster
+    tag: "8.2.1-debian-12-r0"
+
+  persistence:
+    enabled: false
+
+  cluster:
+    init: true
+    nodes: 6
+    replicas: 1
+
+  # Redis Cluster metrics configuration
+  metrics:
+    enabled: false
+    port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  # Pod annotations for all cluster nodes
+  redis:
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"

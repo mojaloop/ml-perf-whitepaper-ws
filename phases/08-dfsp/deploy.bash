@@ -6,7 +6,7 @@ do
   echo "Starting deployment of FSP${i}..."
   echo ${i}
 
-  SWITCH_IP=10.110.2.48
+  SWITCH_IP=10.112.2.205 # 
 
   export KUBECONFIG=~/Workspace/mojaloop/perf/ml-perf-whitepaper-ws/phases/02-infrastructure/artifacts/kubeconfigs/kubeconfig-fsp${i}.yaml
   # echo $KUBECONFIG
