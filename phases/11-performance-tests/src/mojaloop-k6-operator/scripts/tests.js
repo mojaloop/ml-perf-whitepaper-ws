@@ -90,22 +90,6 @@ function validateEnv() {
     }
   }
 
-  // const fspConfig = __ENV.FSP_CONFIG;
-  // if (!fspConfig) {
-  //   errors.push('Missing FSP_CONFIG (must be a valid JSON array of FSPs details)');
-  //   isValid = false;
-  // } else {
-  //   try {
-  //     const config = JSON.parse(fspConfig);
-  //     if (!Array.isArray(config) || config.length === 0) {
-  //       errors.push('FSP_CONFIG must be a non-empty array');
-  //       isValid = false;
-  //     }
-  //   } catch (e) {
-  //     errors.push(`Invalid FSP_CONFIG: ${e.message}`);
-  //     isValid = false;
-  //   }
-  // }
 
   if (!isValid) {
     console.error('Environment variable validation failed:');
@@ -131,6 +115,9 @@ const failures = new Counter('failed_transactions');
 
 // Test parameters from environment
 const TARGET_TXN_COUNT = parseInt(__ENV.TARGET_TXN_COUNT || '100');
+// TODO: for large scale tests uncomment below line and comment above line since the Math.ceil calculation gives weird results
+// const TARGET_TXN_COUNT = 1000000//parseInt(__ENV.TARGET_TXN_COUNT || '100');
+
 const TARGET_TPS = parseInt(__ENV.TARGET_TPS || '10');
 const abortOnError = __ENV.K6_SCRIPT_ABORT_ON_ERROR === 'true' || false;
 // Environment configuration
