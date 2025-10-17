@@ -30,6 +30,8 @@ simulators:
           VALIDATE_INBOUND_JWS: true
           JWS_SIGN_PUT_PARTIES: false
           VALIDATE_INBOUND_PUT_PARTIES_JWS: false
+          CACHE_SHOULD_EXPIRE: true
+          CACHE_EXPIRY_SECONDS: 3600          
 
         secrets:
           jws:
