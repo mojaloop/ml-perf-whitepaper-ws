@@ -50,11 +50,11 @@ kafka:
     
     resources:
       requests:
-        cpu: "8"
-        memory: "16Gi"
+        cpu: "2"
+        memory: "4Gi"
       limits:
-        cpu: "16"
-        memory: "32Gi"
+        cpu: "4"
+        memory: "8Gi"
 
     # nodeSelector:
     #   kubernetes.io/hostname: sw1-kafka-ctrl-1
@@ -83,21 +83,11 @@ kafka:
     
     resources:
       requests:
-        cpu: "8"
-        memory: "16Gi"
+        cpu: "14"
+        memory: "28Gi"
       limits:
         cpu: "16"
-        memory: "32Gi"
-
-    # nodeSelector:
-    #   kubernetes.io/hostname: sw1-kafka-n1
-    #   kubernetes.io/hostname: sw1-kafka-n2
-    #   kubernetes.io/hostname: sw1-kafka-n3
-    # tolerations:
-    #   - key: "dedicated"
-    #     operator: "Equal"
-    #     value: "kafka"
-    #     effect: "NoSchedule"
+        memory: "48Gi"
 
     podAnnotations: {}
 
@@ -115,32 +105,33 @@ kafka:
       ########################
       auto.create.topics.enable=true
       delete.topic.enable=true
-      num.partitions=24
+      num.partitions=32                    # Increased from 24
 
       ########################
       # Performance / Threading
       ########################
-      num.network.threads=10
-      num.io.threads=14
-      num.replica.fetchers=2
+      num.network.threads=20               # Increased from 10
+      num.io.threads=28                    # Increased from 14
+      num.replica.fetchers=1               # Reduced since no replication needed
       background.threads=4
 
       ########################
       # Socket Buffers
       ########################
-      socket.send.buffer.bytes=1048576
-      socket.receive.buffer.bytes=1048576
-      socket.request.max.bytes=104857600
+      socket.send.buffer.bytes=10485760    # 10MB (from 1MB)
+      socket.receive.buffer.bytes=10485760 # 10MB (from 1MB)
+      socket.request.max.bytes=52428800    # 50MB (from 100MB)
+      message.max.bytes=10485760           # 10MB max message
 
       ########################
       # Log Configuration
       ########################
       log.dirs=/tmp/kafka-logs
-      log.segment.bytes=134217728
-      log.flush.interval.messages=25000
-      log.flush.interval.ms=500
+      log.segment.bytes=268435456          # 256MB (from 128MB)
+      log.flush.interval.messages=50000    # Increased from 25000
+      log.flush.interval.ms=100            # Faster flush for low latency
       log.retention.hours=1
-      log.retention.bytes=536870912
+      log.retention.bytes=2147483648       # 2GB (from 512MB)
       log.cleanup.policy=delete
       log.cleaner.enable=false
 
@@ -155,47 +146,48 @@ kafka:
       ########################
       # Request Handling / Queues
       ########################
-      queued.max.requests=800
+      queued.max.requests=5000             # Increased from 800
       num.recovery.threads.per.data.dir=1
 
       ########################
       # Replication Performance
       ########################
       replica.fetch.min.bytes=1
-      replica.fetch.max.bytes=1048576
-      replica.fetch.wait.max.ms=300
-      fetch.max.bytes=52428800
+      replica.fetch.max.bytes=10485760     # 10MB (from 1MB)
+      replica.fetch.wait.max.ms=500        # Increased from 300
+      fetch.max.bytes=104857600            # 100MB (from 50MB)
 
       ########################
       # Load Testing Tweaks
       ########################
       group.initial.rebalance.delay.ms=0
-      producer.purgatory.purge.interval.requests=1000
-      consumer.purgatory.purge.interval.requests=1000
+      producer.purgatory.purge.interval.requests=500    # More aggressive
+      consumer.purgatory.purge.interval.requests=500    # More aggressive
+      compression.type=producer             # Use producer LZ4 compression
 
     extraEnvVars:
       - name: KAFKA_HEAP_OPTS
-        value: "-Xms16g -Xmx16g"
+        value: "-Xms28g -Xmx28g"  # Optimized for 64gig  memory
       - name: KAFKA_JVM_PERFORMANCE_OPTS
-        value: "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:+ExplicitGCInvokesConcurrent -XX:+ParallelRefProcEnabled -Djava.awt.headless=true"
+        value: "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=15 -XX:InitiatingHeapOccupancyPercent=30 -XX:+ExplicitGCInvokesConcurrent -XX:+ParallelRefProcEnabled -Djava.awt.headless=true"
       - name: KAFKA_NUM_NETWORK_THREADS
-        value: "10"
+        value: "20"                # Updated to match override
       - name: KAFKA_NUM_IO_THREADS
-        value: "14"
+        value: "28"                # Updated to match override
       - name: KAFKA_SOCKET_SEND_BUFFER_BYTES
-        value: "1048576"
+        value: "10485760"
       - name: KAFKA_SOCKET_RECEIVE_BUFFER_BYTES
-        value: "1048576"
+        value: "10485760"
       - name: KAFKA_SOCKET_REQUEST_MAX_BYTES
-        value: "104857600"
+        value: "52428800"
       - name: KAFKA_LOG_FLUSH_INTERVAL_MESSAGES
-        value: "25000"
+        value: "50000"             # Updated to match override
       - name: KAFKA_LOG_FLUSH_INTERVAL_MS
-        value: "500"
+        value: "100"               # Updated to match override
       - name: KAFKA_LOG_RETENTION_MS
         value: "3600000"
       - name: KAFKA_LOG_SEGMENT_BYTES
-        value: "134217728"
+        value: "268435456"         # Updated to match override
       - name: KAFKA_DEFAULT_REPLICATION_FACTOR
         value: "1"
       - name: KAFKA_MIN_INSYNC_REPLICAS
@@ -211,9 +203,19 @@ kafka:
       - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
         value: "true"
       - name: KAFKA_NUM_PARTITIONS
-        value: "24"
+        value: "32"                # Updated to match override
       - name: KAFKA_LOG_CLEANER_ENABLE
         value: "false"
+      - name: KAFKA_MESSAGE_MAX_BYTES
+        value: "10485760"
+      - name: KAFKA_FETCH_MAX_BYTES
+        value: "104857600"
+      - name: KAFKA_COMPRESSION_TYPE
+        value: "producer"
+      - name: KAFKA_REPLICA_FETCH_MAX_BYTES
+        value: "10485760"          # Added for consistency
+      - name: KAFKA_QUEUED_MAX_REQUESTS
+        value: "5000"              # Added for consistency
 
   zookeeper:
     enabled: false
@@ -248,7 +250,7 @@ kafka:
 
       # Light HTTP workload with 2x volume
       - name: topic-notification-event
-        partitions: 12
+        partitions: 18
         replicationFactor: 1
 
       # Low throughput topics - single partition
@@ -293,7 +295,7 @@ kafka:
         replicationFactor: 1
       - name: topic-fx-quotes-get
         partitions: 1
-        replicationFactor: 1        
+        replicationFactor: 1
 ## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/mysql/values.yaml
 mysql:
   enabled: true
@@ -350,15 +352,16 @@ mysql:
     persistence:
       enabled: false
       size: 50Gi
+    # OPTIMIZED RESOURCES - FULL NODE UTILIZATION
     resources:
       limits:
-        cpu: '16'
-        ephemeral-storage: 15Gi
-        memory: 16Gi
+        cpu: '16'              # Use all 16 CPUs
+        ephemeral-storage: 50Gi # Increased for temp tables
+        memory: 56Gi           # 56GB for MySQL, 8GB for OS
       requests:
-        cpu: '8'
-        ephemeral-storage: 5Gi
-        memory: 8Gi
+        cpu: '14'              # Guaranteed all CPUs
+        ephemeral-storage: 50Gi
+        memory: 54Gi           # Guaranteed memory
     # Pod annotations for primary
     podAnnotations:
       prometheus.io/scrape: "true"
@@ -412,7 +415,61 @@ mysql:
         value: "oracle_msisdn"
   ## extraFlags: "--max-connect-errors=1000 --max_connections=155"
     ##
-    extraFlags: "--max_connections=5000"
+
+    ## Critical Performance Flags
+    ## Durability vs Performance (Load Testing Focus)
+    # --innodb_flush_log_at_trx_commit=2  # Faster commits (risk of 1s data loss). For Production change it to 1
+    # --sync_binlog=0                     # Disable sync binlog for performance
+    # --log_bin=0                         # Disable binary logging
+
+    # ## I/O Optimization
+    # --innodb_flush_method=O_DIRECT      # Bypass OS cache for InnoDB
+    # --innodb_io_capacity=2000           # Higher IOPS for SSDs
+    # --innodb_io_capacity_max=4000       # Maximum burst IOPS
+    # --innodb_read_io_threads=8          # Match CPU cores
+    # --innodb_write_io_threads=8         # Match CPU cores
+
+    # ## Connection & Thread Management
+    # --max_connections=2000              # High for load testing
+    # --thread_cache_size=100             # Reuse threads
+    # --innodb_thread_concurrency=0       # Unlimited concurrency
+
+    # ## Cache & Buffer Optimization
+    # --table_open_cache=4000             # More table handles
+    # --table_definition_cache=4000       # More table definitions
+    # --tmp_table_size=256M               # Larger temp tables
+    # --max_heap_table_size=256M          # Larger memory tables
+
+    extraFlags: |
+      --max_connections=5000
+      --innodb_buffer_pool_size=40G
+      --innodb_log_file_size=4G
+      --innodb_log_buffer_size=256M
+      --innodb_flush_log_at_trx_commit=2
+      --sync_binlog=0
+      --innodb_flush_method=O_DIRECT
+      --innodb_io_capacity=2000
+      --innodb_io_capacity_max=4000
+      --innodb_read_io_threads=8
+      --innodb_write_io_threads=8
+      --innodb_thread_concurrency=0
+      --thread_cache_size=100
+      --table_open_cache=4000
+      --table_definition_cache=4000
+      --max_allowed_packet=256M
+      --tmp_table_size=256M
+      --max_heap_table_size=256M
+      --sort_buffer_size=4M
+      --read_buffer_size=2M
+      --read_rnd_buffer_size=1M
+      --join_buffer_size=4M
+      --key_buffer_size=64M
+      --binlog_format=ROW
+      --log_bin=0
+      --slow_query_log=0
+      --performance_schema=OFF
+      --skip_name_resolve
+      --default_authentication_plugin=mysql_native_password    
   ## Initialize databases
   initdbScripts:
     accountLookupInit.sh: |

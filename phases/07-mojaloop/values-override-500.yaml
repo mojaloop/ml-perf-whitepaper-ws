@@ -188,7 +188,7 @@ account-lookup-service:
 quoting-service:
   quoting-service:
     enabled: true
-    replicaCount: 8
+    replicaCount: 12
 
   quoting-service-handler:
     enabled: true
@@ -201,12 +201,12 @@ ml-api-adapter:
   enabled: true
   ml-api-adapter-service:
     enabled: true
-    replicaCount: 8
+    replicaCount: 12
     resources: {}
 
   ml-api-adapter-handler-notification:
     enabled: true
-    replicaCount: 12
+    replicaCount: 18
     resources: {}
 
 
