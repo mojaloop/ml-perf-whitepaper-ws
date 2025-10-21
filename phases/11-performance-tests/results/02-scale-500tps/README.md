@@ -1,14 +1,19 @@
 # Mojaloop Performance Tests for 500 TPS
 
 ### Summary:
-500 TPS for a total of 1 Million transfers achieved with 99.999% success rate with below configuration and details.
+500 (F)TPS for a total of 1 Million transfers achieved with 99.999% success rate with below configuration and details.
 
-discovery_time.................: avg=22.54ms  min=2ms      med=21ms     max=1.06s   p(90)=29ms     p(95)=34ms
-quote_time.....................: avg=124.35ms min=38ms     med=124ms    max=375ms   p(90)=191ms    p(95)=211ms
-transfer_time..................: avg=543.58ms min=202ms    med=530ms    max=1.8s    p(90)=707ms    p(95)=768ms
-e2e_time.......................: avg=690.72ms min=276ms    med=679ms    max=1.97s   p(90)=867ms    p(95)=929ms
-vus............................: 148     min=0         max=496
-vus_max........................: 3000    min=3000      max=3000
+1. discovery_time.................: avg=22.54ms  min=2ms      med=21ms     max=1.06s   p(90)=29ms     p(95)=34ms
+
+1. quote_time.....................: avg=124.35ms min=38ms     med=124ms    max=375ms   p(90)=191ms    p(95)=211ms
+
+1. transfer_time..................: avg=543.58ms min=202ms    med=530ms    max=1.8s    p(90)=707ms    p(95)=768ms
+
+1. e2e_time.......................: avg=690.72ms min=276ms    med=679ms    max=1.97s   p(90)=867ms    p(95)=929ms
+
+1. vus............................: 148     min=0         max=496
+
+1. vus_max........................: 3000    min=3000      max=3000
 
 ## Infrastructure Used
 
