@@ -23,10 +23,10 @@
 |------|----------|
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
-| **Storage** | EBS only (no instance store) |
-| **Network Performance** | High (up to 10 Gbps) |
-| **Processor** | Intel Xeon E5-2686 v4 (Broadwell) |
-| **EBS Bandwidth** | Up to 2,000 Mbps |
+| **Storage** | EBS-Only |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -36,10 +36,10 @@
 |------|----------|
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
-| **Storage** | EBS only (NVMe SSD-backed) |
-| **Network Performance** | Up to 10 Gbps |
-| **Processor** | 3.1 GHz Intel Xeon Platinum 8175 M (Skylake/Cascade Lake) |
-| **EBS Bandwidth** | Up to 4,750 Mbps |
+| **Storage** | EBS-Only |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -50,9 +50,9 @@
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
 | **Storage** | EBS only |
-| **Network Performance** | Up to 10 Gbps |
-| **Processor** | Intel Xeon Platinum 8175 M |
-| **EBS Bandwidth** | Up to 4,750 Mbps |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -63,9 +63,9 @@
 | **vCPUs** | 8 |
 | **Memory** | 32 GiB |
 | **Storage** | EBS only |
-| **Network Performance** | High (up to 1–10 Gbps, depending on region) |
-| **Processor** | Intel Xeon E5-2686 v4 (Broadwell) |
-| **EBS Bandwidth** | Up to 1,000 Mbps |
+| **Network Performance** | High (up to 12.5 Gbps) |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -75,10 +75,10 @@
 |------|----------|
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
-| **Storage** | EBS only (NVMe SSD-backed) |
-| **Network Performance** | Up to 10 Gbps |
-| **Processor** | 3.1 GHz Intel Xeon Platinum 8175 M (Skylake/Cascade Lake) |
-| **EBS Bandwidth** | Up to 4,750 Mbps |
+| **Storage** | EBS-Only |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 
 Affinities if any
