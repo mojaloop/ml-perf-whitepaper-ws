@@ -1,14 +1,21 @@
 # Mojaloop Performance Tests for 500 TPS
 
 ### Summary:
-500 TPS for a total of 1 Million transfers achieved with 99.999% success rate with below configuration and details.
+500 (F)TPS for a total of 1 Million transfers achieved with 99.999% success rate with below configuration and details.
+```
+1. discovery_time.................: avg=22.54ms  min=2ms      med=21ms     max=1.06s   p(90)=29ms     p(95)=34ms
 
-discovery_time.................: avg=22.54ms  min=2ms      med=21ms     max=1.06s   p(90)=29ms     p(95)=34ms
-quote_time.....................: avg=124.35ms min=38ms     med=124ms    max=375ms   p(90)=191ms    p(95)=211ms
-transfer_time..................: avg=543.58ms min=202ms    med=530ms    max=1.8s    p(90)=707ms    p(95)=768ms
-e2e_time.......................: avg=690.72ms min=276ms    med=679ms    max=1.97s   p(90)=867ms    p(95)=929ms
-vus............................: 148     min=0         max=496
-vus_max........................: 3000    min=3000      max=3000
+1. quote_time.....................: avg=124.35ms min=38ms     med=124ms    max=375ms   p(90)=191ms    p(95)=211ms
+
+1. transfer_time..................: avg=543.58ms min=202ms    med=530ms    max=1.8s    p(90)=707ms    p(95)=768ms
+
+1. e2e_time.......................: avg=690.72ms min=276ms    med=679ms    max=1.97s   p(90)=867ms    p(95)=929ms
+
+1. vus............................: 148     min=0         max=496
+
+1. vus_max........................: 3000    min=3000      max=3000
+
+```
 
 ## Infrastructure Used
 
@@ -18,10 +25,10 @@ vus_max........................: 3000    min=3000      max=3000
 |------|----------|
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
-| **Storage** | EBS only (no instance store) |
-| **Network Performance** | High (up to 10 Gbps) |
-| **Processor** | Intel Xeon E5-2686 v4 (Broadwell) |
-| **EBS Bandwidth** | Up to 2,000 Mbps |
+| **Storage** | EBS-Only |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -31,10 +38,10 @@ vus_max........................: 3000    min=3000      max=3000
 |------|----------|
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
-| **Storage** | EBS only (NVMe SSD-backed) |
-| **Network Performance** | Up to 10 Gbps |
-| **Processor** | 3.1 GHz Intel Xeon Platinum 8175 M (Skylake/Cascade Lake) |
-| **EBS Bandwidth** | Up to 4,750 Mbps |
+| **Storage** | EBS-Only |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -45,9 +52,9 @@ vus_max........................: 3000    min=3000      max=3000
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
 | **Storage** | EBS only |
-| **Network Performance** | Up to 10 Gbps |
-| **Processor** | Intel Xeon Platinum 8175 M |
-| **EBS Bandwidth** | Up to 4,750 Mbps |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -58,9 +65,9 @@ vus_max........................: 3000    min=3000      max=3000
 | **vCPUs** | 8 |
 | **Memory** | 32 GiB |
 | **Storage** | EBS only |
-| **Network Performance** | High (up to 1–10 Gbps, depending on region) |
-| **Processor** | Intel Xeon E5-2686 v4 (Broadwell) |
-| **EBS Bandwidth** | Up to 1,000 Mbps |
+| **Network Performance** | High (up to 12.5 Gbps) |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 ---
 
@@ -70,10 +77,10 @@ vus_max........................: 3000    min=3000      max=3000
 |------|----------|
 | **vCPUs** | 16 |
 | **Memory** | 64 GiB |
-| **Storage** | EBS only (NVMe SSD-backed) |
-| **Network Performance** | Up to 10 Gbps |
-| **Processor** | 3.1 GHz Intel Xeon Platinum 8175 M (Skylake/Cascade Lake) |
-| **EBS Bandwidth** | Up to 4,750 Mbps |
+| **Storage** | EBS-Only |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | Up to 10 Gbps |
 
 
 Affinities if any
