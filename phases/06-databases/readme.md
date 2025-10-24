@@ -19,7 +19,11 @@ kubectl patch serviceaccount default \
 
 # helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/values.yaml -f ml-perf-whitepaper-ws/phases/06-databases/override-200.yaml
 
-helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/override-500.yaml
+## For 500 tps test with 3 kafka brokers and 1 controller(which is overkill)
+# helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/override-500.yaml
+
+## For 1000 tps test with a single kafka node ( broker and controller on the same node)
+helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/override-1000.yaml
 
 # # annotation for prometheus
 # kubectl -n mojaloop annotate pods mysqldb-0 prometheus.io/port=9104
