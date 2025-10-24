@@ -7,7 +7,11 @@
 #helm repo add mojaloop http://mojaloop.io/helm/repo/
 # helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 -f ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml -f ml-perf-whitepaper-ws/phases/07-mojaloop/values-override-200.yaml
 
-helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 -f ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml -f ml-perf-whitepaper-ws/phases/07-mojaloop/values-override-500.yaml
+## Used for getting 500 TPS
+# helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 -f ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml -f ml-perf-whitepaper-ws/phases/07-mojaloop/values-override-500.yaml
+
+## Used for getting 1000 TPS
+helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 -f ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml -f ml-perf-whitepaper-ws/phases/07-mojaloop/values-override-1000.yaml
 
 # # to fix
 # kubectl apply -f ml-perf-whitepaper-ws/phases/07-mojaloop/network-policy.yaml # allow monitoring to scrap in ml ns

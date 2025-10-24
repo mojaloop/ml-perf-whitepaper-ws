@@ -74,6 +74,20 @@ simulators:
               dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
               nQIDAQAB
               -----END PUBLIC KEY-----
+            livenessProbe:
+              enabled: true
+              initialDelaySeconds: 3
+              periodSeconds: 180
+              timeoutSeconds: 10
+              successThreshold: 1
+              failureThreshold: 3
+            readinessProbe:
+              enabled: true
+              initialDelaySeconds: 3
+              periodSeconds: 180
+              timeoutSeconds: 5
+              successThreshold: 1
+              failureThreshold: 3              
       backend:
         env:
           DFSP_ID: "fsp204"

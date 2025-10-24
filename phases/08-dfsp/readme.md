@@ -1,8 +1,13 @@
 
 ## Install the DFSP
 
+### default installation
 ```bash
 ./ml-perf-whitepaper-ws/phases/08-dfsp/deploy.bash
+```
+### with 16 replicas of sdk-scheme-adapter ( used for 1000 tps)
+```bash
+./ml-perf-whitepaper-ws/phases/08-dfsp/deploy-1000.bash
 ```
 
 ## Set DNS on each FSP
