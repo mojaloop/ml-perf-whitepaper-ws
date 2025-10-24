@@ -13,14 +13,14 @@ set -e
 # insert into oracleMSISDN(id, fspId) values(17039811925, 'fsp208');
 
 # Database connection details
-DB_USER="oracle_msisdn"
+DB_USER="root"
 DB_PASS=""
 DB_NAME="oracle_msisdn"
 
 # Starting ID
 START_ID=17039811929
 # Number of records to insert
-COUNT=1000
+COUNT=10000
 
 # Loop to generate and execute INSERT statements
 for ((i=0; i<COUNT; i++))
@@ -41,14 +41,14 @@ echo "Completed inserting $COUNT records"
 
 
 # Database connection details
-DB_USER="oracle_msisdn"
+DB_USER="root"
 DB_PASS=""
 DB_NAME="oracle_msisdn"
 
 # Starting ID
 START_ID=37039811929
 # Number of records to insert
-COUNT=1000
+COUNT=10000
 
 # Loop to generate and execute INSERT statements
 for ((i=0; i<COUNT; i++))
@@ -68,14 +68,14 @@ done
 echo "Completed inserting $COUNT records"
 
 # Database connection details
-DB_USER="oracle_msisdn"
+DB_USER="root"
 DB_PASS=""
 DB_NAME="oracle_msisdn"
 
 # Starting ID
 START_ID=47039811929
 # Number of records to insert
-COUNT=1000
+COUNT=10000
 
 # Loop to generate and execute INSERT statements
 for ((i=0; i<COUNT; i++))
@@ -95,14 +95,14 @@ done
 echo "Completed inserting $COUNT records"
 
 # Database connection details
-DB_USER="oracle_msisdn"
+DB_USER="root"
 DB_PASS=""
 DB_NAME="oracle_msisdn"
 
 # Starting ID
 START_ID=57039811929
 # Number of records to insert
-COUNT=1000
+COUNT=10000
 
 # Loop to generate and execute INSERT statements
 for ((i=0; i<COUNT; i++))
@@ -123,14 +123,14 @@ echo "Completed inserting $COUNT records"
 
 
 # Database connection details
-DB_USER="oracle_msisdn"
+DB_USER="root"
 DB_PASS=""
 DB_NAME="oracle_msisdn"
 
 # Starting ID
 START_ID=67039811929
 # Number of records to insert
-COUNT=1000
+COUNT=10000
 
 # Loop to generate and execute INSERT statements
 for ((i=0; i<COUNT; i++))
@@ -151,14 +151,14 @@ echo "Completed inserting $COUNT records"
 
 
 # Database connection details
-DB_USER="oracle_msisdn"
+DB_USER="root"
 DB_PASS=""
 DB_NAME="oracle_msisdn"
 
 # Starting ID
 START_ID=77039811929
 # Number of records to insert
-COUNT=1000
+COUNT=10000
 
 # Loop to generate and execute INSERT statements
 for ((i=0; i<COUNT; i++))
@@ -180,14 +180,14 @@ echo "Completed inserting $COUNT records"
 
 
 # Database connection details
-DB_USER="oracle_msisdn"
+DB_USER="root"
 DB_PASS=""
 DB_NAME="oracle_msisdn"
 
 # Starting ID
 START_ID=87039811929
 # Number of records to insert
-COUNT=1000
+COUNT=10000
 
 # Loop to generate and execute INSERT statements
 for ((i=0; i<COUNT; i++))
