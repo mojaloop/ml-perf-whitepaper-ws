@@ -5,7 +5,7 @@ kafka-topics.sh --alter --topic topic-quotes-put --partitions 12 --bootstrap-ser
 kafka-topics.sh --alter --topic topic-transfer-prepare --partitions 12 --bootstrap-server kafka:9092
 kafka-topics.sh --alter --topic topic-transfer-fulfil --partitions 12 --bootstrap-server kafka:9092
 kafka-topics.sh --alter --topic topic-transfer-position-batch --partitions 8 --bootstrap-server kafka:9092
-kafka-topics.sh --alter --topic topic-notification-event --partitions 24 --bootstrap-server kafka:9092
+kafka-topics.sh --alter --topic topic-notification-event --partitions 18 --bootstrap-server kafka:9092
 
 
 kafka-topics.sh --describe --topic topic-notification-event --bootstrap-server kafka:9092

@@ -139,7 +139,7 @@ export const options = {
       timeUnit: '1s',
       duration: testDuration + 's',
       // preAllocatedVUs: Math.max(Math.ceil(TARGET_TPS * 2), 100),
-      preAllocatedVUs: 3000,
+      preAllocatedVUs: 5000,
       // maxVUs: Math.max(Math.ceil(TARGET_TPS * 4), 200),
       maxVUs: 8000,
     },
@@ -242,7 +242,8 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
     // console.log(`Getting Party: ${alsEndpoint} traceparent=${traceparent}`);
 
     const params = {
-      tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+      // tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+      tags: { flow: "discovery" },
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -289,7 +290,8 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
       const quotesEndpoint = `${sourceFsp.baseUrl}/quotes`;
 
       const params = {
-        tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+        // tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+        tags: { flow: "quotes" },
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -355,7 +357,8 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
       const transfersEndpoint = `${sourceFsp.baseUrl}/simpleTransfers`;
       // console.log(`Initiating Transfer: ${transfersEndpoint} with transferId: ${transferId}`);
       const params = {
-        tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+        // tags: { payerFspId: sourceFsp.id, payeeFspId: destFsp.id },
+        tags: { flow: "transfers" },
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
