@@ -11,7 +11,7 @@
 # helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 -f ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml -f ml-perf-whitepaper-ws/phases/07-mojaloop/values-override-500.yaml
 
 ## Used for getting 1000 TPS
-helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 -f ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml -f ml-perf-whitepaper-ws/phases/07-mojaloop/values-override-1000.yaml
+helm -n mojaloop upgrade --install moja mojaloop/mojaloop --version 17.1.0 -f ml-perf-whitepaper-ws/phases/07-mojaloop/values.yaml -f ml-perf-whitepaper-ws/phases/07-mojaloop/values-override-1000-replication.yaml
 
 # # to fix
 # kubectl apply -f ml-perf-whitepaper-ws/phases/07-mojaloop/network-policy.yaml # allow monitoring to scrap in ml ns
@@ -25,35 +25,35 @@ kubectl patch deployment moja-quoting-service-handler \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.98",
+              "ip": "10.112.2.29",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.133",
+              "ip": "10.112.2.61",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.223",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.19",
+              "ip": "10.112.2.34",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.155",
+              "ip": "10.112.2.22",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.67",
+              "ip": "10.112.2.6",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.127",
+              "ip": "10.112.2.183",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.37",
+              "ip": "10.112.2.20",
               "hostnames": ["sim-fsp208.local"]
             }
           ]
@@ -72,35 +72,35 @@ kubectl patch deployment moja-account-lookup-service \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.98",
+              "ip": "10.112.2.29",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.133",
+              "ip": "10.112.2.61",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.223",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.19",
+              "ip": "10.112.2.34",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.155",
+              "ip": "10.112.2.22",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.67",
+              "ip": "10.112.2.6",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.127",
+              "ip": "10.112.2.183",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.37",
+              "ip": "10.112.2.20",
               "hostnames": ["sim-fsp208.local"]
             }
           ]
@@ -119,35 +119,35 @@ kubectl patch deployment moja-ml-api-adapter-handler-notification \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.98",
+              "ip": "10.112.2.29",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.133",
+              "ip": "10.112.2.61",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.223",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.19",
+              "ip": "10.112.2.34",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.155",
+              "ip": "10.112.2.22",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.67",
+              "ip": "10.112.2.6",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.127",
+              "ip": "10.112.2.183",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.37",
+              "ip": "10.112.2.20",
               "hostnames": ["sim-fsp208.local"]
             }
           ]
@@ -168,35 +168,35 @@ kubectl patch statefulset.apps/moja-ml-testing-toolkit-backend \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.98",
+              "ip": "10.112.2.29",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.133",
+              "ip": "10.112.2.61",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.223",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.19",
+              "ip": "10.112.2.34",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.155",
+              "ip": "10.112.2.22",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.67",
+              "ip": "10.112.2.6",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.127",
+              "ip": "10.112.2.183",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.37",
+              "ip": "10.112.2.20",
               "hostnames": ["sim-fsp208.local"]
             }
           ]
