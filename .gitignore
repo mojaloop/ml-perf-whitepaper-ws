@@ -1,3 +1,5 @@
 *_tmp
-
+kubeconfig-*
+*.log
 .DS_Store
+_*
