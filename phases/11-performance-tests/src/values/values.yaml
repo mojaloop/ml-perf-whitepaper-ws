@@ -1,0 +1,39 @@
+k6:
+  targetTxnCount: 100000
+  abortOnError: false
+  transferAmount: "1" # transfer amount per transaction
+  currency: "XXX"
+  targetTps: 1000
+  fspPairs:
+    - source: fsp201
+      dest: fsp202
+      weight: 0.25 # 25% load
+    - source: fsp203
+      dest: fsp204
+      weight: 0.25 # 25% load
+    - source: fsp205
+      dest: fsp206
+      weight: 0.25 # 25% load
+    - source: fsp207
+      dest: fsp208
+      weight: 0.25 # 25% load
+
+  fspConfig: |
+    {
+      "fsp201": { "id": "fsp201", "msisdn": "17039811918", "baseUrl": "http://sim-fsp201.local/sim/fsp201/outbound", "startMsisdn": "17039811918", "endMsisdn": "17039811918" },
+      "fsp202": { "id": "fsp202", "msisdn": "17039811919", "baseUrl": "http://sim-fsp202.local/sim/fsp202/outbound", "startMsisdn": "17039811929", "endMsisdn": "17039812928" },
+      "fsp203": { "id": "fsp203", "msisdn": "17039811920", "baseUrl": "http://sim-fsp203.local/sim/fsp203/outbound", "startMsisdn": "37039811929", "endMsisdn": "37039812928" },
+      "fsp204": { "id": "fsp204", "msisdn": "17039811921", "baseUrl": "http://sim-fsp204.local/sim/fsp204/outbound", "startMsisdn": "47039811929", "endMsisdn": "47039812928" },
+      "fsp205": { "id": "fsp205", "msisdn": "17039811922", "baseUrl": "http://sim-fsp205.local/sim/fsp205/outbound", "startMsisdn": "57039811929", "endMsisdn": "57039812928" },
+      "fsp206": { "id": "fsp206", "msisdn": "17039811923", "baseUrl": "http://sim-fsp206.local/sim/fsp206/outbound", "startMsisdn": "67039811929", "endMsisdn": "67039812928" },
+      "fsp207": { "id": "fsp207", "msisdn": "17039811924", "baseUrl": "http://sim-fsp207.local/sim/fsp207/outbound", "startMsisdn": "77039811929", "endMsisdn": "77039812928" },
+      "fsp208": { "id": "fsp208", "msisdn": "17039811925", "baseUrl": "http://sim-fsp208.local/sim/fsp208/outbound", "startMsisdn": "87039811929", "endMsisdn": "87039812928" }
+    }
+
+resources:
+  limits:
+    cpu: "6"
+    memory: "10Gi"
+  requests:
+    cpu: "3"
+    memory: "5Gi"
