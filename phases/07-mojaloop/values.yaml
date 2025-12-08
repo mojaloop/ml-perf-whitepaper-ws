@@ -319,7 +319,7 @@ account-lookup-service:
       db_ssl_ca_secret: *ALS_DB_SSL_CA_SECRET
 
       endpointSecurity:
-        jwsSign: true
+        jwsSign: false
         # `jwsSigningKeySecret` is used to specify the secret that contains the JWS signing key.
         # If `jwsSigningKeySecret` is not null, then the `jwsSigningKey` value will be ignored.
         # Expected properties of `jwsSigningKeySecret` are `name` and `key`.
@@ -340,32 +340,32 @@ account-lookup-service:
         # The following is an example key and shouldn't be used in production
         jwsSigningKey: |-
           -----BEGIN PRIVATE KEY-----
-          MIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQDuB5HuHRH5BqI/
-          VAC/ixm6lz8kJmigIB5jMxLrhB9cgqM+pb0O+is88VRHdxtw8eKG3nvrZYy/4nsJ
-          z32qo4sOIMqHWTlZgbURVK4FAUEZ/qn63UnXJ1YVqT4UGg31BBj2c1JdlxG2t4JV
-          DvzGrI2/ia/t4gYZCWrQz6a8OClBIaXu2t6EGFnysyS+1YDWtNIHO+z0lvAY9oad
-          5MZPHN51o04eIoLO0tPfkz0+NDs4ECwUWuFAg8yo1hxnvSoERiCAwEbFgq2wDe1+
-          oBhOpusd4VastD/TEqO8RhrwTodddOMKzapJPrQJuvTkrpkmkPOGE8DgIVHsULLR
-          UYEMKvTVAgMBAAECgf94Meq77xrcFg8sSqe5eNHYP39tvaWyqE7mY/slvpNDH5Pl
-          D/p21akS156E32BEJuYPk/TLiI2kMWjnvbHvNgr9tq8x3ToyTjtrg5clq8Hr1Ozo
-          FnFiqkVHMFPFPQZEVU64CQPA33DixuWjMWS3YINfCAinErBry0PiNZGmuFi1K/wy
-          e1z2F9WfG3IEBEe3NaeXwN55ZPJve0LtneJy3YqNwMg2FpPKBRHFV4lKTaU/hqhC
-          NK6HQoEXN4Y9AQHn53Fl8n0iNO3qx0Tb7EuGNFmZ2xTlpDKAp8M+BA5Qm5YDkbd6
-          OoxbGj2YxZncbG+RsvICtVMLqIytubvYREY9WGkCgYEA+K64xhJzWV3cGc8/90ko
-          TryGMBj1ly5TNa1YyOQxl5z4Glc0aI8a+1vJGEAA+c/OEhMR8MRn3+QfV2LJOI5X
-          V8Zo2Ger6Ln99LBddTh2HXL3M60cMgs8MYGuJ75g5R/UHnJBLo7NFyVddCOMT3hc
-          AYSDN3XCw9ycqTw2/mJHB9kCgYEA9QiaCfTtnXdjMqLeYbp2uQEyyO6IZs956ym7
-          sEQMwx/3wnlE9eiJ6iQxZfddkfOCyV/4MMAlYfpTBQFg7Cwb32Xrv3Ezy0HfZrnt
-          5Nj4SVQWuOXJhdfC9dmTF+cvBeP+vC6PyDbikxdCo9+05chxS7I3MLxCue4qxy0C
-          QfQIE10CgYA+kHacHng2u45sT9/f7t/dL0DzSNRAvL7iekIkCIURh8RDnDzrMVWw
-          d18YYsHcF5PYqEOTN1aK1XGtIoVNXUJMKvaluy9c1a42qUhZ/WJ59jqLHbpCPOFf
-          8yhFh3gJLQDIyCXt+K9Qa24fkfHy7Gz5VMVOZqohbJddXHDZfxAvwQKBgAdU947+
-          tjF1BhHYz8Cq3KySfZuHj6tL4AEKYaRXlO4twbMe/9I/4AiShqvfZ/xbBfnSllGX
-          Hkc9P0iyDt1iQH9BxHkZAQy+7tlbDORBHcTL8FYeAhawKxRCK2WWtFB/zvqAhire
-          gY8XLhZLNlV91u4F6iLaL0DzAHKvRRcGH0u9AoGATNigZgbRRHJC21JucHeE0tP7
-          HjGALvb4qn1o0oDHsxNY8i6vVNw9YeQpZaJhceuRHJTGcsq2dJSXpYwIhIVs/8RK
-          bKbkEndra96L6FRZN8LYBl8zbRUPx39ojGeSbFliQv1eaoA/1DDhCiC2NlcSmbJl
-          ecaG/Oyo/S+eM8nR7mc=
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+          lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+          /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+          tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+          zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+          oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+          5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+          aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+          XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+          7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+          Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+          xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+          ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+          TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+          0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+          vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+          42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+          HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+          K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+          TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+          zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+          sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+          +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+          n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+          Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+          +LkclaNA0KksCpGdo+I6J0U=
           -----END PRIVATE KEY-----
 
       # Thirdparty API Config
@@ -457,7 +457,8 @@ account-lookup-service:
       ## @param ingress.annotations Additional custom annotations for the ingress record
       ## NOTE: If `ingress.certManager=true`, annotation `kubernetes.io/tls-acme: "true"` will automatically be added
       ##
-      annotations: null
+      annotations:  null
+        # cert-manager.io/cluster-issuer: "internal-ca-issuer"
       ## @param ingress.tls Enable TLS configuration for the host defined at `ingress.hostname` parameter
       ## TLS certificates will be retrieved from a TLS secret with name: `{{- printf "%s-tls" .Values.ingress.hostname }}`
       ## You can:
@@ -658,7 +659,35 @@ account-lookup-service:
         # mBynFpdjO0D3PnLKjnBDn1vFAfANOwVpGXCw5mn+484A/SIXYebWruFd03g4
         # -----END RSA PRIVATE KEY-----
         # The following is an example key and shouldn't be used in production
-        jwsSigningKey: null
+        jwsSigningKey: |-
+          -----BEGIN PRIVATE KEY-----
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+          lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+          /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+          tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+          zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+          oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+          5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+          aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+          XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+          7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+          Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+          xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+          ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+          TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+          0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+          vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+          42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+          HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+          K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+          TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+          zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+          sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+          +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+          n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+          Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+          +LkclaNA0KksCpGdo+I6J0U=
+          -----END PRIVATE KEY-----
         # To generate this key:
         # Private:
         # ssh-keygen -t rsa -b 4096 -m PEM -f jwtRS256.key
@@ -969,32 +998,32 @@ account-lookup-service:
         # The following is an example key and shouldn't be used in production
         jwsSigningKey: |-
           -----BEGIN PRIVATE KEY-----
-          MIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQDuB5HuHRH5BqI/
-          VAC/ixm6lz8kJmigIB5jMxLrhB9cgqM+pb0O+is88VRHdxtw8eKG3nvrZYy/4nsJ
-          z32qo4sOIMqHWTlZgbURVK4FAUEZ/qn63UnXJ1YVqT4UGg31BBj2c1JdlxG2t4JV
-          DvzGrI2/ia/t4gYZCWrQz6a8OClBIaXu2t6EGFnysyS+1YDWtNIHO+z0lvAY9oad
-          5MZPHN51o04eIoLO0tPfkz0+NDs4ECwUWuFAg8yo1hxnvSoERiCAwEbFgq2wDe1+
-          oBhOpusd4VastD/TEqO8RhrwTodddOMKzapJPrQJuvTkrpkmkPOGE8DgIVHsULLR
-          UYEMKvTVAgMBAAECgf94Meq77xrcFg8sSqe5eNHYP39tvaWyqE7mY/slvpNDH5Pl
-          D/p21akS156E32BEJuYPk/TLiI2kMWjnvbHvNgr9tq8x3ToyTjtrg5clq8Hr1Ozo
-          FnFiqkVHMFPFPQZEVU64CQPA33DixuWjMWS3YINfCAinErBry0PiNZGmuFi1K/wy
-          e1z2F9WfG3IEBEe3NaeXwN55ZPJve0LtneJy3YqNwMg2FpPKBRHFV4lKTaU/hqhC
-          NK6HQoEXN4Y9AQHn53Fl8n0iNO3qx0Tb7EuGNFmZ2xTlpDKAp8M+BA5Qm5YDkbd6
-          OoxbGj2YxZncbG+RsvICtVMLqIytubvYREY9WGkCgYEA+K64xhJzWV3cGc8/90ko
-          TryGMBj1ly5TNa1YyOQxl5z4Glc0aI8a+1vJGEAA+c/OEhMR8MRn3+QfV2LJOI5X
-          V8Zo2Ger6Ln99LBddTh2HXL3M60cMgs8MYGuJ75g5R/UHnJBLo7NFyVddCOMT3hc
-          AYSDN3XCw9ycqTw2/mJHB9kCgYEA9QiaCfTtnXdjMqLeYbp2uQEyyO6IZs956ym7
-          sEQMwx/3wnlE9eiJ6iQxZfddkfOCyV/4MMAlYfpTBQFg7Cwb32Xrv3Ezy0HfZrnt
-          5Nj4SVQWuOXJhdfC9dmTF+cvBeP+vC6PyDbikxdCo9+05chxS7I3MLxCue4qxy0C
-          QfQIE10CgYA+kHacHng2u45sT9/f7t/dL0DzSNRAvL7iekIkCIURh8RDnDzrMVWw
-          d18YYsHcF5PYqEOTN1aK1XGtIoVNXUJMKvaluy9c1a42qUhZ/WJ59jqLHbpCPOFf
-          8yhFh3gJLQDIyCXt+K9Qa24fkfHy7Gz5VMVOZqohbJddXHDZfxAvwQKBgAdU947+
-          tjF1BhHYz8Cq3KySfZuHj6tL4AEKYaRXlO4twbMe/9I/4AiShqvfZ/xbBfnSllGX
-          Hkc9P0iyDt1iQH9BxHkZAQy+7tlbDORBHcTL8FYeAhawKxRCK2WWtFB/zvqAhire
-          gY8XLhZLNlV91u4F6iLaL0DzAHKvRRcGH0u9AoGATNigZgbRRHJC21JucHeE0tP7
-          HjGALvb4qn1o0oDHsxNY8i6vVNw9YeQpZaJhceuRHJTGcsq2dJSXpYwIhIVs/8RK
-          bKbkEndra96L6FRZN8LYBl8zbRUPx39ojGeSbFliQv1eaoA/1DDhCiC2NlcSmbJl
-          ecaG/Oyo/S+eM8nR7mc=
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+          lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+          /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+          tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+          zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+          oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+          5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+          aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+          XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+          7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+          Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+          xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+          ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+          TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+          0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+          vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+          42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+          HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+          K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+          TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+          zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+          sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+          +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+          n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+          Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+          +LkclaNA0KksCpGdo+I6J0U=
           -----END PRIVATE KEY-----
 
       # Thirdparty API Config
@@ -1575,6 +1604,7 @@ quoting-service:
       registry: docker.io
       repository: mojaloop/quoting-service
       tag: v17.12.1
+    replicaCount: 1
     config:
       hub_participant: *HUB_PARTICIPANT
       ## DB Configuration
@@ -1641,8 +1671,36 @@ quoting-service:
         truncate_extensions: true
 
       endpointSecurity:
-        jwsSign: false
-        jwsSigningKey: null
+        jwsSign: true
+        jwsSigningKey: |-
+          -----BEGIN PRIVATE KEY-----
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+          lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+          /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+          tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+          zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+          oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+          5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+          aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+          XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+          7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+          Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+          xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+          ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+          TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+          0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+          vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+          42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+          HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+          K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+          TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+          zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+          sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+          +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+          n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+          Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+          +LkclaNA0KksCpGdo+I6J0U=
+          -----END PRIVATE KEY-----
         # To generate this key:
         # Private:
         # ssh-keygen -t rsa -b 4096 -m PEM -f jwtRS256.key
@@ -1665,6 +1723,54 @@ quoting-service:
         prefix: moja_
         defaultLabels:
           serviceName: quoting-service
+
+    ingress:
+      enabled: true
+      ## @param ingress.pathType Ingress path type
+      ##
+      pathType: ImplementationSpecific
+      ## @param ingress.apiVersion Force Ingress API version (automatically detected if not set)
+      ##
+      apiVersion: null
+      ## @param ingress.hostname Default host for the ingress record
+      ##
+      hostname: quoting-service.local
+      ## @param servicePort : port for the service
+      ##
+      servicePort: 80
+      ## @param ingress.path Default path for the ingress record
+      ## NOTE: You may need to set this to '/*' in order to use this with ALB ingress controllers
+      path: /
+      ## @param ingress.annotations Additional custom annotations for the ingress record
+      ## NOTE: If `ingress.certManager=true`, annotation `kubernetes.io/tls-acme: "true"` will automatically be added
+      ##
+      annotations: null
+        # cert-manager.io/cluster-issuer: "internal-ca-issuer"
+      ## @param ingress.tls Enable TLS configuration for the host defined at `ingress.hostname` parameter
+      ## TLS certificates will be retrieved from a TLS secret with name: `{{- printf "%s-tls" .Values.ingress.hostname }}`
+      ## You can:
+      ##   - Use the `ingress.secrets` parameter to create this TLS secret
+      ##   - Relay on cert-manager to create it by setting `ingress.certManager=true`
+      ##   - Relay on Helm to create self-signed certificates by setting `ingress.selfSigned=true`
+      ##
+      tls: false
+      ## @param ingress.certManager Add the corresponding annotations for cert-manager integration
+      ##
+      certManager: false
+      ## @param ingress.selfSigned Create a TLS secret for this ingress record using self-signed certificates generated by Helm
+      ##
+      selfSigned: false
+      ## @param ingress.extraHosts An array with additional hostname(s) to be covered with the ingress record
+      ## e.g:
+      ## extraHosts:
+      ##   - name: transfer-api-svc.local
+      ##     path: /
+      ##
+      extraHosts: null
+      extraPaths: null
+      extraTls: null
+      secrets: null
+      className: "nginx"
 
     sidecar:
       enabled: false
@@ -1691,6 +1797,7 @@ quoting-service:
       registry: docker.io
       repository: mojaloop/quoting-service
       tag: v17.12.1
+    replicaCount: 1
     config:
       hub_participant: *HUB_PARTICIPANT
       ## DB Configuration
@@ -1768,32 +1875,32 @@ quoting-service:
         # The following is an example key and shouldn't be used in production
         jwsSigningKey: |-
           -----BEGIN PRIVATE KEY-----
-          MIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQDuB5HuHRH5BqI/
-            VAC/ixm6lz8kJmigIB5jMxLrhB9cgqM+pb0O+is88VRHdxtw8eKG3nvrZYy/4nsJ
-            z32qo4sOIMqHWTlZgbURVK4FAUEZ/qn63UnXJ1YVqT4UGg31BBj2c1JdlxG2t4JV
-            DvzGrI2/ia/t4gYZCWrQz6a8OClBIaXu2t6EGFnysyS+1YDWtNIHO+z0lvAY9oad
-            5MZPHN51o04eIoLO0tPfkz0+NDs4ECwUWuFAg8yo1hxnvSoERiCAwEbFgq2wDe1+
-            oBhOpusd4VastD/TEqO8RhrwTodddOMKzapJPrQJuvTkrpkmkPOGE8DgIVHsULLR
-            UYEMKvTVAgMBAAECgf94Meq77xrcFg8sSqe5eNHYP39tvaWyqE7mY/slvpNDH5Pl
-            D/p21akS156E32BEJuYPk/TLiI2kMWjnvbHvNgr9tq8x3ToyTjtrg5clq8Hr1Ozo
-            FnFiqkVHMFPFPQZEVU64CQPA33DixuWjMWS3YINfCAinErBry0PiNZGmuFi1K/wy
-            e1z2F9WfG3IEBEe3NaeXwN55ZPJve0LtneJy3YqNwMg2FpPKBRHFV4lKTaU/hqhC
-            NK6HQoEXN4Y9AQHn53Fl8n0iNO3qx0Tb7EuGNFmZ2xTlpDKAp8M+BA5Qm5YDkbd6
-            OoxbGj2YxZncbG+RsvICtVMLqIytubvYREY9WGkCgYEA+K64xhJzWV3cGc8/90ko
-            TryGMBj1ly5TNa1YyOQxl5z4Glc0aI8a+1vJGEAA+c/OEhMR8MRn3+QfV2LJOI5X
-            V8Zo2Ger6Ln99LBddTh2HXL3M60cMgs8MYGuJ75g5R/UHnJBLo7NFyVddCOMT3hc
-            AYSDN3XCw9ycqTw2/mJHB9kCgYEA9QiaCfTtnXdjMqLeYbp2uQEyyO6IZs956ym7
-            sEQMwx/3wnlE9eiJ6iQxZfddkfOCyV/4MMAlYfpTBQFg7Cwb32Xrv3Ezy0HfZrnt
-            5Nj4SVQWuOXJhdfC9dmTF+cvBeP+vC6PyDbikxdCo9+05chxS7I3MLxCue4qxy0C
-            QfQIE10CgYA+kHacHng2u45sT9/f7t/dL0DzSNRAvL7iekIkCIURh8RDnDzrMVWw
-            d18YYsHcF5PYqEOTN1aK1XGtIoVNXUJMKvaluy9c1a42qUhZ/WJ59jqLHbpCPOFf
-            8yhFh3gJLQDIyCXt+K9Qa24fkfHy7Gz5VMVOZqohbJddXHDZfxAvwQKBgAdU947+
-            tjF1BhHYz8Cq3KySfZuHj6tL4AEKYaRXlO4twbMe/9I/4AiShqvfZ/xbBfnSllGX
-            Hkc9P0iyDt1iQH9BxHkZAQy+7tlbDORBHcTL8FYeAhawKxRCK2WWtFB/zvqAhire
-            gY8XLhZLNlV91u4F6iLaL0DzAHKvRRcGH0u9AoGATNigZgbRRHJC21JucHeE0tP7
-            HjGALvb4qn1o0oDHsxNY8i6vVNw9YeQpZaJhceuRHJTGcsq2dJSXpYwIhIVs/8RK
-            bKbkEndra96L6FRZN8LYBl8zbRUPx39ojGeSbFliQv1eaoA/1DDhCiC2NlcSmbJl
-            ecaG/Oyo/S+eM8nR7mc=
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+          lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+          /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+          tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+          zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+          oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+          5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+          aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+          XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+          7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+          Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+          xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+          ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+          TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+          0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+          vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+          42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+          HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+          K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+          TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+          zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+          sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+          +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+          n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+          Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+          +LkclaNA0KksCpGdo+I6J0U=
           -----END PRIVATE KEY-----
 
     ## metric configuration for prometheus instrumentation
@@ -2059,6 +2166,7 @@ ml-api-adapter:
       ## NOTE: If `ingress.certManager=true`, annotation `kubernetes.io/tls-acme: "true"` will automatically be added
       ##
       annotations: null
+        # cert-manager.io/cluster-issuer: "internal-ca-issuer"  
       ## @param ingress.tls Enable TLS configuration for the host defined at `ingress.hostname` parameter
       ## TLS certificates will be retrieved from a TLS secret with name: `{{- printf "%s-tls" .Values.ingress.hostname }}`
       ## You can:
@@ -2167,11 +2275,11 @@ ml-api-adapter:
         pullPolicy: IfNotPresent
       readinessProbe:
         enabled: true
-        initialDelaySeconds: 120
+        initialDelaySeconds: 240
         periodSeconds: 15
       livenessProbe:
         enabled: true
-        initialDelaySeconds: 90
+        initialDelaySeconds: 180
         periodSeconds: 15
       config:
         log_level: info
@@ -2272,32 +2380,32 @@ ml-api-adapter:
         # The following is an example key and shouldn't be used in production
         jwsSigningKey: |-
           -----BEGIN PRIVATE KEY-----
-          MIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQDuB5HuHRH5BqI/
-          VAC/ixm6lz8kJmigIB5jMxLrhB9cgqM+pb0O+is88VRHdxtw8eKG3nvrZYy/4nsJ
-          z32qo4sOIMqHWTlZgbURVK4FAUEZ/qn63UnXJ1YVqT4UGg31BBj2c1JdlxG2t4JV
-          DvzGrI2/ia/t4gYZCWrQz6a8OClBIaXu2t6EGFnysyS+1YDWtNIHO+z0lvAY9oad
-          5MZPHN51o04eIoLO0tPfkz0+NDs4ECwUWuFAg8yo1hxnvSoERiCAwEbFgq2wDe1+
-          oBhOpusd4VastD/TEqO8RhrwTodddOMKzapJPrQJuvTkrpkmkPOGE8DgIVHsULLR
-          UYEMKvTVAgMBAAECgf94Meq77xrcFg8sSqe5eNHYP39tvaWyqE7mY/slvpNDH5Pl
-          D/p21akS156E32BEJuYPk/TLiI2kMWjnvbHvNgr9tq8x3ToyTjtrg5clq8Hr1Ozo
-          FnFiqkVHMFPFPQZEVU64CQPA33DixuWjMWS3YINfCAinErBry0PiNZGmuFi1K/wy
-          e1z2F9WfG3IEBEe3NaeXwN55ZPJve0LtneJy3YqNwMg2FpPKBRHFV4lKTaU/hqhC
-          NK6HQoEXN4Y9AQHn53Fl8n0iNO3qx0Tb7EuGNFmZ2xTlpDKAp8M+BA5Qm5YDkbd6
-          OoxbGj2YxZncbG+RsvICtVMLqIytubvYREY9WGkCgYEA+K64xhJzWV3cGc8/90ko
-          TryGMBj1ly5TNa1YyOQxl5z4Glc0aI8a+1vJGEAA+c/OEhMR8MRn3+QfV2LJOI5X
-          V8Zo2Ger6Ln99LBddTh2HXL3M60cMgs8MYGuJ75g5R/UHnJBLo7NFyVddCOMT3hc
-          AYSDN3XCw9ycqTw2/mJHB9kCgYEA9QiaCfTtnXdjMqLeYbp2uQEyyO6IZs956ym7
-          sEQMwx/3wnlE9eiJ6iQxZfddkfOCyV/4MMAlYfpTBQFg7Cwb32Xrv3Ezy0HfZrnt
-          5Nj4SVQWuOXJhdfC9dmTF+cvBeP+vC6PyDbikxdCo9+05chxS7I3MLxCue4qxy0C
-          QfQIE10CgYA+kHacHng2u45sT9/f7t/dL0DzSNRAvL7iekIkCIURh8RDnDzrMVWw
-          d18YYsHcF5PYqEOTN1aK1XGtIoVNXUJMKvaluy9c1a42qUhZ/WJ59jqLHbpCPOFf
-          8yhFh3gJLQDIyCXt+K9Qa24fkfHy7Gz5VMVOZqohbJddXHDZfxAvwQKBgAdU947+
-          tjF1BhHYz8Cq3KySfZuHj6tL4AEKYaRXlO4twbMe/9I/4AiShqvfZ/xbBfnSllGX
-          Hkc9P0iyDt1iQH9BxHkZAQy+7tlbDORBHcTL8FYeAhawKxRCK2WWtFB/zvqAhire
-          gY8XLhZLNlV91u4F6iLaL0DzAHKvRRcGH0u9AoGATNigZgbRRHJC21JucHeE0tP7
-          HjGALvb4qn1o0oDHsxNY8i6vVNw9YeQpZaJhceuRHJTGcsq2dJSXpYwIhIVs/8RK
-          bKbkEndra96L6FRZN8LYBl8zbRUPx39ojGeSbFliQv1eaoA/1DDhCiC2NlcSmbJl
-          ecaG/Oyo/S+eM8nR7mc=
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+          lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+          /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+          tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+          zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+          oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+          5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+          aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+          XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+          7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+          Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+          xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+          ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+          TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+          0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+          vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+          42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+          HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+          K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+          TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+          zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+          sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+          +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+          n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+          Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+          +LkclaNA0KksCpGdo+I6J0U=
           -----END PRIVATE KEY-----
 
       ## Proxy cache configuration
@@ -8386,11 +8494,88 @@ thirdparty:
     # your switch is using `FSPIOP-Source: peter` you will need a property `peter` in the following
     # object. Do not add the public keys of your simulators to this object. Instead, put them in
     # `mojaloop-simulator.simulators.$yourSimName.config.schemeAdapter.secrets.jws.publicKey`.
-    sharedJWSPubKeys: null
-    # switch: |-
-    #   -----BEGIN PUBLIC KEY-----
-    #   blah blah blah
-    #   -----END PUBLIC KEY-----
+    sharedJWSPubKeys: 
+      fsp201: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+      fsp202: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+      fsp203: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+      fsp204: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+      fsp205: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+      fsp206: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+      fsp207: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+      fsp208: |-
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+        n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+        muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+        QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+        l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+        dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+        nQIDAQAB
+        -----END PUBLIC KEY-----
+
     defaults:
       # Changes to this object in the parent chart, for example 'mojaloop-simulator.defaults' will be
       # applied to all simulators deployed by this child chart.
@@ -8458,7 +8643,7 @@ thirdparty:
               publicKey: ''
           image:
             repository: mojaloop/sdk-scheme-adapter
-            tag: v24.10.5
+            tag: v24.12.0
             pullPolicy: IfNotPresent
             command: '[ "yarn", "start:api-svc" ]'
           <<: *defaultProbes
@@ -9154,42 +9339,42 @@ mojaloop-simulator:
               # The following is an example key and shouldn't be used in production
               privateKey: |-
                 -----BEGIN PRIVATE KEY-----
-                MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCg9eU66hg4ZAE6
-                jM4U8ylXQwUz9cdmzS3JyW+1bbgv77peMKSU/wFsi4QRwmbrYze9baFnGCKnS75E
-                vCchib5vJxp3MDWzi/TGxmzgWdJRzkyCiI5C6dCgVL71MjsFgN3TN63wEf5sEU2I
-                eoJ8yXJM0pUG9f9NO7p/IGliDmt6C7EA7D9kQWigufmX0ZTVNKI07fKwC/AEKLp7
-                kx99pvsCq8m184EEL15Q/NhA7R/5zKoHvmJa6Jd7tM0i0xn8IKOkNVFu3YIafAEC
-                QWQwRbanFEeRc3tH3bEoYM8c74r+W+YxCG7nUf16XCk132XVffbHVl+wFgo18YB/
-                sAJmcbePAgMBAAECggEAGQGKnsf+gkg7DqMQYx3Rxt5BISzmURjAK9CxG6ETk9Lt
-                A7QP5ZvmVzwnhPDMN3Z/Et1EzXTo8U+pnBkVBTdWkAMlr+2b8ixklzr9cC9UJuRj
-                a4YWf9u+TyJLVmF63OSD0cwdKCZLffOENZc+zW8oZDn08BNomdGVLCnXZWXzGY8X
-                KaJTJr29jEgkKOqFXdAHrsmj7TBtqSLZKx2IHdCmi05+5JCxVLPgnDiCicZ9zEii
-                yWw57Q1migFIcw6ZQP4RyjgH1o70B+zo3OL7IQEirE17GUgK16XD8xi8hWCYTj5n
-                xOz9yfVfPuYom/9Xbm5kYJZKE2HOZ3Lg8pUnWncuNQKBgQDbaOoACQPhVxQK1qYR
-                RbW0I5Rn0EDxzsFPEpu3eXHoIYGXi8u/ew9AzFmGu+tKYJV5V4BCXo5x2ddE+B8B
-                dXhyHLGfeV8tWKYKBpatolVxxKDL/9fnxoGIAO9cc91ieOm5JxmKscCVP1UnOXHZ
-                uomSfAbGQwYDtMd2bJKkE1z0qwKBgQC7zacuv1PMaDFksHuNNRG+aZ74pJ77msht
-                vJoKyaQcktD0xmIXhFfJvK4cclzG7s5jxCsu2ejimgmfVzgXlLEMrJFvSdFkD2SS
-                gGqoxq5c9g8ssvt7xwr7aJ+VYYWTWRzJrOUny+99UbwHedu0EHL1BYILwy67Lium
-                sgUeeCEgrQKBgGv+7f7qcRB/jgvvr3oc990dDjUzGmRrQlcrb54Vlu2NYH45fyZW
-                6iEY9JAO+zd25tv9J9KDPFXpxb3a61gKfCie2wcF9MUbN08EAzKgDrKa+BKxcZJR
-                8PwCic7V8QhBP7m09yt/Zq2PqNhPvCxRVtnVVnhMES/N0cgGlP9R0JVVAoGAHU2/
-                kmnEN5bibiWjgasQM7fjWETHkdbbA1R0bM59zv+Rnz/9OlIqKI5KVKH7nAbTKXoI
-                iuzxi7ohWj2PwQ4wehvLLaRFCenk9X8YJXGq71Jtl7ntx6iNLCFtFS/8WbuD5GwX
-                7ZfCrLk+L6RyBayzY0wSuKch+Y8AvKf2aISyFpkCgYEAjSfEjz9Cn+27HdiMoBwa
-                +fyyoosci/6OBxj/WTKvV6KUYLBfFoAYpb9rqrbvnfyyc0UiAYQeMJAOWQ1kkzY4
-                zXs63iPQi2UeGPJZ7RsT+31DSaG9YiQdrInsUrlm8hi1C7Pg/NNt6Y1G0WhWYrvF
-                iNK0yCENMhSoOTtbT9tmGi0=
+                MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+                lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+                /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+                tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+                zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+                oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+                5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+                aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+                XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+                7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+                Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+                xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+                ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+                TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+                0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+                vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+                42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+                HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+                K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+                TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+                zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+                sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+                +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+                n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+                Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+                +LkclaNA0KksCpGdo+I6J0U=
                 -----END PRIVATE KEY-----
               publicKey: |-
                 -----BEGIN PUBLIC KEY-----
-                MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoPXlOuoYOGQBOozOFPMp
-                V0MFM/XHZs0tyclvtW24L++6XjCklP8BbIuEEcJm62M3vW2hZxgip0u+RLwnIYm+
-                bycadzA1s4v0xsZs4FnSUc5MgoiOQunQoFS+9TI7BYDd0zet8BH+bBFNiHqCfMly
-                TNKVBvX/TTu6fyBpYg5reguxAOw/ZEFooLn5l9GU1TSiNO3ysAvwBCi6e5Mffab7
-                AqvJtfOBBC9eUPzYQO0f+cyqB75iWuiXe7TNItMZ/CCjpDVRbt2CGnwBAkFkMEW2
-                pxRHkXN7R92xKGDPHO+K/lvmMQhu51H9elwpNd9l1X32x1ZfsBYKNfGAf7ACZnG3
-                jwIDAQAB
+                MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+                n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+                muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+                QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+                l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+                dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+                nQIDAQAB
                 -----END PUBLIC KEY-----
     payeefsp:
       ingress:
@@ -9580,7 +9765,7 @@ mojaloop-simulator:
             publicKey: ''
         image:
           repository: mojaloop/sdk-scheme-adapter
-          tag: v24.10.5
+          tag: v24.12.0
           pullPolicy: IfNotPresent
           command: '[ "yarn", "start:api-svc" ]'
         <<: *defaultProbes
@@ -10110,7 +10295,7 @@ mojaloop-ttk-simulators:
         ## Use the following initContainers if you are using a MongoDB as a dependency
         initContainers: |
           - name: wait-for-mongodb
-            image: bitnami/mongodb:6.0.1
+            image: bitnamilegacy/mongodb:6.0.1
             imagePullPolicy: IfNotPresent
             command:
               - sh
@@ -10219,11 +10404,11 @@ mojaloop-ttk-simulators:
               caSecret: *TTK_SSL_CA_SECRET
               clientCert: *TTK_SSL_CLIENT_CERT
         config_files:
-          rules_response__default.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim1/spec_files/rules_response/default.json'
-          api_definitions__mojaloop_simulator_sim_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
-          api_definitions__mojaloop_simulator_sim_2.1__response_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/response_map.json'
-          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
-          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__callback_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/callback_map.json'
+          rules_response__default.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim1/spec_files/rules_response/default.json'
+          api_definitions__mojaloop_simulator_sim_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
+          api_definitions__mojaloop_simulator_sim_2.1__response_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/response_map.json'
+          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
+          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__callback_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim1/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/callback_map.json'
         extraEnvironments:
           hub-k8s-default-environment.json: &ttksim1InputValues {"inputValues": {"HUB_NAME": *HUB_NAME, "TTKSIM1_FSPID": "ttksim1", "TTKSIM1_MSISDN_1": "16135551212", "TTKSIM1_MSISDN_1_FIRST_NAME": "ReceiverFirst", "TTKSIM1_MSISDN_1_LAST_NAME": "ReceiverLast", "TTKSIM1_CURRENCY": "XTS", "TTKSIM2_FSPID": "ttksim2", "TTKSIM2_MSISDN_1": "4561000001", "TTKSIM2_MSISDN_1_FIRST_NAME": "ReceiverFirst", "TTKSIM2_MSISDN_1_LAST_NAME": "ReceiverLast", "TTKSIM2_MSISDN_2": "4561000002", "TTKSIM2_MSISDN_2_FIRST_NAME": "ReceiverFirst", "TTKSIM2_MSISDN_2_LAST_NAME": "ReceiverLast", "TTKSIM2_PARTY_NOT_FOUND": "partynotfound", "TTKSIM2_PARTY_TIMES_OUT": "partytimesout", "TTKSIM2_CURRENCY": "XTS", "TTKSIM3_FSPID": "ttksim3", "TTKSIM3_MSISDN_1": "5671000001", "TTKSIM3_MSISDN_1_FIRST_NAME": "ReceiverFirst", "TTKSIM3_MSISDN_1_LAST_NAME": "ReceiverLast", "TTKSIM3_MSISDN_2": "5671000002", "TTKSIM3_MSISDN_2_FIRST_NAME": "ReceiverFirst", "TTKSIM3_MSISDN_2_LAST_NAME": "ReceiverLast", "TTKSIM3_CURRENCY": "XTS", "TTKSIM2_MSISDN_PREFIX": "4561", "TTKSIM3_MSISDN_PREFIX": "5671", "HOST_CENTRAL_LEDGER": "http://$release_name-centralledger-service", "HOST_CENTRAL_SETTLEMENT": "http://$release_name-centralsettlement-service/v2"}}
       ml-testing-toolkit-frontend:
@@ -10396,11 +10581,11 @@ mojaloop-ttk-simulators:
             adminApi:
               host: 'ttksim2.local'
         config_files:
-          rules_response__default.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim2/spec_files/rules_response/default.json'
-          api_definitions__mojaloop_simulator_sim_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
-          api_definitions__mojaloop_simulator_sim_2.1__response_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/response_map.json'
-          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
-          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__callback_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/callback_map.json'
+          rules_response__default.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim2/spec_files/rules_response/default.json'
+          api_definitions__mojaloop_simulator_sim_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
+          api_definitions__mojaloop_simulator_sim_2.1__response_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/response_map.json'
+          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
+          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__callback_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim2/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/callback_map.json'
         config:
           mongodb:
             params: *TTK_MONGO_PARAMS
@@ -10578,11 +10763,11 @@ mojaloop-ttk-simulators:
             adminApi:
               host: 'ttksim3.local'
         config_files:
-          rules_response__default.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim3/spec_files/rules_response/default.json'
-          api_definitions__mojaloop_simulator_sim_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
-          api_definitions__mojaloop_simulator_sim_2.1__response_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/response_map.json'
-          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
-          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__callback_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.10.5/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/callback_map.json'
+          rules_response__default.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim3/spec_files/rules_response/default.json'
+          api_definitions__mojaloop_simulator_sim_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
+          api_definitions__mojaloop_simulator_sim_2.1__response_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-backend-v2_1_0-openapi3-snippets_2.1/response_map.json'
+          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__api_spec.yaml: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/api_spec.yaml'
+          api_definitions__mojaloop_sdk_outbound_scheme_adapter_2.1__callback_map.json: 'https://github.com/mojaloop/sdk-scheme-adapter/raw/v24.12.0/test/func_bulk/config/ttk-ttksim3/spec_files/api_definitions/sdk-scheme-adapter-outbound-v2_1_0-openapi3-snippets_2.1/callback_map.json'
         config:
           mongodb:
             params: *TTK_MONGO_PARAMS
@@ -10756,7 +10941,7 @@ mojaloop-bulk:
             - name: KAFKA_PORT
               value: '{{ .Values.config.kafka_port }}'
         - name: wait-for-mongodb
-          image: bitnami/mongodb:6.0.1
+          image: bitnamilegacy/mongodb:6.0.1
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -10959,7 +11144,7 @@ mojaloop-bulk:
 
         # Parameters for JWS signing requests
         endpointSecurity:
-          jwsSign: false
+          jwsSign: true
           # `jwsSigningKeySecret` is used to specify the secret that contains the JWS signing key.
           # If `jwsSigningKeySecret` is not null, then the `jwsSigningKey` value will be ignored.
           # Expected properties of `jwsSigningKeySecret` are `name` and `key`.
@@ -11009,7 +11194,7 @@ mojaloop-bulk:
             - name: KAFKA_PORT
               value: '{{ .Values.config.kafka_port }}'
         - name: wait-for-mongodb
-          image: bitnami/mongodb:6.0.1
+          image: bitnamilegacy/mongodb:6.0.1
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -12333,7 +12518,7 @@ ml-testing-toolkit:
     ## Use the following initContainers if you are using a MongoDB as a dependency
     initContainers: |
       - name: wait-for-mongodb
-        image: bitnami/mongodb:6.0.1
+        image: bitnamilegacy/mongodb:6.0.1
         imagePullPolicy: IfNotPresent
         command:
           - sh

@@ -1,0 +1,142 @@
+---
+- name: Configure MicroK8s Switch Cluster
+  hosts: switch
+  become: yes
+  gather_facts: yes
+  vars:
+    config: "{{ lookup('file', '../../../02-infrastructure/config.yaml') | from_yaml }}"
+    primary_node: "{{ groups['switch'] | select('match', '.*n1$') | first }}"
+
+  tasks:
+    - name: Initialize cluster on primary node
+      when: inventory_hostname == primary_node
+      block:
+        - name: Enable MicroK8s addons on primary node
+          shell: "microk8s enable {{ item }}"
+          loop: "{{ config.k8s.addons.switch_cluster }}"
+          register: addon_result
+          changed_when: "'is already enabled' not in addon_result.stdout"
+          retries: 3
+          delay: 10
+
+        - name: Wait for all addons to be ready
+          shell: microk8s status --wait-ready
+          changed_when: false
+          retries: 10
+          delay: 30
+
+        - name: Generate join token for other nodes
+          shell: microk8s add-node --token-ttl 3600
+          register: join_command_output
+          changed_when: false
+
+        - name: Debug join command output
+          debug:
+            var: join_command_output.stdout_lines
+
+        - name: Extract join command
+          set_fact:
+            cluster_join_command: "{{ join_command_output.stdout_lines | select('match', '.*microk8s join.*') | first | default('') }}"
+
+        - name: Fallback join command extraction if first method failed
+          when: cluster_join_command == ''
+          set_fact:
+            cluster_join_command: "{{ join_command_output.stdout_lines | select('contains', 'microk8s join') | first | default('FAILED_TO_EXTRACT') }}"
+
+    - name: Get join command from primary node
+      when: inventory_hostname != primary_node
+      set_fact:
+        cluster_join_command: "{{ hostvars[primary_node]['cluster_join_command'] }}"
+
+    - name: Debug join command for this node
+      debug:
+        msg: "Node {{ inventory_hostname }} will execute: {{ cluster_join_command | default('NO JOIN COMMAND') }}"
+      when: inventory_hostname != primary_node
+
+    - name: Validate join command exists
+      fail:
+        msg: "Failed to extract valid join command. Got: {{ cluster_join_command | default('UNDEFINED') }}"
+      when:
+        - inventory_hostname != primary_node
+        - cluster_join_command is not defined or cluster_join_command == '' or 'FAILED_TO_EXTRACT' in cluster_join_command
+
+    - name: Join secondary nodes to cluster
+      when:
+        - inventory_hostname != primary_node
+        - cluster_join_command is defined
+      block:
+        - name: Check if already part of cluster
+          shell: microk8s kubectl get nodes | grep -q {{ inventory_hostname }}
+          delegate_to: "{{ primary_node }}"
+          register: node_exists
+          failed_when: false
+          changed_when: false
+
+        - name: Debug node_exists
+          debug:
+            var: node_exists
+
+        - name: Join cluster
+          shell: "{{ cluster_join_command }}"
+          when: node_exists.rc != 0
+          async: 300
+          poll: 30
+          retries: 3
+          register: join_result
+        
+        - name: Debug join result 
+          debug:
+            var: join_result
+
+
+        - name: Wait for join to complete and verify node joined
+          shell: microk8s kubectl get nodes | grep -q {{ inventory_hostname }}
+          when: node_exists.rc != 0
+          retries: 12
+          delay: 15
+          changed_when: false
+
+    - name: Load node configuration from config.yaml
+      set_fact:
+        node_config: "{{ config.vms.switch.instances | selectattr('name', 'equalto', inventory_hostname) | first }}"
+
+    - name: Apply node labels using kubectl
+      shell: |
+        microk8s kubectl label node {{ inventory_hostname }} \
+          {% for label, value in node_config.k8s.node_labels.items() %}{{ label }}={{ value }} {% endfor %} \
+          --overwrite
+      delegate_to: "{{ primary_node }}"
+      register: label_result
+      changed_when: "'labeled' in label_result.stdout"
+      retries: 5
+      delay: 10
+
+    - name: Apply node taints if defined
+      shell: |
+        microk8s kubectl taint node {{ inventory_hostname }} \
+          {{ item.key }}={{ item.value }}:{{ item.effect }} \
+          --overwrite
+      loop: "{{ node_config.k8s.node_taints | default([]) }}"
+      delegate_to: "{{ primary_node }}"
+      register: taint_result
+      changed_when: "'tainted' in taint_result.stdout or 'updated' in taint_result.stdout"
+      when: node_config.k8s.node_taints is defined
+
+    - name: Verify cluster formation
+      shell: microk8s kubectl get nodes
+      register: cluster_nodes
+      changed_when: false
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+    - name: Display cluster status with labels
+      shell: microk8s kubectl get nodes --show-labels
+      register: cluster_nodes_labels
+      changed_when: false
+      run_once: true
+      delegate_to: "{{ primary_node }}"
+
+    - name: Display cluster status
+      debug:
+        msg: "Cluster nodes:\n{{ cluster_nodes_labels.stdout }}"
+      run_once: true

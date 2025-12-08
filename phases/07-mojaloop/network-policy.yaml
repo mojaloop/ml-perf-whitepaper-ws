@@ -8,6 +8,19 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-  - from:
-    - ipBlock:
-        cidr: 10.1.43.0/24
+  - {}  # empty rule allows all ingress
+
+
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: hn-nodes-custom
+#   namespace: mojaloop
+# spec:
+#   podSelector: {}  # applies to all pods in the namespace
+#   policyTypes:
+#   - Ingress
+#   ingress:
+#   - from:
+#     - ipBlock:
+#         cidr: 10.1.43.0/24

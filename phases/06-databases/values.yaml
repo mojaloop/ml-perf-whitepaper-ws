@@ -1,0 +1,625 @@
+# Database values for Mojaloop Performance Testing
+# This file configures MySQL and Kafka with proper node placement
+
+## Global settings to allow bitnamilegacy images
+global:
+  security:
+    allowInsecureImages: true
+
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/kafka/values.yaml
+kafka:
+  enabled: true
+
+  fullnameOverride: "kafka"
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/kafka
+    tag: "3.8.1-debian-12-r0"
+
+  listeners:
+    client:
+      protocol: PLAINTEXT
+    controller:
+      protocol: PLAINTEXT
+    interbroker:
+      protocol: PLAINTEXT
+    external:
+      protocol: PLAINTEXT
+
+  extraConfig: |-
+    offsets.topic.replication.factor=1
+    default.replication.factor=1
+    transaction.state.log.replication.factor=1
+
+  # Kafka metrics configuration
+  metrics:
+    kafka:
+      enabled: true
+      # JMX exporter configuration
+      jmx:
+        enabled: true
+        config: |-
+          lowercaseOutputName: true
+          lowercaseOutputLabelNames: true
+          ssl: false
+          rules:
+          - pattern: kafka.controller<type=(.+), name=(.+)><>Value
+            name: kafka_controller_$1_$2
+          - pattern: kafka.server<type=(.+), name=(.+)PerSec\w*><>Count
+            name: kafka_server_$1_$2_total
+          - pattern: kafka.server<type=(.+), name=(.+)PerSec\w*, topic=(.+)><>Count
+            name: kafka_server_$1_$2_total
+            labels:
+              topic: "$3"
+        ports:
+          metrics: 5556
+
+      # Service annotations for Prometheus discovery
+      service:
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "5556"
+          prometheus.io/path: "/metrics"
+
+  controller:
+    replicaCount: 1
+    persistence:
+      enabled: false
+      size: 50Gi
+    logPersistence:
+      enabled: false
+      size: 50Gi
+    resourcesPreset: "xlarge"
+
+    # Place Kafka controller on dedicated Kafka node
+    nodeSelector:
+      workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+
+    # Tolerate the dedicated=kafka taint
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "kafka"
+        effect: "NoSchedule"
+
+    # Pod annotations for metrics
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "5556"
+      prometheus.io/path: "/metrics"
+
+  broker:
+    replicaCount: 1
+    persistence:
+      enabled: false
+      size: 50Gi
+    resourcesPreset: "xlarge"
+
+    # Place Kafka broker on dedicated Kafka node
+    nodeSelector:
+      workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+
+    # Tolerate the dedicated=kafka taint
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "kafka"
+        effect: "NoSchedule"
+
+    # Pod annotations for metrics
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "5556"
+      prometheus.io/path: "/metrics"
+
+  ## ZooKeeper chart configuration
+  ## https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/zookeeper/values.yaml
+  zookeeper:
+    enabled: false
+    persistence:
+      enabled: false
+
+  provisioning:
+    enabled: true
+    topics:
+      - name: topic-transfer-prepare
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-transfer-position
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-transfer-position-batch
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-transfer-fulfil
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-notification-event
+        partitions: 24
+        replicationFactor: 1
+      - name: topic-transfer-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-admin-transfer
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-quotes-post
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-quotes-put
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-quotes-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-post
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-put
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-prepare
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-fulfil
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-processing
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-post
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-put
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-get
+        partitions: 1
+        replicationFactor: 1
+    persistence:
+      enabled: false
+
+    waitForKafka: true
+
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/mysql/values.yaml
+mysql:
+  enabled: true
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mysql
+    tag: "8.0.40-debian-12-r3"
+
+  tls:
+    enabled: false
+
+  fullnameOverride: "mysqldb"
+
+  auth:
+    rootPassword: "db_password"
+    createDatabase: true
+    database: mldb
+    username: "mluser"
+    password: 'ml_password'
+    replicationUser: replicator
+    replicationPassword: ""
+    existingSecret: ""
+    usePasswordFiles: false
+    customPasswordFiles: {}
+
+  # MySQL metrics configuration
+  metrics:
+    enabled: true
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mysqld-exporter
+      tag: "0.15.1-debian-12-r9"
+    # Service configuration for metrics
+    service:
+      type: ClusterIP
+      port: 9104
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9104"
+        prometheus.io/path: "/metrics"
+    # Resources for the metrics exporter
+    resources:
+      limits:
+        memory: 256Mi
+      requests:
+        memory: 128Mi
+        cpu: 100m
+
+  ## MySQL Primary parameters
+  primary:
+    persistence:
+      enabled: false
+      size: 50Gi
+
+    # Pod annotations for primary
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9104"
+      prometheus.io/path: "/metrics"
+
+    # Place MySQL on dedicated MySQL nodes
+    # Using affinity to allow placement on either ALS or Central Ledger nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: workload-class.mojaloop.io/RDBMS-ALS-LIVE
+              operator: In
+              values:
+              - "true"
+          - matchExpressions:
+            - key: workload-class.mojaloop.io/RDBMS-CENTRAL-LEDGER-LIVE
+              operator: In
+              values:
+              - "true"
+
+    # Tolerate the dedicated=mysql taint
+    tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "mysql"
+        effect: "NoSchedule"
+
+    extraEnvVars:
+      - name: ACCOUNT_LOOKUP_DATABASE
+        value: "account_lookup"
+      - name: ACCOUNT_LOOKUP_USER
+        value: "account_lookup"
+      - name: CENTRAL_LEDGER_DATABASE
+        value: "central_ledger"
+      - name: CENTRAL_LEDGER_USER
+        value: "central_ledger"
+      - name: CONTENT_ORACLE_DATABASE
+        value: "consent_oracle"
+      - name: CONTENT_ORACLE_USER
+        value: "consent_oracle"
+      - name: AUTH_SVC_DATABASE
+        value: "auth_svc"
+      - name: AUTH_SVC_USER
+        value: "auth_svc"
+      - name: MSISDN_ORACLE_DATABASE
+        value: "oracle_msisdn"
+      - name: MSISDN_ORACLE_USER
+        value: "oracle_msisdn"
+
+  ## Initialize databases
+  initdbScripts:
+    accountLookupInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$ACCOUNT_LOOKUP_DATABASE
+      DB_USER=$ACCOUNT_LOOKUP_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    centralLedgerInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$CENTRAL_LEDGER_DATABASE
+      DB_USER=$CENTRAL_LEDGER_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;
+        SET GLOBAL max_connections = 2000;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    consentOracleInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$CONTENT_ORACLE_DATABASE
+      DB_USER=$CONTENT_ORACLE_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    msisdnOracleInit.sh: |
+      #!/bin/bash
+      set -e
+      DB_NAME=$MSISDN_ORACLE_DATABASE
+      DB_USER=$MSISDN_ORACLE_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+    authSvcInit.sh: |-
+      #!/bin/bash
+      set -e
+      DB_NAME=$AUTH_SVC_DATABASE
+      DB_USER=$AUTH_SVC_USER
+      DB_PASS=$MYSQL_PASSWORD
+      echo "******* Creating '$DB_NAME' DB with user '$DB_USER' *******"
+      mysql -u root -p$MYSQL_ROOT_PASSWORD -e \
+        "DROP DATABASE IF EXISTS $DB_NAME;
+        CREATE DATABASE $DB_NAME;
+        DROP USER IF EXISTS $DB_USER@'%';
+        CREATE USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+        GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'%';
+        FLUSH PRIVILEGES;"
+      echo "******* Database '$DB_NAME' config complete *******"
+
+## MongoDB Configuration with Metrics
+cl-mongodb:
+  enabled: true
+  fullnameOverride: "cl-mongodb"
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mongodb
+    tag: "7.0.15-debian-12-r0"
+
+  auth:
+    enabled: true
+    rootUser: root
+    rootPassword: "adminpass"
+    usernames:
+      - 'mojaloop'
+    passwords:
+      - 'password'
+    databases:
+      - 'mlos'
+
+  # MongoDB metrics configuration
+  metrics:
+    enabled: true
+    port: 9216
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mongodb-exporter
+      tag: "0.41.2-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9216"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  # Pod annotations
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9216"
+    prometheus.io/path: "/metrics"
+
+  persistence:
+    enabled: false
+
+## TTK MongoDB with Metrics
+ttk-mongodb:
+  enabled: true
+  fullnameOverride: "ttk-mongodb"
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mongodb
+    tag: "7.0.15-debian-12-r0"
+
+  auth:
+    enabled: true
+    rootUser: root
+    rootPassword: "adminpass"
+    usernames:
+      - 'ttk'
+    passwords:
+      - 'ttk'
+    databases:
+      - 'ttk'
+
+  # MongoDB metrics configuration
+  metrics:
+    enabled: true
+    port: 9216
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/mongodb-exporter
+      tag: "0.41.2-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9216"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9216"
+    prometheus.io/path: "/metrics"
+
+  persistence:
+    enabled: false
+
+## Redis Configuration with Metrics
+ttksims-redis:
+  enabled: true
+  architecture: standalone
+  fullnameOverride: ttksims-redis
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: "7.4.1-debian-12-r0"
+
+  auth:
+    enabled: false
+
+  # Redis metrics configuration
+  metrics:
+    enabled: true
+    port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  master:
+    persistence:
+      enabled: false
+
+    # Pod annotations
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
+
+## Auth Service Redis with Metrics
+auth-svc-redis:
+  enabled: true
+  architecture: standalone
+  fullnameOverride: auth-svc-redis
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+    tag: "7.4.1-debian-12-r0"
+
+  auth:
+    enabled: false
+
+  # Redis metrics configuration
+  metrics:
+    enabled: true
+    port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  master:
+    persistence:
+      enabled: false
+
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
+
+## Proxy Cache Redis Cluster with Metrics
+proxy-cache-redis:
+  enabled: true
+  usePassword: false
+  fullnameOverride: proxy-cache-redis
+  clusterDomain: cluster.local
+
+  # Override image to use current available version
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis-cluster
+    tag: "7.4.1-debian-12-r1"
+
+  persistence:
+    enabled: false
+
+  cluster:
+    init: true
+    nodes: 6
+    replicas: 1
+
+  # Redis Cluster metrics configuration
+  metrics:
+    enabled: true
+    port: 9121
+    # Override metrics exporter image
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/redis-exporter
+      tag: "1.66.0-debian-12-r0"
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+        prometheus.io/path: "/metrics"
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        memory: 64Mi
+        cpu: 50m
+
+  # Pod annotations for all cluster nodes
+  redis:
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"

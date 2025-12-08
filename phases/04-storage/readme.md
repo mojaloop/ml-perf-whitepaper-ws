@@ -17,17 +17,26 @@ helm repo update
 kubectl create namespace longhorn-system
 
 
+kubectl create secret docker-registry dockerhub-secret \
+--docker-server=https://index.docker.io/v1/ \
+--docker-username=${DOCKERHUB_USERNAME} \
+--docker-password=${DOCKERHUB_TOKEN} \
+--docker-email=ndelma@gmail.com \
+-n longhorn-system
+kubectl patch serviceaccount default \
+    -n longhorn-system \
+    -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}'
+
+
+
+# Install with values file that includes tolerations for tainted nodes
 helm upgrade --install longhorn longhorn/longhorn \
   --namespace longhorn-system \
-  --set csi.kubeletRootDir="/var/snap/microk8s/common/var/lib/kubelet" \
-  --set defaultSettings.createDefaultDiskLabeledNodesOnly=false \
-  --set defaultSettings.replicaSoftAntiAffinity=true \
-  --set defaultSettings.defaultReplicaCount=1 \
-  --set defaultSettings.nodeDownPodDeletionPolicy="delete-both-statefulset-and-deployment-pod"
+  --values ml-perf-whitepaper-ws/phases/04-storage/values.yaml
 
 
 kubectl get storageclass
-kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+# kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
 
 ```
