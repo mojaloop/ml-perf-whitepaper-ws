@@ -14,6 +14,7 @@ resource "aws_instance" "bastion" {
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.bastion[0].id]
   associate_public_ip_address = true
+  monitoring                   = local.detailed_monitoring
 
   root_block_device {
     volume_size           = local.bastion_config.root_volume.size
@@ -61,25 +62,44 @@ resource "aws_instance" "switch" {
   }
 
   ami           = coalesce(var.override_ami_id, local.vms_config.default_ami)
-  instance_type = try(each.value.instance_type, local.vms_config.switch.defaults.instance_type)
+  instance_type = try(each.value.instance_type, local.switch_defaults.instance_type)
   key_name      = data.aws_key_pair.existing.key_name
 
   subnet_id                   = aws_subnet.private.id
   vpc_security_group_ids      = [aws_security_group.internal.id]
   associate_public_ip_address = false
 
+  # Performance optimizations
+  placement_group = local.placement_group_enabled ? aws_placement_group.cluster[0].id : null
+  monitoring      = local.detailed_monitoring
+  ebs_optimized   = try(each.value.performance.ebs_optimized, local.switch_defaults.performance.ebs_optimized, true)
+
   root_block_device {
     volume_size = try(
       each.value.root_volume.size,
-      local.vms_config.switch.defaults.root_volume.size
+      local.switch_defaults.root_volume.size
     )
     volume_type = try(
       each.value.root_volume.type,
-      local.vms_config.switch.defaults.root_volume.type
+      local.switch_defaults.root_volume.type
     )
+    iops = try(
+      each.value.root_volume.iops,
+      local.switch_defaults.root_volume.iops,
+      null
+    )
+    # Only set throughput for gp3 volumes (not io2)
+    throughput = try(
+      each.value.root_volume.type,
+      local.switch_defaults.root_volume.type
+    ) == "gp3" ? try(
+      each.value.root_volume.throughput,
+      local.switch_defaults.root_volume.throughput,
+      null
+    ) : null
     delete_on_termination = try(
       each.value.root_volume.delete_on_termination,
-      local.vms_config.switch.defaults.root_volume.delete_on_termination
+      local.switch_defaults.root_volume.delete_on_termination
     )
     encrypted = true
 
@@ -155,6 +175,10 @@ resource "aws_instance" "dfsp" {
   vpc_security_group_ids      = [aws_security_group.internal.id]
   associate_public_ip_address = false
 
+  # Performance optimizations
+  placement_group = local.placement_group_enabled ? aws_placement_group.cluster[0].id : null
+  monitoring      = local.detailed_monitoring
+
   root_block_device {
     volume_size = try(
       each.value.root_volume.size,
@@ -163,6 +187,16 @@ resource "aws_instance" "dfsp" {
     volume_type = try(
       each.value.root_volume.type,
       local.dfsp_defaults.root_volume.type
+    )
+    iops = try(
+      each.value.root_volume.iops,
+      local.dfsp_defaults.root_volume.iops,
+      null
+    )
+    throughput = try(
+      each.value.root_volume.throughput,
+      local.dfsp_defaults.root_volume.throughput,
+      null
     )
     delete_on_termination = try(
       each.value.root_volume.delete_on_termination,

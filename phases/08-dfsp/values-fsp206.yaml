@@ -1,0 +1,1042 @@
+# Default values for mojaloop-simulator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+simulators:
+  fsp206:
+    ingress:
+      enabled: true
+      hosts:
+        - sim-fsp206.local
+    config:
+      schemeAdapter:
+        env:
+          DFSP_ID: "fsp206"
+          # Point to Mojaloop services in mojaloop namespace
+          ALS_ENDPOINT: "account-lookup-service.local"
+          QUOTES_ENDPOINT: "quoting-service.local"
+          TRANSFERS_ENDPOINT: "ml-api-adapter.local"
+          PEER_ENDPOINT: "ml-api-adapter.local"
+          BULK_QUOTES_ENDPOINT: "bulk-quoting.local"
+          BULK_TRANSFERS_ENDPOINT: "bulk-api-adapter.local"
+          PATCH_NOTIFICATION_GRACE_TIME_MS: "0"
+
+          # Disable Kafka if not needed
+          EVENT_HANDLER_DISABLED: true
+          EVENT_HANDLER_DISABLED_FOR_BULK: true
+
+          # JWS Configuration
+          JWS_SIGN: true
+          VALIDATE_INBOUND_JWS: true
+          JWS_SIGN_PUT_PARTIES: false
+          VALIDATE_INBOUND_PUT_PARTIES_JWS: false
+          CACHE_SHOULD_EXPIRE: true
+          CACHE_EXPIRY_SECONDS: 3600          
+
+        secrets:
+          jws:
+            privateKey: |-
+              -----BEGIN PRIVATE KEY-----
+              MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDYRUd2z1hGA/ua
+              lAyxKIOfubuhq9Qe7v6/K5r5UqWuNtTD6eVHFiJ6XGnaEVXSpvSnJw08aCzuDxhs
+              /NSPR2aa434DEbaJYTp2BW/p6baiCFqTaph0gtySLNY31Z3Mk6E1buIuntpOSAVv
+              tg+v1rtBZiFBpQ2+zMWji97qmcHjh7tc1t3+G+U3r/d9p3TC9l5r9hbIxkQMyCI5
+              zCwP5u6Xy0GSiFLI0lLqIPxyxKuSjpY/cMk0Z+rz94rz0C1po0Z+ln9Xe57DVY9u
+              oKw4NEV2jDPVEn3vk9//dkNgqvX10aHnphpZkJ1sMqgEZsNrwQ4KkDTzXGvf/1eM
+              5uTqekudAgMBAAECggEABhjB4HwM4YBoPd3Rk8bwGvcZ7n9RDgQvw0Tf7Apj6Erc
+              aZ902rGpjCiBxWd6s2MIf5POwDaxmY5sYlooRde98TzbhwufSTUn+D7D/mSbxOqW
+              XxSAsrwjqq0/5rgLaEJ7J232S1koD0/hc1o/C/ZyNfBCnL6h6hCMu8UMJjHqcNcL
+              7BriV7Z6lSZU88hxyWHinQGmhF61u/W94FBzLCFZ3smQu1aR64Y5B1gZ9BaLKWoA
+              Pp9x3NZzRhL4X+apZFA1iajTdpfSlMRnhO+hSrEXvb1fgSPj/CnS7XHhZ7e/Z+mv
+              xaDHfow6tE8bJhWu0FAxSx8Dw/2Fng+Qp62Nf1JXQQKBgQD40zduPBm+lk+rUTZm
+              ROzCH5HZMejqt2frBs7Zf5fXLkX5P1GeZeKoS4dQYPZnPB/b0qYH1/N4/4ipOjIQ
+              TMLxJ7QHQ5SM5ebSWpDx45IvDHSQY+BNWlltVbuXMuEt6Bzem0gvCedSXblqFr/k
+              0SQ1Ycz6FbJNbvnkH5wfddk1oQKBgQDegcBaZ8H0PnPAe8jlxy0nObfK2qk73WGf
+              vTucD8k8qstBaP73KXsgHSl2R6ON2kFTdBwYaRcbEh8k8n5pMFSuCiNeu0AS9ges
+              42d6RMiMftyBoVy2SpFinxYTz/VGIELWGYGVN3NbMbIPRkmyv5vckJwIFLRbm1Pr
+              HSwfv52cfQKBgCzhhDUI+CfNWu9uxZ4qvn3BTgBcJUP48vCMmNDYV94DRbHQfvtQ
+              K1Lp1K1l3+v9B04SL8poZE0l4lOL4K3Z+que2rUYtnm3mivFFDHdN2fvGjNVIIcz
+              TcAP37dFASLTpClu3tVFNwk/SItfMRunsZ1DV8KgGTooU0CXhwSRsC0hAoGBAMIX
+              zQMPn1C/aZluYUCPDgQ5hOme9CEUbCQ7ndP0sUYKdmMIg+B2fsD0r0ZOF42V5YY2
+              sotYoJ8sn55LKZn4XuWyUkhAbxQbKXbWp10wwwBLaW5qo8UgJtIwk8GUlhAl9Cdu
+              +GqBhE74eqp4VbFnEz7DplgmN23xgLKHMAZBz+rBAoGABGa1wDP5/T2+y+CnHOhd
+              n4rlm36Fjd+G08ZpDWxiraA1sVyZAjBqnv7WPyfVaVofdM5Ip8bDGOy/oBDPz6nB
+              Ii63miHm5Q03FpeANtoMGcvIcOo1TSfX0TNmONFHWbhuOPmg9LkCUmGD4nFRVj5k
+              +LkclaNA0KksCpGdo+I6J0U=
+              -----END PRIVATE KEY-----
+            publicKey: |-
+              -----BEGIN PUBLIC KEY-----
+              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+              n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+              muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+              QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+              l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+              dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+              nQIDAQAB
+              -----END PUBLIC KEY-----
+            livenessProbe:
+              enabled: true
+              initialDelaySeconds: 3
+              periodSeconds: 180
+              timeoutSeconds: 10
+              successThreshold: 1
+              failureThreshold: 3
+            readinessProbe:
+              enabled: true
+              initialDelaySeconds: 3
+              periodSeconds: 180
+              timeoutSeconds: 5
+              successThreshold: 1
+              failureThreshold: 3              
+      backend:
+        env:
+          DFSP_ID: "fsp206"
+
+
+# Usage:
+# Add simulators to the simulators object. The following example will create two simulators,
+# 'payerfsp' and 'payeefsp' that will be created with the default values available lower in this
+# file.
+#
+# simulators:
+#   payerfsp: {}
+#   payeefsp: {}
+#
+# The default values can be overridden for all sims by modifying mojaloop-simulator.defaults in
+# your parent chart. They can also be overriden per-simulator. The following example will result in
+# a payerfsp without a cache and a payeefsp with a cache.
+#
+# simulators:
+#   payerfsp:
+#     config:
+#       cache:
+#         enabled: false
+#   payeefsp: {}
+#
+#
+# You can also enable the thirdparty-sdk for each simulator you define in order to test
+# the Mojaloop Third Party Components:
+#
+# simulators:
+#   pispa:
+#     config:
+#       thirdpartysdk:
+#         enabled: true
+#
+# The above config will create 1 instance of a simulator, with a thirdparty-sdk
+
+# TODO & notes:
+# * do the port _numbers_ matter at all? Can we get rid of them?
+# * for Mowali, how are JWS and TLS secrets being set up?
+# * support arbitrary init containers + config (that might just be config that goes into defaults
+#   or something?). Supply all config and volumes to the init containers.
+# * create some test containers
+# * generate JWS private/public keys, so the user does not need to supply keys at all.
+# * generate public key from private, so the user only needs to supply private keys for each sim?
+#   (_might_ be possible with a job or init container or similar).
+# * support mTLS auto-cert generation
+# * probably eliminate all config that shouldn't actually be changed by a user, e.g.
+#   JWS_VERIFICATION_KEYS_DIRECTORY. That's a good configuration option to have for other contexts,
+#   such as running the sim locally or in docker-compose but in this context it's _an
+#   implementation detail_. The chart user should not have to worry about it, and we should not
+#   have to test the effect of changing it.
+#   Also
+#   INBOUND_LISTEN_PORT
+#   OUTBOUND_LISTEN_PORT
+# * make ingress more generic- do not preconfigure annotations
+# * think about labels a little more carefully- the app should probably always be "mojaloop-simulator"
+# * add config map and hashes to the deployments so that a configmap change triggers a rolling
+#   update
+# * support JWS public keys for other entities. Add a note in the documentation that they must map
+#   directly to the value that will be received in the FSPIOP-Source (check this is correct)
+# * update labels to be compliant. E.g. app.kubernetes.io/name or whatever
+# * rename ".Values.defaults.config" as it's pretty a useless name
+# * support arbitrary sidecars?
+# * use the redis subchart? https://github.com/bitnami/charts/tree/master/bitnami/redis
+#   - this would mean a single instance of redis (probably good)
+#   - might need to have the simulators use separate databases per simulator, or prefix all of
+#     their keys with their own name, or something
+# * allow the user to optionally specify the namespace, with the caveat that that namespace will
+#   need to be created manually before the release is deployed. There may be a horrible hack (which
+#   I have not tried) whereby all templates are moved to a different directory, say ./xtemplates,
+#   then all are imported using {{ .Files.Glob }} and {{ .Files.Get }} then templated into a single
+#   amazing template with {{ template }}. At the top of this template goes a namespace. The
+#   consequence of this is that the namespace is created first, enabling this beautiful pattern.
+#   Remember, with great power comes great responsibility. (In other words, we probably have a
+#   responsibility to _not_ do this).
+# * should redis be a statefulset? optionally? what does the bitnami chart do?
+# * move labels into helpers
+# * autogenerate ILP stuff?
+# * defaults.resources looks like it's used nowhere- check this and remove it as appropriate
+# * look for references to replicaCount in the charts/values. Is it set, or whatever?
+# * scale Redis
+# * changing JWS_SIGNING_KEY_PATH currently breaks the chart because it's nastily hard-coded. It
+#   should be possible to use the Spring filepath functions to avoid this. Similarly, changing
+#   RULES_FILE will have a similar effect. Alternatively, make these unconfigured by default. I.e.
+#   comment them out, hard-code them and add a warning to the user in the config. (Is there a
+#   scenario where the user should want to configure them? I don't think so..).
+#   (https://masterminds.github.io/sprig/paths.html)
+# * put sim inbound API on port 80
+# * supply more documentation, especially a range of examples, and preferably documentation that is
+#   executable
+# * share configmaps, secrets with init containers
+# * share an emptyDir volume between init containers and main containers
+# * allow init containers to create secrets and put them on persistent volumes, or emptyDirs, then
+#   allow main containers to access those
+# * do not put environment variables in configmaps, instead put them straight into the deployments.
+#   This makes the deployment much easier to manage.
+# * Remember, labels are _for_ identifying stuff. So labels should probably be like "release"
+#   (.Release.Name or similar) "chart" (.Chart.Name or similar) "simulator" (e.g. payerfsp,
+#   payeefsp) "sim-component" (e.g. backend, scheme-adapter, cache)
+# * can _probably_ remove port numbers from services to simplify chart (although perhaps not? try
+#   to port-forward with a named port instead of a numbered port?)
+# * It is likely possible to have the user supply a CA cert + key and use those to generate and
+#   sign automatically generated per-simulator keys.
+
+# Every key added to this `simulators` object will be a simulator that takes on the default
+# config below. The default is deliberately left empty so nothing is deployed by default.
+# payerfsp: {}
+# payeefsp: {}
+
+defaultProbes: &defaultProbes
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 3
+    periodSeconds: 180
+    timeoutSeconds: 10
+    successThreshold: 1
+    failureThreshold: 3
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 3
+    periodSeconds: 180
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+
+ingress:
+  enabled: true
+  # If you're using nginx ingress controller >= v0.22.0 set this to (/|$)(.*). Ensure that you set the `"nginx.ingress.kubernetes.io/rewrite-target": "/$2"`
+  # If you're using nginx ingress controller < v0.22.0 set this to an empty string or "/". Ensure that you set the `"nginx.ingress.kubernetes.io/rewrite-target": "/"`
+  # This affects the way your rewrite target will work.
+  # For more information see "Breaking changes" here:
+  # https://github.com/kubernetes/ingress-nginx/blob/master/Changelog.md#0220
+
+  ## https://kubernetes.github.io/ingress-nginx/examples/rewrite/
+  # nginx.ingress.kubernetes.io/rewrite-target: '/'
+  # nginx.ingress.kubernetes.io/rewrite-target: '/$2'
+  ## https://kubernetes.github.io/ingress-nginx/user-guide/multiple-ingress/
+  # kubernetes.io/ingress.class: nginx
+  ## https://kubernetes.github.io/ingress-nginx/user-guide/tls/#automated-certificate-management-with-kube-lego
+  # kubernetes.io/tls-acme: "true""
+
+  # nginx ingress controller >= v0.22.0
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: '/$2'
+  ingressPathRewriteRegex: (/|$)(.*)
+
+  ## nginx ingress controller < v0.22.0
+  # annotations:
+  #   nginx.ingress.kubernetes.io/rewrite-target: '/'
+  # ingressPathRewriteRegex: "/"
+  className: "nginx"
+  pathType: "ImplementationSpecific"
+
+# If you enable JWS validation and intend to communicate via a switch you will almost certainly
+# want to put your switch JWS public key in this array. The name of the property in this object
+# will correspond directly to the name of the signing key (e.g., in the example below,
+# `switch.pem`). Do not include the `.pem` extension, this will be added for you. The scheme
+# adapter will use the FSPIOP-Source header content to identify the relevant signing key to use.
+# The below example assumes your switch will use `FSPIOP-Source: switch`. If instead, for example,
+# your switch is using `FSPIOP-Source: peter` you will need a property `peter` in the following
+# object. Do not add the public keys of your simulators to this object. Instead, put them in
+# `mojaloop-simulator.simulators.$yourSimName.config.schemeAdapter.secrets.jws.publicKey`.
+sharedJWSPubKeys:
+  Hub: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp201: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp202: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp203: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp204: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp205: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp207: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+  fsp208: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2EVHds9YRgP7mpQMsSiD
+    n7m7oavUHu7+vyua+VKlrjbUw+nlRxYielxp2hFV0qb0pycNPGgs7g8YbPzUj0dm
+    muN+AxG2iWE6dgVv6em2oghak2qYdILckizWN9WdzJOhNW7iLp7aTkgFb7YPr9a7
+    QWYhQaUNvszFo4ve6pnB44e7XNbd/hvlN6/3fad0wvZea/YWyMZEDMgiOcwsD+bu
+    l8tBkohSyNJS6iD8csSrko6WP3DJNGfq8/eK89AtaaNGfpZ/V3uew1WPbqCsODRF
+    dowz1RJ975Pf/3ZDYKr19dGh56YaWZCdbDKoBGbDa8EOCpA081xr3/9XjObk6npL
+    nQIDAQAB
+    -----END PUBLIC KEY-----
+
+defaults:
+  # Changes to this object in the parent chart, for example 'mojaloop-simulator.defaults' will be
+  # applied to all simulators deployed by this child chart.
+  ingress:
+    enabled: false
+
+  config:
+    # Config for init containers
+    initContainers:
+      waitForCache:
+        enabled: true
+
+    ## @param master.podLabels Extra labels for pod(s)
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+
+    ## @param podAnnotations Additional custom annotations for pod(s)
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+    ##
+    podAnnotations: {}
+
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ## e.g:
+    ## imagePullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    imagePullSecrets: []
+    cache: # These will be supplied directly to the init containers array in the deployment for the
+      # scheme adapter. They should look exactly as you'd declare them inside the deployment.
+      # Example: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use
+      # This init container will have the same environment variables as the main backend container,
+      # as specified in .env below.
+      # Additionally, the following preset environment variables will be set:
+      # SIM_NAME: the name of the simulator as specified in the `mojaloop-simulator` config
+      # SIM_SCHEME_ADAPTER_SERVICE_NAME: "sim-$SIM_NAME-scheme-adapter"
+      # SIM_BACKEND_SERVICE_NAME: "sim-$SIM_NAME-backend"
+      # SIM_CACHE_SERVICE_NAME: "sim-$SIM_NAME-cache"
+      initContainers: []
+      enabled: true
+      image:
+        repository: redis
+        tag: 5.0.4-alpine
+        pullPolicy: IfNotPresent
+      <<: *defaultProbes
+      livenessProbe:
+        enabled: true
+        timeoutSeconds: 5
+      readinessProbe:
+        enabled: true
+        timeoutSeconds: 5
+
+    schemeAdapter:
+      secrets:
+        tls:
+          # Uncomment method below to use certmanager for generating TLS certs, the default is to let Helm generate them for you,
+          # which is not good when using ArgoCD, as it leads to unnecessary sync.
+          # When using certmanager, an issuer named `simulator-ca-issuer` must be created in the same namespace.
+          # method: certmanager
+
+          # In order to enable TLS with your supplied credentials, you will need to:
+          # 1. set all three of the `cert`, `key`, `cacert` fields appropriately for each of
+          # `inbound` and `outbound` as per your preference.
+          # 2. optionally specify `schemeAdapter.env.INBOUND_MUTUAL_TLS_ENABLED: true`
+          # 3. optionally specify `schemeAdapter.env.OUTBOUND_MUTUAL_TLS_ENABLED: true`
+          # It probably makes sense to set your CA cert in defaults. Note that the default is that
+          # the CA, cert and key will be generated for you by this chart. To use this functionality
+          # you only need specify the config documented in steps (2, 3, 4) a few lines up.
+          #
+          inbound:
+            key: |
+              -----BEGIN PRIVATE KEY-----
+              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
+              DGLBK5AFv27ma+Rf4ZbO0Vlgt1mm
+              -----END PRIVATE KEY-----
+            cacert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              -----END CERTIFICATE-----
+            cert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              tINjFf1DBnReLafPO5eVeb7qsmzCDgDWJQ==
+              -----END CERTIFICATE-----
+          #
+          # To set the same values for each of inbound and outbound, specify the values for
+          # inbound as above, then the values for outbound using yaml anchors:
+          #
+          # inbound: &inbound
+            key: |
+              -----BEGIN PRIVATE KEY-----
+              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
+              DGLBK5AFv27ma+Rf4ZbO0Vlgt1mm
+              -----END PRIVATE KEY-----
+            cacert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              -----END CERTIFICATE-----
+            cert: |
+              -----BEGIN CERTIFICATE-----
+              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
+              tINjFf1DBnReLafPO5eVeb7qsmzCDgDWJQ==
+              -----END CERTIFICATE-----
+          # outbound: *inbound
+          inbound: &inbound
+          # DO NOT REMOVE COMMENT
+          outbound: *inbound
+        jws:
+          # Use the privateKeySecret field if you would like to supply a JWS private key external
+          # to this chart.
+          # For example, if you create a private key called `sim-payerfsp-jws-signing-key` with data property `private.key`
+          # external to this chart, you would supply
+          # `privateKeySecret:
+          #   name: sim-payerfsp-jws-signing-key`
+          #   key: private.key
+          # here.
+          # These fields will take precedence over `privateKey` and `publicKey` below.
+          # This field is best supplied per-simulator, however it's here for documentation
+          # purposes.
+          privateKeySecret: {}
+          # The `publicKeyConfigMapName` field allows you to supply a ConfigMap containing JWS public
+          # keys external to this release, and have this release reference that ConfigMap to
+          # populate JWS public keys. The format of this ConfigMap must be as described for
+          # `sharedJWSPubKeys`, a map with one key per FSP/simulator corresponding to the
+          # FSPIOP-Source header that will be supplied by that FSP/simulator.
+          publicKeyConfigMapName: {}
+          # Supply per-simulator private and public keys here:
+          privateKey: ''
+          publicKey: ''
+      image:
+        repository: mojaloop/sdk-scheme-adapter
+        tag: v24.12.0
+        pullPolicy: IfNotPresent
+        command: '[ "yarn", "start:api-svc" ]'
+      <<: *defaultProbes
+
+      # These will be supplied directly to the init containers array in the deployment for the
+      # scheme adapter. They should look exactly as you'd declare them inside the deployment.
+      # Example: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use
+      # This init container will have the same environment variables as the main scheme adapter
+      # container, as specified in .env below.
+      # All init containers will have the same preset environment variables as the backend init
+      # container as specified above.
+      initContainers: []
+
+      scale:
+        enabled: false
+        spec:
+          minReplicas: 1
+          maxReplicas: 10
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+
+      env:
+        # Ports the scheme adapter listens on. Shouldn't really matter for a user of this chart.
+        # You probably shouldn't bother configuring them- it likely won't do you much good. But it
+        # won't do any harm, either.
+        INBOUND_LISTEN_PORT: 4000
+        OUTBOUND_LISTEN_PORT: 4001
+        TEST_LISTEN_PORT: 4002
+
+        # Enable mutual TLS authentication. Useful when not running in a secure
+        # environment, i.e. when you're running it locally against your own implementation.
+        INBOUND_MUTUAL_TLS_ENABLED: false
+        OUTBOUND_MUTUAL_TLS_ENABLED: false
+        TEST_MUTUAL_TLS_ENABLED: false
+
+        # Enable JWS verification and signing
+        VALIDATE_INBOUND_JWS: false
+        JWS_SIGN: false
+
+        # applicable only if VALIDATE_INBOUND_JWS is `true`
+        # allows disabling of validation on incoming PUT /parties/{idType}/{idValue} requests
+        VALIDATE_INBOUND_PUT_PARTIES_JWS: false
+
+        # applicable only if JWS_SIGN is `true`
+        # allows disabling of signing on outgoing PUT /parties/{idType}/{idValue} requests
+        JWS_SIGN_PUT_PARTIES: false
+
+        # Path to JWS signing key (private key of THIS DFSP)
+        JWS_SIGNING_KEY_PATH: "/jwsSigningKey/private.key" # do not configure- will break the chart
+        JWS_VERIFICATION_KEYS_DIRECTORY: "/secrets/jwsVerificationKeys"
+
+        # Location of certs and key required for TLS. It is possible to configure these- however,
+        # at the time of writing, it's not supported by this chart and will likely cause breakage.
+        # You should probably not do it unless you know what you're doing.
+        IN_CA_CERT_PATH: /secrets/inbound-cacert.pem
+        IN_SERVER_CERT_PATH: /secrets/inbound-cert.pem
+        IN_SERVER_KEY_PATH: /secrets/inbound-key.pem
+
+        OUT_CA_CERT_PATH: /secrets/outbound-cacert.pem
+        OUT_CLIENT_CERT_PATH: /secrets/outbound-cert.pem
+        OUT_CLIENT_KEY_PATH: /secrets/outbound-key.pem
+
+        # The number of space characters by which to indent pretty-printed logs. If set to zero, log events
+        # will each be printed on a single line.
+        LOG_INDENT: "0"
+
+        # REDIS CACHE CONNECTION
+        # CACHE_HOST: "" # Default is parametrised, but it's possible to override this
+        CACHE_PORT: 6379
+        # CACHE_SHOULD_EXPIRE=false
+        # CACHE_EXPIRY_SECONDS=3600
+
+        # Switch or DFSP system under test Mojaloop API endpoint
+        # The option 'PEER_ENDPOINT' has no effect if the remaining options 'ALS_ENDPOINT', 'QUOTES_ENDPOINT',
+        # 'BULK_QUOTES_ENDPOINT', 'TRANSFERS_ENDPOINT', 'BULK_TRANSFERS_ENDPOINT', 'TRANSACTION_REQUESTS_ENDPOINT' are specified.
+        # Do not include the protocol, i.e. http.
+        PEER_ENDPOINT: "mojaloop-switch"
+        # ALS_ENDPOINT="mojaloop-switch-als"
+        # QUOTES_ENDPOINT="mojaloop-switch-quotes"
+        # TRANSFERS_ENDPOINT="mojaloop-switch-transfers"
+        # BULK_TRANSFERS_ENDPOINT="mojaloop-switch-bulk-transfers"
+        # BULK_QUOTES_ENDPOINT="mojaloop-switch-bulk-quotes"
+        # TRANSACTION_REQUESTS_ENDPOINT=transaction-requests-service
+
+        # This value specifies the endpoint the scheme adapter expects to communicate with the
+        # backend on. Do not include the protocol, i.e. http.
+        # You're very likely to break the functioning of this chart if you configure the following
+        # value. This config item has been copied from the service repo for consistency with that,
+        # so that if you come here and find this variable, with this comment, it's less confusing
+        # than if you come here and it's missing entirely.
+        # BACKEND_ENDPOINT: "localhost:3000"
+
+        # FSPID of this DFSP
+        # Commented by default- you're likely to break the chart if you configure this value.
+        # DFSP_ID: "mojaloop-sdk"
+
+        # Secret used for generation and verification of secure ILP
+        ILP_SECRET: "Quaixohyaesahju3thivuiChai5cahng"
+
+        # expiry period in seconds for quote and transfers issued by the SDK
+        EXPIRY_SECONDS: "60"
+
+        # if set to false the SDK will not automatically accept all returned quotes
+        # but will halt the transfer after a quote response is received. A further
+        # confirmation call will be required to complete the final transfer stage.
+        AUTO_ACCEPT_QUOTES: false
+
+        # if set to false the SDK will not automatically accept a resolved party
+        # but will halt the transer after a party lookup response is received. A further
+        # confirmation call will be required to progress the transfer to quotes state.
+        AUTO_ACCEPT_PARTY: false
+
+        # when set to true, when sending money via the outbound API, the SDK will use the value
+        # of FSPIOP-Source header from the received quote response as the payeeFsp value in the
+        # transfer prepare request body instead of the value received in the payee party lookup.
+        # This behaviour should be enabled when the SDK user DFSP is in a forex enabled switch
+        # ecosystem and expects quotes and transfers to be rerouted by the switch to forex
+        # entities i.e. forex providing DFSPs. Please see the SDK documentation and switch
+        # operator documentation for more information on forex use cases.
+        USE_QUOTE_SOURCE_FSP_AS_TRANSFER_PAYEE_FSP: false
+
+        # set to true to validate ILP, otherwise false to ignore ILP
+        CHECK_ILP: true
+
+        # set to true to enable test features such as request cacheing and retrieval endpoints
+        ENABLE_TEST_FEATURES: true
+
+        # set to true to mock WSO2 oauth2 token endpoint
+        ENABLE_OAUTH_TOKEN_ENDPOINT: false
+        OAUTH_TOKEN_ENDPOINT_CLIENT_KEY: "test-client-key"
+        OAUTH_TOKEN_ENDPOINT_CLIENT_SECRET: "test-client-secret"
+        OAUTH_TOKEN_ENDPOINT_LISTEN_PORT: "6000"
+
+        # WS02 Bearer Token specific to golden-fsp instance and environment
+        WS02_BEARER_TOKEN: "7718fa9b-be13-3fe7-87f0-a12cf1628168"
+
+        # OAuth2 data used to obtain WSO2 bearer token
+        OAUTH_TOKEN_ENDPOINT: ""
+        OAUTH_CLIENT_KEY: ""
+        OAUTH_CLIENT_SECRET: ""
+        OAUTH_REFRESH_SECONDS: "3600"
+
+        # When WSO2 auth is enabled and a request fails with a 401, the SDK can attempt to retrieve
+        # a new auth token and retry the request
+        WSO2_AUTH_FAILURE_REQUEST_RETRIES: "0"
+
+        # Set to true to respect expirity timestamps
+        REJECT_EXPIRED_QUOTE_RESPONSES: false
+        REJECT_TRANSFERS_ON_EXPIRED_QUOTES: false
+        REJECT_EXPIRED_TRANSFER_FULFILS: false
+
+        # Timeout for GET/POST/DELETE - PUT flow processing
+        REQUEST_PROCESSING_TIMEOUT_SECONDS: "30"
+
+        # To allow transfer without a previous quote request, set this value to true.
+        # The incoming transfer request should consist of an ILP packet and a matching condition in this case.
+        # The fulfilment will be generated from the provided ILP packet, and must hash to the provided condition.
+        ALLOW_TRANSFER_WITHOUT_QUOTE: false
+        RESOURCE_VERSIONS: transfers=2.0,quotes=2.0,participants=1.1,parties=2.0,transactionRequests=1.1
+
+        ENABLE_FSPIOP_EVENT_HANDLER: false
+        ENABLE_BACKEND_EVENT_HANDLER: false
+
+    backend:
+      image:
+        repository: mojaloop/mojaloop-simulator
+        tag: v15.4.2
+        pullPolicy: IfNotPresent
+      <<: *defaultProbes
+      # These will be supplied directly to the init containers array in the deployment for the
+      # backend. They should look exactly as you'd declare them inside the deployment.
+      # Example: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use
+      initContainers: []
+
+      # Supply JSON rules here as a string
+      # Example:
+      # rules: |-
+      #   [
+      #     {
+      #       "ruleId": 1,
+      #       .. etc.
+      #     }
+      #   ]
+      rules: |-
+        []
+
+      env:
+        ##### Section for simulator backend container #####
+        # This is the endpoint the backend expects to communicate with the scheme adapter on.
+        # Include the protocol, i.e. http.
+        # It's not configured by default in this chart as the default value is calculated in a
+        # template and configuring it is likely to break communication between the backend and the
+        # scheme adapter.
+        # OUTBOUND_ENDPOINT: "http://localhost:4001" # within the pod
+
+        # Enable mutual TLS authentication. Useful when the simulator is not running in a managed
+        # environment, i.e. when you're running it locally against your own implementation.
+        MUTUAL_TLS_ENABLED: false
+
+        # Enable server-only TLS; i.e. serve on HTTPS instead of HTTP.
+        HTTPS_ENABLED: false
+
+        # Location of certs and key required for TLS
+        CA_CERT_PATH: /secrets/cacert.pem
+        SERVER_CERT_PATH: /secrets/servercert.pem
+        SERVER_KEY_PATH: /secrets/serverkey.pem
+
+        # The number of space characters by which to indent pretty-printed logs. If set to zero, log events
+        # will each be printed on a single line.
+        LOG_INDENT: "0"
+
+        # The name of the sqlite log file. This probably doesn't matter much to the user, except that
+        # setting :memory: will use an in-memory sqlite db, which will be faster and not consume disk
+        # space. However, it will also mean that the logs will be lost once the container is stopped.
+        SQLITE_LOG_FILE: ':memory:'
+
+        # The DFSPID of this simulator. The simulator will accept any requests routed to
+        # FSPIOP-Destination: $SCHEME_NAME. Other requests will be rejected.
+        # Not set in this chart as these are calculated in templates. Setting this values is likely
+        # to break expected functionality.
+        # SCHEME_NAME: golden
+        # DFSP_ID: golden
+
+        # The name of the sqlite model database. If you would like to start the simulator with preloaded
+        # state you can use a preexisting file. If running in a container, you can mount a sqlite file as a
+        # volume in the container to preserve state between runs.
+        # Use MODEL_DATABASE: :memory: for an ephemeral in-memory database
+        MODEL_DATABASE: ':memory:'
+
+        # The simulator can automatically add fees when generating quote responses. Use this
+        # variable to control the fee amounts added. e.g. for a transfer of 100 USD a FEE_MULTIPLIER of 0.1
+        # reuslts in fees of USD 10 being applied to the quote response
+        FEE_MULTIPLIER: "0.05"
+
+        # Specifies the location of a rules file for the simulator backend. Rules can be used to produce
+        # specific simulator behaviours in response to incoming requests that match certain conditions.
+        # e.g. a rule can be used to trigger NDC errors given transfers between certain limits.
+        RULES_FILE: ../rules/rules.json
+
+        # Ports for simulator, report, and test APIs
+        SIMULATOR_API_LISTEN_PORT: 3000
+        REPORT_API_LISTEN_PORT: 3002
+        TEST_API_LISTEN_PORT: 3003
+
+    thirdpartysdk:
+      secrets:
+        tls:
+          # In order to enable TLS with your supplied credentials, you will need to:
+          # 1. set all three of the `cert`, `key`, `cacert` fields appropriately for each of
+          # `inbound` and `outbound` as per your preference.
+          # 2. optionally specify `schemeAdapter.env.INBOUND_MUTUAL_TLS_ENABLED: true`
+          # 3. optionally specify `schemeAdapter.env.OUTBOUND_MUTUAL_TLS_ENABLED: true`
+          # It probably makes sense to set your CA cert in defaults. Note that the default is that
+          # the CA, cert and key will be generated for you by this chart. To use this functionality
+          # you only need specify the config documented in steps (2, 3, 4) a few lines up.
+          #
+          # inbound:
+          #   key: |
+          #     -----BEGIN CERTIFICATE-----
+          #     ...
+          #     -----END CERTIFICATE-----
+          #   cacert: |
+          #     -----BEGIN CERTIFICATE-----
+          #     ...
+          #     -----END CERTIFICATE-----
+          #   cert: |
+          #     -----BEGIN RSA PRIVATE KEY-----
+          #     ...
+          #     -----END RSA PRIVATE KEY-----
+          #
+          # To set the same values for each of inbound and outbound, specify the values for
+          # inbound as above, then the values for outbound using yaml anchors:
+          #
+          # inbound: &inbound
+          #   key: |
+          #     ..
+          #   cacert: |
+          #     ..
+          #   cert: |
+          #     ..
+          # outbound: *inbound
+          inbound: &inbound
+          # DO NOT REMOVE COMMENT
+          outbound: *inbound
+        jws:
+          # Use the privateKeySecret field if you would like to supply a JWS private key external
+          # to this chart.
+          # For example, if you create a private key called `sim-payerfsp-jws-signing-key` with data property `private.key`
+          # external to this chart, you would supply
+          # `privateKeySecret:
+          #   name: sim-payerfsp-jws-signing-key`
+          #   key: private.key
+          # here.
+          # These fields will take precedence over `privateKey` and `publicKey` below.
+          # This field is best supplied per-simulator, however it's here for documentation
+          # purposes.
+          privateKeySecret: {}
+          #
+          # The `publicKeyConfigMapName` field allows you to supply a ConfigMap containing JWS public
+          # keys external to this release, and have this release reference that ConfigMap to
+          # populate JWS public keys. The format of this ConfigMap must be as described for
+          # `sharedJWSPubKeys`, a map with one key per FSP/simulator corresponding to the
+          # FSPIOP-Source header that will be supplied by that FSP/simulator.
+          publicKeyConfigMapName: {}
+          # Supply per-simulator private and public keys here:
+          privateKey: ''
+          publicKey: ''
+      image:
+        repository: mojaloop/thirdparty-sdk
+        tag: v15.1.3
+        pullPolicy: IfNotPresent
+        # inboundCommand: '[ "npm", "run", "start:inbound" ]' ## TODO: Remove
+        # outboundCommand: '[ "npm", "run", "start:outbound" ]' ## TODO: Remove
+        command: '[ "npm", "run", "start" ]'
+      <<: *defaultProbes
+
+      # These will be supplied directly to the init containers array in the deployment for the
+      # scheme adapter. They should look exactly as you'd declare them inside the deployment.
+      # Example: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use
+      # This init container will have the same environment variables as the main scheme adapter
+      # container, as specified in .env below.
+      # All init containers will have the same preset environment variables as the backend init
+      # container as specified above.
+      initContainers: []
+
+      scale:
+        enabled: false
+        spec:
+          minReplicas: 1
+          maxReplicas: 10
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+      ## Config files
+      config: {production.json: {"control": {"mgmtAPIWsUrl": "127.0.0.1", "mgmtAPIWsPort": 4010}, "inbound": {"port": 4005, "host": "0.0.0.0", "pispTransactionMode": true, "tls": {"mutualTLS": {"enabled": false}, "creds": {"ca": "/secrets/dfsp_or_3ppi_client_cacert.pem", "cert": "/secrets/dfsp_or_3ppi_server_cert.pem", "key": "/secrets/dfsp_or_3ppi_server_key.key"}}}, "outbound": {"port": 4006, "host": "0.0.0.0", "tls": {"mutualTLS": {"enabled": false}, "creds": {"ca": "/secrets/hub_server_cacert.pem", "cert": "/secrets/dfsp_or_3ppi_client_cert.cer", "key": "/secrets/dfsp_or_3ppi_client_key.key"}}}, "requestProcessingTimeoutSeconds": 30, "wso2": {"auth": {"staticToken": "test-static-token", "tokenEndpoint": "", "clientKey": "test-client-key", "clientSecret": "test-client-secret", "refreshSeconds": 3600}}, "redis": {"port": 6379, "timeout": 100}, "inspect": {"depth": 4, "showHidden": false, "color": true}, "shared": {"authServiceParticipantId": "centralauth", "thirdpartyRequestsEndpoint": "tp-api-svc", "servicesEndpoint": "tp-api-svc", "alsEndpoint": "$release_name-account-lookup-service", "quotesEndpoint": "$release_name-quoting-service", "transfersEndpoint": "$release_name-ml-api-adapter-service", "dfspId": "$name", "dfspBackendUri": "$full_name-backend:3000", "dfspBackendHttpScheme": "http", "dfspBackendVerifyAuthorizationPath": "verify-authorization", "dfspBackendVerifyConsentPath": "verify-consent", "sdkRequestToPayTransferUri": "0.0.0.0:3000/requestToPayTransfer", "sdkOutgoingUri": "$full_name-scheme-adapter:4001", "sdkOutgoingHttpScheme": "http", "sdkOutgoingPartiesInformationPath": "parties/{Type}/{ID}/{SubId}", "sdkNotifyAboutTransferUri": "ml-testing-toolkit:4040/thirdpartyRequests/transactions/{ID}"}, "pm4mlEnabled": false, "validateInboundJws": false, "jwsSign": false, "jwsSigningKey": "/jwsSigningKey.key", "jwsVerificationKeysDirectory": null}}
+      env:
+        NODE_ENV: production
+        INBOUND_LISTEN_PORT: 4005
+        OUTBOUND_LISTEN_PORT: 4006
+        # Path to JWS signing key (private key of THIS DFSP)
+        JWS_SIGNING_KEY_PATH: "/jwsSigningKey/private.key" # do not change this unless you know what you are doing - this will break the chart
+        JWS_VERIFICATION_KEYS_DIRECTORY: "/jwsVerificationKeys"
+
+    resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #  cpu: 100m
+    #  memory: 128Mi
+    # requests:
+    #  cpu: 100m
+    #  memory: 128Mi
+
+    ## Pod scheduling preferences.
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    affinity: {}
+
+    ## Node labels for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    nodeSelector: {}
+
+    ## Set toleration for scheduler
+    ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    tolerations: []
