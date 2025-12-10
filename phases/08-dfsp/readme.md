@@ -15,6 +15,11 @@
 ./ml-perf-whitepaper-ws/phases/08-dfsp/deploy-1000-replication.bash
 ```
 
+### with 12 replicas of sdk-scheme-adapter ( used for 2000 tps )
+```bash
+./ml-perf-whitepaper-ws/phases/08-dfsp/deploy-2000.bash
+```
+
 ## Set DNS on each FSP
 
 No public domain name is used. So CoreDNS must be set resolve the local domain names of the switch

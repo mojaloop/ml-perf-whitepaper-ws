@@ -18,7 +18,7 @@ kubectl create secret docker-registry dockerhub-secret \
 --docker-server=https://index.docker.io/v1/ \
 --docker-username=${DOCKERHUB_USERNAME} \
 --docker-password=${DOCKERHUB_TOKEN} \
---docker-email=ndelma@gmail.com \
+--docker-email=${DOCKERHUB_EMAIL}$ \
 -n mojaloop
 
 kubectl patch serviceaccount default \
@@ -35,10 +35,13 @@ kubectl patch serviceaccount default \
 # helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/override-1000.yaml
 
 ## For 1000 tps test with replication
-helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/override-1000-replication.yaml
+# helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/override-1000-replication.yaml
+
+## For 2000 tps test
+helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend --version 17.1.0 -f ml-perf-whitepaper-ws/phases/06-databases/override-2000.yaml
 
 ## For MySql with replication the service name changes hence create an alias service name so we don't have to change any mojaloop config value
-kubectl apply -f ml-perf-whitepaper-ws/phases/06-databases/mysqldb-service-alias.yaml
+# kubectl apply -f ml-perf-whitepaper-ws/phases/06-databases/mysqldb-service-alias.yaml
 
 # # annotation for prometheus
 # kubectl -n mojaloop annotate pods mysqldb-0 prometheus.io/port=9104
