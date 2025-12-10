@@ -280,8 +280,8 @@
                     "config": {
                         "options": {
                             "mode": 2,
-                            "batchSize": 10,
-                            "syncConcurrency": 10,
+                            "batchSize": 20,
+                            "syncConcurrency": 20,
                             "syncSingleMessage": true,
                             "pollFrequency": 10,
                             "recursiveTimeout": 100,

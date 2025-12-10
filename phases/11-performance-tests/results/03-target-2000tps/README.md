@@ -1,34 +1,34 @@
 # Mojaloop Performance Tests for 1000 TPS
 
 ### Summary:
-1000 (F)TPS for a total of 1 Million transfers achieved with 99.9899% success rate with below configuration and details.
+2000 (F)TPS for a total of 1 Million transfers achieved with 99.9861% success rate with below configuration and details.
 ```
-1. discovery_time.................: avg=60.66ms  min=2ms      med=45ms     max=2.4s   p(90)=109ms    p(95)=152ms
+1. discovery_time.................: avg=54.4ms   min=1ms      med=25ms     max=6.73s    p(90)=68ms     p(95)=99ms
 
-2. quote_time.....................: avg=147.2ms  min=40ms     med=135ms    max=2.48s  p(90)=218ms    p(95)=247ms
+2. quote_time.....................: avg=227.54ms min=52ms     med=209ms    max=7.4s     p(90)=311ms    p(95)=359ms
 
-3. transfer_time..................: avg=351.67ms min=82ms     med=331ms    max=3.01s  p(90)=480ms    p(95)=540ms
+3. transfer_time..................: avg=735.02ms min=129ms    med=616ms    max=19.21s   p(90)=1.14s    p(95)=1.47s
 
-4. e2e_time.......................: avg=560.11ms min=173ms    med=523ms    max=4.32s  p(90)=734ms    p(95)=829ms
+4. e2e_time.......................: avg=1.01s    min=268ms    med=884ms    max=20.34s   p(90)=1.49s    p(95)=1.88s
 
-5. vus............................: 1       min=0         max=2313
+5. vus............................: 1       min=0         max=2745
 
-6. vus_max........................: 5000    min=3003      max=5000
+6. vus_max........................: 2879    min=1000      max=2879
 
 ```
 
 ## Infrastructure Used
 
-### Mojaloop Switch — `m7i.4xlarge` (3 nodes)
+### Mojaloop Switch — `m7i.8xlarge` (3 nodes)
 
 | Spec | Details |
 |------|----------|
-| **vCPUs** | 16 |
-| **Memory** | 64 GiB |
+| **vCPUs** | 32 |
+| **Memory** | 128 GiB |
 | **Storage** | EBS-Only |
 | **Network Performance** | 12.5 Gbps |
 | **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
-| **EBS Bandwidth** | Up to 10 Gbps |
+| **EBS Bandwidth** | 10 Gbps |
 
 ---
 
@@ -45,27 +45,27 @@
 
 ---
 
-### MySQL Node — `m7i.4xlarge` (1 node)
+### MySQL Node — `m7i.8xlarge` (1 node)
+
+| Spec | Details |
+|------|----------|
+| **vCPUs** | 32 |
+| **Memory** | 128 GiB |
+| **Storage** | EBS only |
+| **Network Performance** | 12.5 Gbps |
+| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
+| **EBS Bandwidth** | 10 Gbps |
+
+---
+
+### FSP Nodes — `c7i.4xlarge` (8 nodes)
 
 | Spec | Details |
 |------|----------|
 | **vCPUs** | 16 |
-| **Memory** | 64 GiB |
-| **Storage** | EBS only |
-| **Network Performance** | 12.5 Gbps |
-| **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
-| **EBS Bandwidth** | Up to 10 Gbps |
-
----
-
-### FSP Nodes — `m7i.2xlarge` (8 nodes)
-
-| Spec | Details |
-|------|----------|
-| **vCPUs** | 8 |
 | **Memory** | 32 GiB |
 | **Storage** | EBS only |
-| **Network Performance** | High (up to 12.5 Gbps) |
+| **Network Performance** | up to 12.5 Gbps |
 | **Processor** | Intel Xeon Scalable (Sapphire Rapids) |
 | **EBS Bandwidth** | Up to 10 Gbps |
 
@@ -92,34 +92,34 @@ Diagram
 ### Kafka Partitions
 
 ```
-kafka-topics.sh --alter --topic topic-quotes-post --partitions 12 --bootstrap-server kafka:9092
-kafka-topics.sh --alter --topic topic-quotes-put --partitions 12 --bootstrap-server kafka:9092
-kafka-topics.sh --alter --topic topic-transfer-prepare --partitions 12 --bootstrap-server kafka:9092
-kafka-topics.sh --alter --topic topic-transfer-fulfil --partitions 12 --bootstrap-server kafka:9092
+kafka-topics.sh --alter --topic topic-quotes-post --partitions 16 --bootstrap-server kafka:9092
+kafka-topics.sh --alter --topic topic-quotes-put --partitions 16 --bootstrap-server kafka:9092
+kafka-topics.sh --alter --topic topic-transfer-prepare --partitions 16 --bootstrap-server kafka:9092
+kafka-topics.sh --alter --topic topic-transfer-fulfil --partitions 16 --bootstrap-server kafka:9092
 kafka-topics.sh --alter --topic topic-transfer-position-batch --partitions 8 --bootstrap-server kafka:9092
-kafka-topics.sh --alter --topic topic-notification-event --partitions 18 --bootstrap-server kafka:9092
+kafka-topics.sh --alter --topic topic-notification-event --partitions 32 --bootstrap-server kafka:9092
 ```
 
 ### Core services - handlers replicas
 
 | Service | Replica count |
 |------|----------|
-| moja-account-lookup-service | 20 |
+| moja-account-lookup-service | 24 |
 | moja-als-msisdn-oracle | 8 |
-| moja-centralledger-handler-transfer-fulfil | 12 |
-| moja-centralledger-handler-transfer-prepare | 12 |
+| moja-centralledger-handler-transfer-fulfil | 16 |
+| moja-centralledger-handler-transfer-prepare | 16 |
 | moja-centralledger-service | 8 |
 | moja-handler-pos-batch | 8 |       
-| moja-ml-api-adapter-handler-notification | 18 |
-| moja-ml-api-adapter-service | 12 |
-| moja-quoting-service | 12 |
-| moja-quoting-service-handler | 12 |
+| moja-ml-api-adapter-handler-notification | 32 |
+| moja-ml-api-adapter-service | 16 |
+| moja-quoting-service | 16 |
+| moja-quoting-service-handler | 16 |
 
 ### SDK replicas
 
 | Service | Replica count |
 |------|----------|
-| sdk-scheme-adapter | 16 |
+| sdk-scheme-adapter | 12 |
 
 ### Other config changes
 
@@ -132,10 +132,50 @@ Change log levels on core services
       event_log_filter: 'log:info, log:warn, log:error'    
 ```      
 
-### Distribution of load
+### Changes on k6 and dfsp nodes
 
-Moved topic-transfer-prepare pods from sw1-n1 node which was under high CPU demand to sw1-n2 node which had some capacity. But this depends on how kubernetes schedules your pods. Probably in next iteration we should add pod affinity to have a consistent distribution of load on nodes.
+ubuntu@k6:~$ ulimit -n
+1024
+ubuntu@k6:~$ sysctl net.ipv4.ip_local_port_range
+net.ipv4.ip_local_port_range = 32768	60999
+ubuntu@k6:~$ sysctl net.core.somaxconn
+net.core.somaxconn = 4096
+ubuntu@k6:~$ sysctl net.ipv4.tcp_max_syn_backlog
+net.ipv4.tcp_max_syn_backlog = 4096
+ubuntu@k6:~$ sysctl net.ipv4.ip_local_port_range
+net.ipv4.ip_local_port_range = 32768	60999
 
+----SET BELOW
+```
+ubuntu@k6:~$ ulimit -n 65535
+ubuntu@k6:~$ ulimit -n
+65535
+```
+
+sudo vi /etc/security/limits.conf and add below towards the end 
+
+```
+* soft nofile 65535
+* hard nofile 65535
+```
+OR below for "ubuntu" user
+ubuntu soft nofile 65535
+ubuntu hard nofile 65535
+
+the create below file
+```
+  sudo vi /etc/sysctl.d/99-k6-tuning.conf
+```
+add below 
+```
+net.core.somaxconn = 16384
+net.ipv4.tcp_max_syn_backlog = 16384
+net.ipv4.ip_local_port_range = 1024 65535
+```
+then 
+```
+sudo sysctl --system
+```
 
 ## K6 Log:
 
@@ -143,43 +183,43 @@ There are some ALS failures because we re-use same 1000 MSISDNs registered per f
 
 ```
      ✗ ALS_FSPIOP_GET_PARTIES_RESPONSE_IS_200
-      ↳  99% — ✓ 999915 / ✗ 92
+      ↳  99% — ✓ 995609 / ✗ 127
      ✗ QUOTES_FSPIOP_POST_QUOTES_RESPONSE_IS_200
-      ↳  99% — ✓ 999907 / ✗ 8
+      ↳  99% — ✓ 995606 / ✗ 3
      ✗ TRANSFERS_FSPIOP_POST_TRANSFERS_RESPONSE_IS_200
-      ↳  99% — ✓ 999899 / ✗ 8
+      ↳  99% — ✓ 995598 / ✗ 8
 
-   ✓ checks.........................: 99.99%  ✓ 2999721     ✗ 108
-   ✓ completed_transactions.........: 999899  990.684372/s
-     data_received..................: 6.5 GB  6.5 MB/s
-     data_sent......................: 2.8 GB  2.8 MB/s
-   ✓ discovery_time.................: avg=60.66ms  min=2ms      med=45ms     max=2.4s   p(90)=109ms    p(95)=152ms
-   ✓ e2e_time.......................: avg=560.11ms min=173ms    med=523ms    max=4.32s  p(90)=734ms    p(95)=829ms
-     failed_transactions............: 108     0.107005/s
-     http_req_blocked...............: avg=4.2ms    min=139.55µs med=255.57µs max=2.3s   p(90)=5.23ms   p(95)=17.79ms
-     http_req_connecting............: avg=1.74ms   min=115.08µs med=216.97µs max=2.3s   p(90)=3.4ms    p(95)=9.58ms
-   ✓ http_req_duration..............: avg=182.99ms min=1.48ms   med=136.74ms max=30.08s p(90)=387.33ms p(95)=450.16ms
-       { expected_response:true }...: avg=182.07ms min=1.76ms   med=136.73ms max=2.97s  p(90)=387.3ms  p(95)=450.12ms
-     http_req_failed................: 0.00%   ✓ 108         ✗ 2999721
-     http_req_receiving.............: avg=557.65µs min=13.49µs  med=52.98µs  max=1.55s  p(90)=1.43ms   p(95)=2.92ms
-     http_req_sending...............: avg=471.91µs min=7.15µs   med=33.4µs   max=1.45s  p(90)=1.22ms   p(95)=2.51ms
-     http_req_tls_handshaking.......: avg=0s       min=0s       med=0s       max=0s     p(90)=0s       p(95)=0s
-     http_req_waiting...............: avg=181.96ms min=977.42µs med=135.62ms max=30.08s p(90)=386.29ms p(95)=449.01ms
-     http_reqs......................: 2999829 2972.183901/s
-     iteration_duration.............: avg=563.13ms min=29.83ms  med=523.24ms max=30.4s  p(90)=734.02ms p(95)=829.92ms
-     iterations.....................: 1000007 990.791377/s
-   ✓ quote_time.....................: avg=147.2ms  min=40ms     med=135ms    max=2.48s  p(90)=218ms    p(95)=247ms
-   ✓ success_rate...................: 99.98%  ✓ 999899      ✗ 108
-   ✓ transfer_time..................: avg=351.67ms min=82ms     med=331ms    max=3.01s  p(90)=480ms    p(95)=540ms
-     vus............................: 1       min=0         max=2313
-     vus_max........................: 5000    min=3003      max=5000
-
-=== K6 TEST SUMMARY ===
+   ✓ checks.........................: 99.99%  ✓ 2986813     ✗ 138
+   ✓ completed_transactions.........: 995598  1903.933268/s
+     data_received..................: 6.5 GB  12 MB/s
+     data_sent......................: 2.8 GB  5.3 MB/s
+   ✓ discovery_time.................: avg=54.4ms   min=1ms      med=25ms     max=6.73s    p(90)=68ms     p(95)=99ms
+     dropped_iterations.............: 4265    8.156179/s
+   ✓ e2e_time.......................: avg=1.01s    min=268ms    med=884ms    max=20.34s   p(90)=1.49s    p(95)=1.88s
+     failed_transactions............: 138     0.263904/s
+     http_req_blocked...............: avg=6.85µs   min=547ns    med=2.35µs   max=100.87ms p(90)=4.93µs   p(95)=5.66µs
+     http_req_connecting............: avg=1.93µs   min=0s       med=0s       max=56.27ms  p(90)=0s       p(95)=0s
+   ✓ http_req_duration..............: avg=339.99ms min=724.72µs med=215.14ms max=30.05s   p(90)=798.06ms p(95)=1.03s
+       { expected_response:true }...: avg=338.7ms  min=1.18ms   med=215.13ms max=19.21s   p(90)=797.91ms p(95)=1.03s
+     http_req_failed................: 0.00%   ✓ 138         ✗ 2986813
+     http_req_receiving.............: avg=38.85µs  min=6.24µs   med=18.3µs   max=57.73ms  p(90)=34.5µs   p(95)=43.39µs
+     http_req_sending...............: avg=126.78µs min=3.23µs   med=9.41µs   max=142.1ms  p(90)=20.92µs  p(95)=37.55µs
+     http_req_tls_handshaking.......: avg=0s       min=0s       med=0s       max=0s       p(90)=0s       p(95)=0s
+     http_req_waiting...............: avg=339.83ms min=687.36µs med=215.08ms max=30.05s   p(90)=797.98ms p(95)=1.03s
+     http_reqs......................: 2986951 5712.100042/s
+     iteration_duration.............: avg=1.02s    min=23.97ms  med=884.34ms max=30.36s   p(90)=1.49s    p(95)=1.89s
+     iterations.....................: 995736  1904.197172/s
+   ✓ quote_time.....................: avg=227.54ms min=52ms     med=209ms    max=7.4s     p(90)=311ms    p(95)=359ms
+   ✓ success_rate...................: 99.98%  ✓ 995598      ✗ 138
+   ✓ transfer_time..................: avg=735.02ms min=129ms    med=616ms    max=19.21s   p(90)=1.14s    p(95)=1.47s
+     vus............................: 1       min=0         max=2745
+     vus_max........................: 2879    min=1000      max=2879
+     === K6 TEST SUMMARY ===
 {
   "test_config": {
     "target_transactions": 1000000,
-    "target_tps": 1000,
-    "duration": 1000,
+    "target_tps": 2000,
+    "duration": 500,
     "fsp_pairs": [
       {
         "dest": "fsp202",
@@ -204,11 +244,11 @@ There are some ALS failures because we re-use same 1000 MSISDNs registered per f
     ]
   },
   "results": {
-    "completed_transactions": 999899,
-    "success_rate": 99.98920007559947,
-    "actual_tps": 999.899,
-    "e2e_time_p95": 829,
-    "http_req_duration_p95": 450.16792860000004
+    "completed_transactions": 995598,
+    "success_rate": 99.98614090481814,
+    "actual_tps": 1991.196,
+    "e2e_time_p95": 1889,
+    "http_req_duration_p95": 1037.748395
   },
   "status": "PASSED"
 }
