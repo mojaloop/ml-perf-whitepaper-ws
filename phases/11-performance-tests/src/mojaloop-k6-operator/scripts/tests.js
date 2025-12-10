@@ -139,9 +139,9 @@ export const options = {
       timeUnit: '1s',
       duration: testDuration + 's',
       // preAllocatedVUs: Math.max(Math.ceil(TARGET_TPS * 2), 100),
-      preAllocatedVUs: 5000,
+      preAllocatedVUs: 1000,
       // maxVUs: Math.max(Math.ceil(TARGET_TPS * 4), 200),
-      maxVUs: 8000,
+      maxVUs: 6000,
     },
   },
   thresholds: {
@@ -154,7 +154,8 @@ export const options = {
     'transfer_time': ['p(95)<3000'],
     'checks': ['rate>0.95'],
   },
-  noConnectionReuse: true
+  noConnectionReuse: false,
+  // discardResponseBodies: true,
 };
 
 function getUUIDS() {
@@ -224,7 +225,7 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
   const transactionId = getUUIDS();
   const quoteId = getUUIDS();
   let quoteResponse;
-
+// executeQuotePhase();
 
   try {
     // Phase 1: Party Lookup with Callback
@@ -381,6 +382,8 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
           amount: { amount: ENV.TRANSFER_AMOUNT, currency: ENV.CURRENCY },
           ilpPacket: quoteResponseBody.quotes.body.ilpPacket,
           condition: quoteResponseBody.quotes.body.condition,
+          // ilpPacket: "AYICggAAAAAAACcQG2cuZnNwMjA4Lm1zaXNkbi44NzAzOTgxMjU0NoICWmV5SnhkVzkwWlVsa0lqb2lNREU1UWpBMlFrWTBSak5CUVRVMk1EbEJNelpFT0VJNE5UVWlMQ0owY21GdWMyRmpkR2x2Ymtsa0lqb2lNREU1UWpBMlFrWTBSak5CTjBZNE5rWXlSa0ZGUlVZME4wUWlMQ0owY21GdWMyRmpkR2x2YmxSNWNHVWlPbnNpYzJObGJtRnlhVzhpT2lKVVVrRk9VMFpGVWlJc0ltbHVhWFJwWVhSdmNpSTZJbEJCV1VWU0lpd2lhVzVwZEdsaGRHOXlWSGx3WlNJNklrTlBUbE5WVFVWU0luMHNJbkJoZVdWbElqcDdJbkJoY25SNVNXUkpibVp2SWpwN0luQmhjblI1U1dSVWVYQmxJam9pVFZOSlUwUk9JaXdpY0dGeWRIbEpaR1Z1ZEdsbWFXVnlJam9pT0Rjd016azRNVEkxTkRZaUxDSm1jM0JKWkNJNkltWnpjREl3T0NKOWZTd2ljR0Y1WlhJaU9uc2ljR0Z5ZEhsSlpFbHVabThpT25zaWNHRnlkSGxKWkZSNWNHVWlPaUpOVTBsVFJFNGlMQ0p3WVhKMGVVbGtaVzUwYVdacFpYSWlPaUl4TnpBek9UZ3hNVGt5TkNJc0ltWnpjRWxrSWpvaVpuTndNakEzSW4xOUxDSmxlSEJwY21GMGFXOXVJam9pTWpBeU5TMHhNaTB4TUZRd05Ub3pNem96T1M0M09EUmFJaXdpWVcxdmRXNTBJanA3SW1GdGIzVnVkQ0k2SWpFaUxDSmpkWEp5Wlc1amVTSTZJbGhZV0NKOWZRAA",
+          // condition: "63MP5UzSpSej0n3_re6YArT66jtlu1nthZahAhGsEfo",
           expiration: new Date(Date.now() + 60000).toISOString()
         }
       };
@@ -425,7 +428,7 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
 let FSP_PAIRS = []; 
 
 export default function() {
-  validateEnv();
+  // validateEnv();
   const FSP_CONFIG = JSON.parse(__ENV.FSP_CONFIG);
   FSP_PAIRS = JSON.parse(__ENV.FSP_PAIRS_JSON).map(pair => ({
     source: FSP_CONFIG[pair.source],
