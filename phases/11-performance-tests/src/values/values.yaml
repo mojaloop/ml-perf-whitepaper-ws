@@ -1,9 +1,9 @@
 k6:
-  targetTxnCount: 100000
+  targetTxnCount: 500000
   abortOnError: false
   transferAmount: "1" # transfer amount per transaction
   currency: "XXX"
-  targetTps: 1000
+  targetTps: 2000
   fspPairs:
     - source: fsp201
       dest: fsp202
