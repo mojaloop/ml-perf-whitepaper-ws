@@ -1,0 +1,127 @@
+---
+- name: Enable MicroK8s Remote Access on Private Network
+  hosts: switch:dfsps
+  become: yes
+  gather_facts: yes
+  vars:
+    config: "{{ lookup('file', '../../../02-infrastructure/config.yaml') | from_yaml }}"
+
+  tasks:
+    - name: Get node's private IP
+      set_fact:
+        node_private_ip: "{{ hostvars[inventory_hostname]['private_ip'] }}"
+
+    - name: Debug node information
+      debug:
+        msg: "Configuring {{ inventory_hostname }} with private IP {{ node_private_ip }}"
+
+    - name: Check current kube-apiserver configuration
+      command: cat /var/snap/microk8s/current/args/kube-apiserver
+      register: current_config
+      changed_when: false
+
+    - name: Debug current configuration
+      debug:
+        var: current_config.stdout_lines
+
+    - name: Check if bind-address already exists
+      shell: grep -q '^--bind-address=' /var/snap/microk8s/current/args/kube-apiserver
+      register: bind_address_exists
+      failed_when: false
+      changed_when: false
+
+    - name: Check if advertise-address already exists
+      shell: grep -q '^--advertise-address=' /var/snap/microk8s/current/args/kube-apiserver
+      register: advertise_address_exists
+      failed_when: false
+      changed_when: false
+
+    - name: Add or update bind-address to listen on all interfaces
+      lineinfile:
+        path: /var/snap/microk8s/current/args/kube-apiserver
+        regexp: '^--bind-address=.*'
+        line: '--bind-address=0.0.0.0'
+        insertafter: '^--secure-port='
+      register: bind_address_changed
+
+    - name: Add or update advertise-address to private IP
+      lineinfile:
+        path: /var/snap/microk8s/current/args/kube-apiserver
+        regexp: '^--advertise-address=.*'
+        line: '--advertise-address={{ node_private_ip }}'
+        insertafter: '^--bind-address='
+      register: advertise_address_changed
+
+    - name: Show what changed
+      debug:
+        msg:
+          - "Bind address changed: {{ bind_address_changed.changed }}"
+          - "Advertise address changed: {{ advertise_address_changed.changed }}"
+
+    - name: Restart MicroK8s if configuration changed
+      when: bind_address_changed.changed or advertise_address_changed.changed
+      block:
+        - name: Restart MicroK8s
+          command: snap restart microk8s
+
+        - name: Wait for MicroK8s to be ready
+          command: microk8s status --wait-ready
+          retries: 10
+          delay: 30
+          register: microk8s_ready
+
+        - name: Debug MicroK8s status
+          debug:
+            var: microk8s_ready.stdout_lines
+
+    - name: Verify API server is accessible on localhost
+      wait_for:
+        host: 127.0.0.1
+        port: 16443
+        state: started
+        timeout: 30
+
+    - name: Verify API server is accessible on private IP
+      wait_for:
+        host: "{{ node_private_ip }}"
+        port: 16443
+        state: started
+        timeout: 30
+
+    - name: Test API server health on localhost
+      uri:
+        url: "https://127.0.0.1:16443/healthz"
+        validate_certs: no
+        status_code: 401
+      retries: 5
+      delay: 10
+      register: localhost_health
+
+    - name: Test API server health on private IP
+      uri:
+        url: "https://{{ node_private_ip }}:16443/healthz"
+        validate_certs: no
+        status_code: 401
+      retries: 5
+      delay: 10
+      register: private_ip_health
+
+    - name: Show API server health status
+      debug:
+        msg:
+          - "Localhost health: {{ localhost_health.status }}"
+          - "Private IP health: {{ private_ip_health.status }}"
+
+    - name: Display updated configuration
+      command: cat /var/snap/microk8s/current/args/kube-apiserver
+      register: updated_config
+      changed_when: false
+
+    - name: Show final configuration
+      debug:
+        msg: "Updated kube-apiserver configuration:"
+        verbosity: 0
+
+    - name: Show final configuration lines
+      debug:
+        var: updated_config.stdout_lines

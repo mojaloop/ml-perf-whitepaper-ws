@@ -1,13 +1,31 @@
 
 
+
+```bash
+
+# start SOCK and keep it running
+ssh -D 1080 perf-jump-host -N
+
+# tell kubectl to use the proxy
+export HTTPS_PROXY=socks5://127.0.0.1:1080
+
+# select the target cluster
+export KUBECONFIG=/Users/ndelma/Workspace/mojaloop/perf/ml-perf-whitepaper-ws/phases/02-infrastructure/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml
+
+kubectl get nodes
+
+```
+
+------------------
+
 ## Deploy K8s
 
 ```bash
-sudo apt update
-sudo apt upgrade -y
-sudo reboot
+export K8S_VERSION="1.30/stable"
 
-sudo snap install microk8s --classic --channel=1.30/stable
+# sudo apt update && sudo apt upgrade -y && sudo reboot
+
+sudo snap install microk8s --classic --channel=$K8S_VERSION
 
 sudo usermod -a -G microk8s $USER
 sudo chown -f -R $USER ~/.kube || true
@@ -40,6 +58,7 @@ chmod 600 ~/.kube/config
 
 ```
 
+## form the cluster
 
 
 ## () 
