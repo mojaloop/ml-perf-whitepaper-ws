@@ -1,0 +1,278 @@
+# Common YAML TEMPLATE Anchors
+CONFIG:
+  ## HUB CONFIGURATION
+  hub_participant: &HUB_PARTICIPANT
+    id: &HUB_ID 1
+    name: &HUB_NAME Hub
+
+  ## ACCOUNT-LOOKUP BACKEND
+  als_db_name: &ALS_DB_NAME "account_lookup"
+  als_db_password: &ALS_DB_PASSWORD ''
+  als_db_secret: &ALS_DB_SECRET
+    name: &ALS_DB_SECRET_NAME mysqldb
+    key: &ALS_DB_SECRET_KEY mysql-password
+  als_db_host: &ALS_DB_HOST 'mysqldb'
+  als_db_port: &ALS_DB_PORT 3306
+  als_db_user: &ALS_DB_USER "account_lookup"
+
+  als_db_additional_connection_options: &ALS_DB_ADDITIONAL_CONNECTION_OPTIONS {}
+  als_db_ssl_enabled: &ALS_DB_SSL_ENABLED false
+  als_db_ssl_verify: &ALS_DB_SSL_VERIFY false
+  als_db_ssl_ca_secret: &ALS_DB_SSL_CA_SECRET null
+  # als_db_ssl_ca_secret: &ALS_DB_SSL_CA_SECRET
+  #   name: &ALS_DB_SSL_CA_SECRET_NAME mysqldb
+  #   key: &ALS_DB_SSL_CA_SECRET_KEY mysql-ca-cert
+
+  ## ALS MSISDN Oracle
+  als_msisdn_oracle_db_name: &ALS_ORACLE_DB_NAME "oracle_msisdn"
+  als_msisdn_oracle_db_password: &ALS_ORACLE_DB_PASSWORD ''
+  als_msisdn_oracle_db_secret: &ALS_ORACLE_DB_SECRET
+    name: &ALS_ORACLE_DB_SECRET_NAME mysqldb
+    key: &ALS_ORACLE_DB_SECRET_KEY mysql-password
+  als_msisdn_oracle_db_host: &ALS_ORACLE_DB_HOST 'mysqldb'
+  als_msisdn_oracle_db_port: &ALS_ORACLE_DB_PORT 3306
+  als_msisdn_oracle_db_user: &ALS_ORACLE_DB_USER "oracle_msisdn"
+
+  als_msisdn_oracle_db_additional_connection_options: &ALS_ORACLE_DB_ADDITIONAL_CONNECTION_OPTIONS {}
+  als_msisdn_oracle_db_ssl_enabled: &ALS_ORACLE_DB_SSL_ENABLED false
+  als_msisdn_oracle_db_ssl_verify: &ALS_ORACLE_DB_SSL_VERIFY false
+  als_msisdn_oracle_db_ssl_ca_secret: &ALS_ORACLE_DB_SSL_CA_SECRET null
+  # als_msisdn_oracle_db_ssl_ca_secret: &ALS_ORACLE_DB_SSL_CA_SECRET
+  #   name: &ALS_ORACLE_DB_SSL_CA_SECRET_NAME mysqldb
+  #   key: &ALS_ORACLE_DB_SSL_CA_SECRET_KEY mysql-ca-cert
+
+  ## CENTRAL-LEDGER BACKEND
+  cl_db_name: &CL_DB_NAME "central_ledger"
+  cl_db_password: &CL_DB_PASSWORD ''
+  cl_db_secret: &CL_DB_SECRET
+    name: &CL_DB_SECRET_NAME mysqldb
+    key: &CL_DB_SECRET_KEY mysql-password
+  cl_db_host: &CL_DB_HOST 'mysqldb'
+  cl_db_port: &CL_DB_PORT 3306
+  cl_db_user: &CL_DB_USER "central_ledger"
+  cl_payee_participant_currency_validation_enabled: &PAYEE_PARTICIPANT_CURRENCY_VALIDATION_ENABLED true
+
+  cl_db_additional_connection_options: &CL_DB_ADDITIONAL_CONNECTION_OPTIONS {}
+  cl_db_ssl_enabled: &CL_DB_SSL_ENABLED false
+  cl_db_ssl_verify: &CL_DB_SSL_VERIFY false
+  cl_db_ssl_ca_secret: &CL_DB_SSL_CA_SECRET null
+  # cl_db_ssl_ca_secret: &CL_DB_SSL_CA_SECRET
+  #   name: &CL_DB_SSL_CA_SECRET_NAME mysqldb
+  #   key: &CL_DB_SSL_CA_SECRET_KEY mysql-ca-cert
+
+  ## KAFKA BACKEND
+  kafka_host: &KAFKA_HOST 'kafka'
+  kafka_port: &KAFKA_PORT 9092
+
+  ## BULK OBJECT STORE BACKEND
+  obj_mongo_host: &OBJSTORE_MONGO_HOST 'cl-mongodb'
+  obj_mongo_port: &OBJSTORE_MONGO_PORT 27017
+  obj_mongo_user: &OBJSTORE_MONGO_USER mojaloop
+  obj_mongo_password: &OBJSTORE_MONGO_PASSWORD ''
+  obj_mongo_secret: &OBJSTORE_MONGO_SECRET
+    name: &OBJSTORE_MONGO_SECRET_NAME cl-mongodb
+    key: &OBJSTORE_MONGO_SECRET_KEY mongodb-passwords
+  obj_mongo_database: &OBJSTORE_MONGO_DATABASE mlos
+
+  ## TTK MONGODB BACKEND
+  ttk_mongo_host: &TTK_MONGO_HOST "ttk-mongodb"
+  ttk_mongo_port: &TTK_MONGO_PORT "27017"
+  ttk_mongo_user: &TTK_MONGO_USER "ttk"
+  ttk_mongo_password: &TTK_MONGO_PASSWORD ""
+  ttk_mongo_secret: &TTK_MONGO_SECRET
+    name: &TTK_MONGO_SECRET_NAME ttk-mongodb
+    key: &TTK_MONGO_SECRET_KEY mongodb-passwords
+  ttk_mongo_database: &TTK_MONGO_DATABASE "ttk"
+  ttk_mongo_connection_string: &TTK_MONGO_CONNECTION_STRING null
+  ttk_mongo_connection_string_secret: &TTK_MONGO_CONNECTION_STRING_SECRET
+    name: &TTK_MONGO_CONNECTION_STRING_SECRET_NAME null
+    key: &TTK_MONGO_CONNECTION_STRING_SECRET_KEY null
+  ttk_mongo_params: &TTK_MONGO_PARAMS {}
+
+  # SSL/TLS configuration for TTK services
+  ttk_ssl_enabled: &TTK_SSL_ENABLED false
+  ttk_ssl_verify: &TTK_SSL_VERIFY false
+  ttk_ssl_ca_secret: &TTK_SSL_CA_SECRET {}
+  ttk_ssl_client_cert: &TTK_SSL_CLIENT_CERT {}
+
+  ## MOJALOOP-TTK-SIMULATORS BACKEND
+  moja_ttk_sim_kafka_host: &MOJA_TTK_SIM_KAFKA_HOST 'kafka'
+  moja_ttk_sim_kafka_port: &MOJA_TTK_SIM_KAFKA_PORT 9092
+  # The Redis Instance can be installed using the following command: helm -n <NAMESPACE> install backend ./example-mojaloop-backend --set "kafka.enabled=false" --set "centralledger-mysql.enabled=false" --set "account-lookup-mysql.enabled=false" --set "centralledger-obj.enabled=false" --set "cep-mongodb.enabled=false" --set "kafka-console.enabled=false" --set "ttksims-redis.enabled=true"
+  moja_ttk_sim_redis_host: &MOJA_TTK_SIM_REDIS_HOST ttksims-redis-master
+  moja_ttk_sim_redis_port: &MOJA_TTK_SIM_REDIS_PORT 6379
+
+  ## THIRDPARTY AUTH-SVC BACKEND
+  tp_auth_svc_db_name: &TP_AUTH_SVC_DB_NAME "auth_svc"
+  tp_auth_svc_db_password: &TP_AUTH_SVC_DB_PASSWORD ""
+  tp_auth_svc_db_secret: &TP_AUTH_SVC_DB_SECRET
+    name: &TP_AUTH_SVC_DB_SECRET_NAME mysqldb
+    key: &TP_AUTH_SVC_DB_SECRET_KEY mysql-password
+  tp_auth_svc_db_host: &TP_AUTH_SVC_DB_HOST 'mysqldb'
+  tp_auth_svc_db_port: &TP_AUTH_SVC_DB_PORT 3306
+  tp_auth_svc_db_user: &TP_AUTH_SVC_DB_USER "auth_svc"
+  tp_auth_svc_redis_host: &TP_AUTH_SVC_REDIS_HOST auth-svc-redis-master
+  tp_auth_svc_redis_port: &TP_AUTH_SVC_REDIS_PORT 6379
+
+  ## THIRDPARTY ALS_CONSENT-SVC BACKEND
+  tp_als_consent_svc_db_name: &TP_ALS_CONSENT_SVC_DB_NAME "consent_oracle"
+  tp_als_consent_svc_db_password: &TP_ALS_CONSENT_SVC_DB_PASSWORD ""
+  tp_als_consent_svc_db_secret: &TP_ALS_CONSENT_SVC_DB_SECRET
+    name: &TP_ALS_CONSENT_SVC_DB_SECRET_NAME mysqldb
+    key: &TP_ALS_CONSENT_SVC_DB_SECRET_KEY mysql-password
+  tp_als_consent_svc_db_host: &TP_ALS_CONSENT_SVC_DB_HOST 'mysqldb'
+  tp_als_consent_svc_db_port: &TP_ALS_CONSENT_SVC_DB_PORT 3306
+  tp_als_consent_svc_db_user: &TP_ALS_CONSENT_SVC_DB_USER "consent_oracle"
+
+  ## BATCHING: This configures the batch size for the position batch handler (range: 1 - 100000)
+  batch_size: &BATCH_SIZE 100
+
+  ## INTERSCHEME: To enable interscheme components and tests set following to true
+  ## When INTERSCHEME is disabled, we need to enable PAYEE_PARTICIPANT_CURRENCY_VALIDATION_ENABLED
+  ## to ensure normal single-scheme functionalities/validations work as expected, and vise versa.
+  interscheme_enabled: &INTERSCHEME_ENABLED false
+
+  ## PROXY CACHE
+  proxy_cache: &PROXY_CACHE
+    enabled: *INTERSCHEME_ENABLED
+    type: redis-cluster # redis-cluster is the preferred and the only tested cache type
+    proxyConfig:
+      cluster:
+        - host: proxy-cache-redis
+          port: 6379
+
+  ## FSPIOP mode deployment
+  api_type: &API_TYPE "fspiop"
+  ttk_transformer_name: &TTK_TRANSFORMER_NAME "none"
+  SDK_ILP_VERSION: &SDK_ILP_VERSION "1"
+  validCondition: &validCondition "$param_validConditionV1"
+  ilpPacket: &ilpPacket "$param_validIlpPacketV1"
+  validFulfillment: &validFulfillment "$param_validFulfillmentV1"
+
+  ## ISO20022 mode deployment
+  # api_type: &API_TYPE "iso20022"
+  # ttk_transformer_name: &TTK_TRANSFORMER_NAME "fspiopToISO20022"
+  # SDK_ILP_VERSION: &SDK_ILP_VERSION "4"
+  # validCondition: &validCondition "$param_validConditionV4"
+  # ilpPacket: &ilpPacket "$param_validIlpPacketV4"
+  # validFulfillment: &validFulfillment "$param_validFulfillmentV4"
+  ## kafka | redis
+  original_payload_storage: &ORIGINAL_PAYLOAD_STORAGE "kafka"
+  payload_cache: &PAYLOAD_CACHE
+    enabled: false
+    type: redis-cluster
+    connectionConfig:
+      cluster:
+        - host: proxy-cache-redis
+          port: 6379
+# Default values for central.
+# This is a YAML-formatted file.
+# Declare global configurations
+global: {}
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+#  minAvailable: 20%
+## Only one key should be set
+
+# Declare variables to be passed into your templates.
+
+account-lookup-service:
+  enabled: true
+
+  account-lookup-service:
+    enabled: true
+    replicaCount: 24
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'
+
+quoting-service:
+  quoting-service:
+    enabled: true
+    replicaCount: 16
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'    
+
+  quoting-service-handler:
+    enabled: true
+    replicaCount: 16
+    config:
+      cache:
+        participant_data_expires_in_ms: 60000
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'        
+
+ml-api-adapter:
+  enabled: true
+  ml-api-adapter-service:
+    enabled: true
+    replicaCount: 16
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'    
+    resources: {}
+
+  ml-api-adapter-handler-notification:
+    enabled: true
+    replicaCount: 32
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'    
+    resources: {}
+
+
+centralledger:
+  enabled: true
+  centralledger-service:
+    enabled: true
+    replicaCount: 8
+    resources: {}
+
+  centralledger-handler-transfer-prepare:
+    enabled: true
+    replicaCount: 16
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'    
+    resources: {}
+
+
+  centralledger-handler-transfer-position-batch:
+    enabled: true
+    replicaCount: 8
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'    
+    resources: {}
+
+  centralledger-handler-transfer-fulfil:
+    enabled: true
+    replicaCount: 16
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'    
+    resources: {}
+
+  centralledger-handler-timeout:
+    enabled: true
+    replicaCount: 1
+    config:
+      # Log config
+      log_level: error
+      event_log_filter: 'log:info, log:warn, log:error'    
+    resources: {}
+
+als-msisdn-oracle:
+  enabled: true
+  replicaCount: 8
