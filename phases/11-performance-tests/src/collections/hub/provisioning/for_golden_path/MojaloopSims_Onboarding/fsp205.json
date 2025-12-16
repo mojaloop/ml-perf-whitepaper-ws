@@ -198,7 +198,7 @@
               "exec": [
                 "var uuid = require('uuid');",
                 "pm.environment.set('fsp205fundsInPrepareTransferId', uuid.v4())",
-                "pm.environment.set('fsp205fundsInPrepareAmount', 5000);"
+                "pm.environment.set('fsp205fundsInPrepareAmount', 1000000000);"
               ]
             }
           }
@@ -585,7 +585,7 @@
               "exec": [
                 "var uuid = require('uuid');",
                 "pm.environment.set('fsp205fundsInPrepareTransferId', uuid.v4())",
-                "pm.environment.set('fsp205fundsInPrepareAmountCurrency2', 5000);"
+                "pm.environment.set('fsp205fundsInPrepareAmountCurrency2', 1000000000);"
               ]
             }
           }
