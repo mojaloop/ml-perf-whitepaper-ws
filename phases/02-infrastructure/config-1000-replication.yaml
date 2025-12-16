@@ -24,7 +24,6 @@ project:
 # SSH Configuration
 ssh:
   key_name: ndelma-gtm-202504091000
-  # public_key_path: ~/.ssh/ndelma-gtm-202504091000.pub  # Optional: if you want Terraform to manage the key
 
 # Network Configuration
 network:
