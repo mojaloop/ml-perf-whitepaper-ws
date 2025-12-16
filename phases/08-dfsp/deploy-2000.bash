@@ -6,18 +6,18 @@ do
   echo "Starting deployment of FSP${i}..."
   echo ${i}
 
-  SWITCH_IP=10.112.2.150
+  SWITCH_IP=10.112.2.250
 
   export KUBECONFIG=~/.kube/kubeconfig-fsp${i}.yaml
   
   kubectl create ns dfsps
 
   kubectl create secret docker-registry dockerhub-secret \
---docker-server=https://index.docker.io/v1/ \
---docker-username=${DOCKERHUB_USERNAME} \
---docker-password=${DOCKERHUB_TOKEN} \
---docker-email=${DOCKERHUB_EMAIL} \
--n dfsps
+    --docker-server="https://index.docker.io/v1/" \
+    --docker-username="${DOCKERHUB_USERNAME}" \
+    --docker-password="${DOCKERHUB_TOKEN}" \
+    --docker-email="${DOCKERHUB_EMAIL}" \
+    -n dfsps
 
 kubectl patch serviceaccount default \
     -n dfsps \
@@ -66,7 +66,12 @@ kubectl patch serviceaccount default \
     ]"
 
   # Now scale out to 12 replicas (all with updated probes + hostAliases)
+  # kubectl scale deployment dfsp-sim-fsp${i}-scheme-adapter -n dfsps --replicas=0
   kubectl scale deployment dfsp-sim-fsp${i}-scheme-adapter -n dfsps --replicas=12
+  # kubectl scale deployment dfsp-sim-fsp${i}-backend -n dfsps --replicas=0
+  # kubectl scale deployment dfsp-sim-fsp${i}-backend -n dfsps --replicas=1
+  # kubectl scale deployment dfsp-sim-fsp${i}-cache -n dfsps --replicas=0
+  # kubectl scale deployment dfsp-sim-fsp${i}-cache -n dfsps --replicas=1
 
   # patch the coredn
 kubectl -n kube-system patch configmap coredns \

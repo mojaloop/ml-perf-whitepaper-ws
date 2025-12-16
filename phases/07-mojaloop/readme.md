@@ -28,35 +28,35 @@ kubectl patch deployment moja-quoting-service-handler \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.29",
+              "ip": "10.112.2.132",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.61",
+              "ip": "10.112.2.103",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.172",
+              "ip": "10.112.2.59",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.34",
+              "ip": "10.112.2.150",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.22",
+              "ip": "10.112.2.53",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.6",
+              "ip": "10.112.2.219",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.183",
+              "ip": "10.112.2.244",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.20",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp208.local"]
             }
           ]
@@ -75,35 +75,35 @@ kubectl patch deployment moja-account-lookup-service \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.29",
+              "ip": "10.112.2.132",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.61",
+              "ip": "10.112.2.103",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.172",
+              "ip": "10.112.2.59",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.34",
+              "ip": "10.112.2.150",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.22",
+              "ip": "10.112.2.53",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.6",
+              "ip": "10.112.2.219",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.183",
+              "ip": "10.112.2.244",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.20",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp208.local"]
             }
           ]
@@ -122,35 +122,35 @@ kubectl patch deployment moja-ml-api-adapter-handler-notification \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.29",
+              "ip": "10.112.2.132",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.61",
+              "ip": "10.112.2.103",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.172",
+              "ip": "10.112.2.59",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.34",
+              "ip": "10.112.2.150",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.22",
+              "ip": "10.112.2.53",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.6",
+              "ip": "10.112.2.219",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.183",
+              "ip": "10.112.2.244",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.20",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp208.local"]
             }
           ]
@@ -171,35 +171,35 @@ kubectl patch statefulset.apps/moja-ml-testing-toolkit-backend \
         "spec": {
           "hostAliases": [
             {
-              "ip": "10.112.2.29",
+              "ip": "10.112.2.132",
               "hostnames": ["sim-fsp201.local"]
             },
             {
-              "ip": "10.112.2.61",
+              "ip": "10.112.2.103",
               "hostnames": ["sim-fsp202.local"]
             },
             {
-              "ip": "10.112.2.172",
+              "ip": "10.112.2.59",
               "hostnames": ["sim-fsp203.local"]
             },
             {
-              "ip": "10.112.2.34",
+              "ip": "10.112.2.150",
               "hostnames": ["sim-fsp204.local"]
             },
             {
-              "ip": "10.112.2.22",
+              "ip": "10.112.2.53",
               "hostnames": ["sim-fsp205.local"]
             },
             {
-              "ip": "10.112.2.6",
+              "ip": "10.112.2.219",
               "hostnames": ["sim-fsp206.local"]
             },
             {
-              "ip": "10.112.2.183",
+              "ip": "10.112.2.244",
               "hostnames": ["sim-fsp207.local"]
             },
             {
-              "ip": "10.112.2.20",
+              "ip": "10.112.2.172",
               "hostnames": ["sim-fsp208.local"]
             }
           ]

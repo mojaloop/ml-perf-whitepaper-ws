@@ -217,7 +217,7 @@ kafka:
 
       # Light HTTP workload with 2x volume
       - name: topic-notification-event
-        partitions: 24
+        partitions: 32
         replicationFactor: 1
 
       # Low throughput topics - single partition
@@ -322,13 +322,13 @@ mysql:
     # OPTIMIZED RESOURCES - FULL NODE UTILIZATION
     resources:
       limits:
-        cpu: '16'              # Use all 16 CPUs
+        cpu: '30'              # Use all 16 CPUs
         ephemeral-storage: 100Gi # Increased for temp tables
-        memory: 56Gi           # 56GB for MySQL, 8GB for OS
+        memory: 120Gi           # 56GB for MySQL, 8GB for OS
       requests:
-        cpu: '14'              # Guaranteed all CPUs
+        cpu: '24'              # Guaranteed all CPUs
         ephemeral-storage: 50Gi
-        memory: 54Gi           # Guaranteed memory
+        memory: 80Gi           # Guaranteed memory
     # Pod annotations for primary
     podAnnotations:
       prometheus.io/scrape: "true"
