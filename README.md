@@ -1,4 +1,4 @@
-# Mojaloop Performance Testing Workspace
+# Mojaloop Performance Testing Workstream
 
 This repository contains the complete infrastructure, tooling, and test definitions used to perform **end-to-end performance testing of Mojaloop** at scale (hundreds to thousands of TPS).
 
