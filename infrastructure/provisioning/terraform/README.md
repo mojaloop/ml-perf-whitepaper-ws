@@ -74,12 +74,14 @@ After successful deployment:
 - `inventory-generated.yaml`: Auto-generated inventory file
 
 ## SSH Access
-1. Connect to bastion:
+1. Copy the contents of `../artifacts/ssh-config` to `~/.ssh/config`
+
+2. Connect to bastion:
 ```bash
 ssh -i ~/.ssh/ndelma-gtm-202504091000.pem ubuntu@<bastion_public_ip>
 ```
 
-2. From bastion, connect to internal nodes:
+3. From bastion, connect to internal nodes:
 ```bash
 ssh ubuntu@<private_ip>
 ```
