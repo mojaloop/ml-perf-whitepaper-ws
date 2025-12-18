@@ -68,7 +68,7 @@ performance-tests/
    Register MSISDNs on DFSP simulators and populate the oracle database.
 
 3. **Configure Test Scenario**  
-   Select or modify a `values.yaml` file under `src/values/`:
+   Select or modify a `values.yaml` file under `ml-perf-whitepaper-ws/performance-tests/src/values/`:
    - Target TPS
    - Total transaction count
    - DFSP pairs and weights
@@ -82,14 +82,14 @@ performance-tests/
    ```
 
 5. **Collect Results**  
-   Review summaries, logs, and metrics under `performance-tests/results`.
+   Review summaries, logs, and metrics under `ml-perf-whitepaper-ws/performance-tests/results`.
 
 ---
 
 ## Documentation
 
 - **k6 Test Implementation & Execution**  
-  See: `performance-tests/src/README.md`
+  See: `ml-perf-whitepaper-ws/performance-tests/src/README.md`
 
 - **Test Results & Scenarios**  
  
