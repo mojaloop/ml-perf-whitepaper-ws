@@ -62,7 +62,7 @@ performance-tests/
 
 1. **Prepare Infrastructure**  
    Ensure Mojaloop switch, DFSPs, and k6 infrastructure are running.  
-   See: `ml-perf-whitepaper-ws/infrastructure/README.md`
+   See: `ml-perf-whitepaper-ws/infrastructure/README.md`(../infrastructure/README.md)
 
 2. **Pre-test Setup**  
    Register MSISDNs on DFSP simulators and populate the oracle database.
@@ -89,7 +89,7 @@ performance-tests/
 ## Documentation
 
 - **k6 Test Implementation & Execution**  
-  See: `ml-perf-whitepaper-ws/performance-tests/src/README.md`
+  See: `ml-perf-whitepaper-ws/performance-tests/src/README.md`(src/README.md)
 
 - **Test Results & Scenarios**  
  
