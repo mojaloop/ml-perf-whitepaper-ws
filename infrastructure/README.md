@@ -25,7 +25,7 @@ The Terraform configuration for this project is located in: `provisioning/terraf
 
 All infrastructure provisioning is driven by a single declarative configuration file: `provisioning/config.yaml`.
 
-For different performance test scenarios—such as **1000 TPS**, **2000 TPS**, **5000 TPS**, and others—this repository includes scenario-specific configuration files under the `results/` directory.  
+For different performance test scenarios—such as **1000 TPS**, **2000 TPS**, **5000 TPS**, and others—this repository includes scenario-specific configuration files under the `ml-perf-whitepaper/performance-tests/results/` directory.  
 Each scenario directory contains its own tuned version of `config.yaml`, optimized for the expected workload and node sizing required for that TPS target.
 
 When running a specific performance scenario, use the **config.yaml inside that scenario’s directory**, not the default one in `provisioning/`. This ensures the Terraform-provisioned infrastructure matches the resource profile needed for that particular test run.
