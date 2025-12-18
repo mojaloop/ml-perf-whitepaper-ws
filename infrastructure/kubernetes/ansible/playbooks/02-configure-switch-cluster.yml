@@ -4,7 +4,7 @@
   become: yes
   gather_facts: yes
   vars:
-    config: "{{ lookup('file', '../../../02-infrastructure/config.yaml') | from_yaml }}"
+    config: "{{ lookup('file', '../../../provisioning/config.yaml') | from_yaml }}"
     primary_node: "{{ groups['switch'] | select('match', '.*n1$') | first }}"
 
   tasks:

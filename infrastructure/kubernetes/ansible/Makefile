@@ -8,8 +8,8 @@ all: deploy
 # Check prerequisites
 check:
 	@echo "Checking prerequisites..."
-	@test -f ../../02-infrastructure/artifacts/inventory.yaml || (echo "ERROR: Inventory not found. Run Terraform first." && exit 1)
-	@test -f ../../02-infrastructure/config.yaml || (echo "ERROR: Config file not found." && exit 1)
+	@test -f ../../provisioning/artifacts/inventory.yaml || (echo "ERROR: Inventory not found. Run Terraform first." && exit 1)
+	@test -f ../../provisioning/config.yaml || (echo "ERROR: Config file not found." && exit 1)
 	@ansible --version > /dev/null 2>&1 || (echo "ERROR: Ansible not installed." && exit 1)
 	@echo "✓ All prerequisites met"
 
@@ -70,8 +70,8 @@ help:
 	@echo "  make uninstall     - Remove MicroK8s (DESTRUCTIVE)"
 	@echo ""
 	@echo "Configuration files:"
-	@echo "  Config: ../../02-infrastructure/config.yaml"
-	@echo "  Inventory: ../../02-infrastructure/artifacts/inventory.yaml"
+	@echo "  Config: ../../provisioning/config.yaml"
+	@echo "  Inventory: ../../provisioning/artifacts/inventory.yaml"
 	@echo ""
 	@echo "Output:"
-	@echo "  Kubeconfigs: ../../02-infrastructure/artifacts/kubeconfigs/"
+	@echo "  Kubeconfigs: ../../provisioning/artifacts/kubeconfigs/"

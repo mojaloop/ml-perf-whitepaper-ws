@@ -3,7 +3,7 @@
 # Config is loaded dynamically in each playbook - these are just defaults
 
 # Paths
-artifacts_dir: "{{ playbook_dir }}/../../02-infrastructure/artifacts"
+artifacts_dir: "{{ playbook_dir }}/../../provisioning/artifacts"
 
 # Bastion configuration for kubeconfig ProxyCommand
 bastion_host: "{{ hostvars[groups['bastion'][0]]['ansible_host'] }}"

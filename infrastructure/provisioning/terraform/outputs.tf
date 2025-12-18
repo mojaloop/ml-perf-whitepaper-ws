@@ -230,7 +230,7 @@ QUICK SETUP:
      ssh sw1-n1
      ssh sw1-kafka
      ssh sw1-mysql
-     ssh fsp101
+     ssh fsp201
 
 LOAD BALANCER (NLB):
   DNS: ${local.nlb_config != null && local.nlb_config.enabled ? aws_lb.switch_nlb[0].dns_name : "N/A"}

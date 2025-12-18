@@ -28,7 +28,7 @@ Internet
     |
     +-- [Switch Nodes: sw1-n1, sw1-n2, sw1-n3]
     |
-    +-- [DFSP Nodes: fsp101-108]
+    +-- [DFSP Nodes: fsp201-108]
 ```
 
 ## Prerequisites
