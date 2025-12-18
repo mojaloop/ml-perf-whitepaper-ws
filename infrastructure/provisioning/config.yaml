@@ -3,7 +3,7 @@
 
 # AWS Configuration
 aws:
-  profile: gtmlab
+  profile: default
   region: eu-west-2
   availability_zone: eu-west-2b
 
@@ -169,7 +169,7 @@ vms:
     instances:
       # Generic nodes for Mojaloop services, MongoDB, Redis
       - name: sw1-n1
-        instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+        instance_type: m7i.8xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           is_primary: true  # First node to initialize the cluster
@@ -187,7 +187,7 @@ vms:
           NodeNumber: "1"
 
       - name: sw1-n2
-        instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+        instance_type: m7i.8xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           node_labels:
@@ -204,7 +204,7 @@ vms:
           NodeNumber: "2"
 
       - name: sw1-n3
-        instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+        instance_type: m7i.8xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           node_labels:
@@ -220,27 +220,44 @@ vms:
           Role: ml-sw-generic
           NodeNumber: "3"
 
+      # - name: sw1-n4
+      #   instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+      #   k8s:
+      #     role: mixed
+      #     node_labels:
+      #       workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+      #       workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+      #       workload-class.mojaloop.io/CORE-HANDLERS: "true"
+      #       workload-class.mojaloop.io/ALS-ORACLES: "true"
+      #       workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+      #       workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+      #       workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+      #       node-role: generic
+      #   tags:
+      #     Role: ml-sw-generic
+      #     NodeNumber: "4"
+
       # Dedicated Kafka node
-      - name: sw1-kafka-ctrl-1
-        instance_type: m7i.4xlarge #c5n.2xlarge
-        root_volume:
-          size: 500
-          type: io2
-          iops: 10000     # High IOPS for Kafka message throughput
-          delete_on_termination: true
-        k8s:
-          role: worker    # Worker only, not a control plane node
-          node_labels:
-            node-role: kafka
-            # workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
-            workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
-          node_taints:
-            - key: dedicated
-              value: kafka
-              effect: NoSchedule
-        tags:
-          Role: ml-sw-kafka
-          Service: kafka
+      # - name: sw1-kafka-ctrl-1
+      #   instance_type: m7i.4xlarge #c5n.2xlarge
+      #   root_volume:
+      #     size: 500
+      #     type: io2
+      #     iops: 10000     # High IOPS for Kafka message throughput
+      #     delete_on_termination: true
+      #   k8s:
+      #     role: worker    # Worker only, not a control plane node
+      #     node_labels:
+      #       node-role: kafka
+      #       # workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+      #       workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+      #     node_taints:
+      #       - key: dedicated
+      #         value: kafka
+      #         effect: NoSchedule
+      #   tags:
+      #     Role: ml-sw-kafka
+      #     Service: kafka
 
 
       - name: sw1-kafka-n1
@@ -264,51 +281,51 @@ vms:
           Role: ml-sw-kafka
           Service: kafka
 
-      - name: sw1-kafka-n2
-        instance_type: m7i.4xlarge #c5n.2xlarge
-        root_volume:
-          size: 500
-          type: io2
-          iops: 10000     # High IOPS for Kafka message throughput
-          delete_on_termination: true
-        k8s:
-          role: worker    # Worker only, not a control plane node
-          node_labels:
-            node-role: kafka
-            workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
-            # workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
-          node_taints:
-            - key: dedicated
-              value: kafka
-              effect: NoSchedule
-        tags:
-          Role: ml-sw-kafka
-          Service: kafka
+      # - name: sw1-kafka-n2
+      #   instance_type: m7i.4xlarge #c5n.2xlarge
+      #   root_volume:
+      #     size: 500
+      #     type: io2
+      #     iops: 10000     # High IOPS for Kafka message throughput
+      #     delete_on_termination: true
+      #   k8s:
+      #     role: worker    # Worker only, not a control plane node
+      #     node_labels:
+      #       node-role: kafka
+      #       workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+      #       # workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+      #     node_taints:
+      #       - key: dedicated
+      #         value: kafka
+      #         effect: NoSchedule
+      #   tags:
+      #     Role: ml-sw-kafka
+      #     Service: kafka
 
-      - name: sw1-kafka-n3
-        instance_type: m7i.4xlarge #c5n.2xlarge
-        root_volume:
-          size: 500
-          type: io2
-          iops: 10000     # High IOPS for Kafka message throughput
-          delete_on_termination: true
-        k8s:
-          role: worker    # Worker only, not a control plane node
-          node_labels:
-            node-role: kafka
-            workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
-            # workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
-          node_taints:
-            - key: dedicated
-              value: kafka
-              effect: NoSchedule
-        tags:
-          Role: ml-sw-kafka
-          Service: kafka
+      # - name: sw1-kafka-n3
+      #   instance_type: m7i.4xlarge #c5n.2xlarge
+      #   root_volume:
+      #     size: 500
+      #     type: io2
+      #     iops: 10000     # High IOPS for Kafka message throughput
+      #     delete_on_termination: true
+      #   k8s:
+      #     role: worker    # Worker only, not a control plane node
+      #     node_labels:
+      #       node-role: kafka
+      #       workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+      #       # workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+      #     node_taints:
+      #       - key: dedicated
+      #         value: kafka
+      #         effect: NoSchedule
+      #   tags:
+      #     Role: ml-sw-kafka
+      #     Service: kafka
 
       # Dedicated MySQL node
-      - name: sw1-mysql
-        instance_type: m7i.4xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
+      - name: sw1-mysql-n1
+        instance_type: m7i.8xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
         root_volume:
           size: 200
           type: io2
@@ -327,6 +344,27 @@ vms:
         tags:
           Role: ml-sw-mysql
           Service: mysql
+      
+      # - name: sw1-mysql-n2
+      #   instance_type: m7i.4xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
+      #   root_volume:
+      #     size: 200
+      #     type: io2
+      #     iops: 10000     # High IOPS for database operations
+      #     delete_on_termination: true
+      #   k8s:
+      #     role: worker    # Worker only, not a control plane node
+      #     node_labels:
+      #       node-role: mysql
+      #       workload-class.mojaloop.io/RDBMS-ALS-LIVE: "true"
+      #       workload-class.mojaloop.io/RDBMS-CENTRAL-LEDGER-LIVE: "true"
+      #     node_taints:
+      #       - key: dedicated
+      #         value: mysql
+      #         effect: NoSchedule
+      #   tags:
+      #     Role: ml-sw-mysql
+      #     Service: mysql
 
       # Dedicated Monitoring node
       - name: sw1-monitoring
@@ -354,7 +392,7 @@ vms:
   dfsps:
     # Default configuration for all DFSPs (can be overridden per DFSP)
     defaults:
-      instance_type: m7i.2xlarge  # Keep existing for DFSPs
+      instance_type: c7i.4xlarge  # Keep existing for DFSPs
       root_volume:
         size: 128
         type: gp3
@@ -373,49 +411,49 @@ vms:
     # Individual DFSP configurations
     instances:
       - name: fsp201
-        instance_type: m7i.2xlarge  # Can override default
+        instance_type: c7i.4xlarge  # Can override default
         tags:
           Role: ml-dfsp
           NodeNumber: "101"
 
       - name: fsp202
-        instance_type: m7i.2xlarge
+        instance_type: c7i.4xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "102"
 
       - name: fsp203
-        instance_type: m7i.2xlarge
+        instance_type: c7i.4xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "103"
 
       - name: fsp204
-        instance_type: m7i.2xlarge
+        instance_type: c7i.4xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "104"
 
       - name: fsp205
-        instance_type: m7i.2xlarge
+        instance_type: c7i.4xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "105"
 
       - name: fsp206
-        instance_type: m7i.2xlarge
+        instance_type: c7i.4xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "106"
 
       - name: fsp207
-        instance_type: m7i.2xlarge
+        instance_type: c7i.4xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "107"
 
       - name: fsp208
-        instance_type: m7i.2xlarge
+        instance_type: c7i.4xlarge
         # root_volume:
         #   size: 128  # Override for larger disk
         #   type: gp3
