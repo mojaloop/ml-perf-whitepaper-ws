@@ -39,7 +39,7 @@ make kubeconfig
 
 ### Access Switch Cluster
 ```bash
-export KUBECONFIG= ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml
+export KUBECONFIG=ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml
 kubectl get nodes
 ```
 
@@ -83,9 +83,9 @@ After deployment, find these in `../../provisioning/artifacts/`:
 artifacts/
 ├── kubeconfigs/
 │   ├── kubeconfig-mojaloop-switch.yaml
-│   ├── kubeconfig-fsp101.yaml
-│   ├── kubeconfig-fsp102.yaml
-│   └── kubeconfig-fsp103.yaml
+│   ├── kubeconfig-fsp201.yaml
+│   ├── kubeconfig-fsp202.yaml
+│   └── kubeconfig-fsp203.yaml
 └── k8s-access.txt  # Access instructions
 ```
 
@@ -126,7 +126,7 @@ ansible sw1-n1 -m shell -a "microk8s status" --become
 ansible sw1-n1 -m shell -a "microk8s kubectl get nodes" --become
 
 # On FSP node
-ansible fsp101 -m shell -a "microk8s kubectl get pods -A" --become
+ansible fsp201 -m shell -a "microk8s kubectl get pods -A" --become
 ```
 
 ## Clean Up

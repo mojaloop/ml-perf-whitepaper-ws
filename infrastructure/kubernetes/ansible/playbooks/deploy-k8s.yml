@@ -33,8 +33,8 @@
   hosts: localhost
   gather_facts: no
   vars:
-    config: "{{ lookup('file', '../../../02-infrastructure/config.yaml') | from_yaml }}"
-    artifacts_dir: "../../../02-infrastructure/artifacts"
+    config: "{{ lookup('file', '../../../provisioning/config.yaml') | from_yaml }}"
+    artifacts_dir: "../../../provisioning/artifacts"
     kubeconfig_dir: "{{ artifacts_dir }}/kubeconfigs"
   tasks:
     - name: Show deployment summary
