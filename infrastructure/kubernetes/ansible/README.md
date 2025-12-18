@@ -6,9 +6,9 @@ This Ansible setup deploys MicroK8s clusters:
 - **FSP Clusters**: Individual single-node clusters per FSP
 
 ## Prerequisites
-1. Infrastructure deployed via Terraform (Phase 02)
+1. Infrastructure deployed via Terraform
 2. Inventory file at `../../provisioning/artifacts/inventory.yaml`
-3. SSH config configured from artifacts
+3. SSH config configured from artifacts - copy the contents of `../../provisioning/artifacts/ssh-config` to `~/.ssh/config`
 4. Ansible installed locally
 
 ## Quick Start
