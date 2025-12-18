@@ -52,7 +52,7 @@ ML-PERF-WHITEPAPER-WS
 
 4. **Run Performance Tests**  
    Execute k6 tests via the k6 Operator from a dedicated k6 cluster.  
-   See: [`performance-tests/src/README.md`](performance-tests/src/README.md)
+   See: [`performance-tests/README.md`](performance-tests/README.md)
 
 5. **Analyze Results**  
    Review metrics, summaries, and scenario configurations under `performance-tests/results`.
