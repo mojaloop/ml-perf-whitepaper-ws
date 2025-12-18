@@ -9,7 +9,8 @@ This Ansible setup deploys MicroK8s clusters:
 1. Infrastructure deployed via Terraform
 2. Inventory file at `../../provisioning/artifacts/inventory.yaml`
 3. SSH config configured from artifacts - copy the contents of `../../provisioning/artifacts/ssh-config` to `~/.ssh/config`
-4. Ansible installed locally
+4. SSH to the jump host - `ssh -D 1080 perf-jump-host -N`
+5. Ansible installed locally
 
 ## Quick Start
 
