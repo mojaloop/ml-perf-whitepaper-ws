@@ -37,6 +37,18 @@ make kubeconfig
 
 ## Using the Clusters
 
+It is important to connect to the jump host and set HTTPS proxy to access kubernetes 
+
+### Connect to jump host
+```bash
+ssh -D 1080 perf-jump-host -N
+```
+
+### Set HTTP_PROXY for kubernetes access
+```bash
+export HTTPS_PROXY=socks5://127.0.0.1:1080
+```
+
 ### Access Switch Cluster
 ```bash
 export KUBECONFIG=ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml
