@@ -7,7 +7,7 @@ do
   echo ${i}
 
   # The switch(one of the node on which switch is running) IP
-  SWITCH_IP=10.112.2.250
+  SWITCH_IP=10.112.2.229
   # Number of sdk-scheme-adapter replicas - adjust according to test requirements
   REPLICAS=12
   # kubeconfig files path

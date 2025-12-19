@@ -52,16 +52,6 @@ hosts {
   fallthrough
 }
 ```
-
-### Customizing DFSP host mappings (optional)
-
-If you want to override the DFSP mappings, set `DFSP_HOSTS` as a multi-line string before running the script:
-
-```bash
-export DFSP_HOSTS=$'10.112.2.132 sim-fsp201.local\n10.112.2.103 sim-fsp202.local\n...'
-./ml-perf-whitepaper-ws/infrastructure/k6-infrastructure/setup-k6-infra.bash
-```
-
 ---
 
 ## Manual Installation (Optional)
@@ -71,7 +61,7 @@ If you prefer to install the operator manually:
 ```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
-helm install k6-operator grafana/k6-operator -n k6-test --create-namespace
+helm install k6-operator grafana/k6-operator -n k6-operator --create-namespace
 ```
 
 Then update CoreDNS in the k6 cluster to resolve `sim-fsp*.local` and restart CoreDNS:
