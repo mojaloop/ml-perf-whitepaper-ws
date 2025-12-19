@@ -21,7 +21,7 @@ The recommended approach is to use the bootstrap script below, which sets kubeco
 2. Creates namespace `k6-test`
 3. Creates/updates a Docker Hub pull secret (`dockerhub-secret`) in `k6-test`
 4. Patches the `default` ServiceAccount in `k6-test` to use the pull secret
-5. Installs (or upgrades) the `grafana/k6-operator` Helm chart into `k6-test`
+5. Installs (or upgrades) the `grafana/k6-operator` Helm chart into `k6-operator`
 6. Patches CoreDNS to resolve DFSP simulator domains:
    `sim-fsp201.local` ... `sim-fsp208.local`
 7. Restarts CoreDNS
