@@ -34,7 +34,7 @@ helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
 helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
   --version 17.1.0 \
   -f ml-perf-whitepaper-ws/infrastructure/mojaloop/values.yaml \
-  -f performance-tests/results/500tps/config-override/mojaloop-values.yaml
+  -f ml-perf-whitepaper-ws/performance-tests/results/500tps/config-override/mojaloop-values.yaml
 ```
 
 ### 1000 TPS
@@ -42,7 +42,7 @@ helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
 helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
   --version 17.1.0 \
   -f ml-perf-whitepaper-ws/infrastructure/mojaloop/values.yaml \
-  -f performance-tests/results/1000tps/config-override/mojaloop-values.yaml
+  -f ml-perf-whitepaper-ws/performance-tests/results/1000tps/config-override/mojaloop-values.yaml
 ```
 
 ### 2000 TPS
@@ -50,7 +50,7 @@ helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
 helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
   --version 17.1.0 \
   -f ml-perf-whitepaper-ws/infrastructure/mojaloop/values.yaml \
-  -f performance-tests/results/2000tps/config-override/mojaloop-values.yaml
+  -f ml-perf-whitepaper-ws/performance-tests/results/2000tps/config-override/mojaloop-values.yaml
 ```
 
 ---
