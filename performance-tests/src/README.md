@@ -74,7 +74,7 @@ All phases propagate a `traceparent` header for distributed tracing.
 ---
 ## Running the Tests
 
-### Pre-test Setup
+### 1. Pre-test Setup
 
 Before running k6 load tests, a few preparatory steps are required to ensure sufficient MSISDN data is available across DFSP simulators and the Mojaloop switch. Each DFSP should have **at least 1000 MSISDNs** provisioned to avoid contention during high‑TPS tests.
 
@@ -141,7 +141,7 @@ Access the UI from a browser: http://localhost:3077/
 
 ---
 
-### Configuration (values/values.yaml)
+### 2. Configuration (values/values.yaml)
 
 Test behavior is fully driven by Helm values. Modify the `values/values.yaml` for your scenario
 
@@ -193,7 +193,7 @@ fspConfig: |
 
 ---
 
-### Test Execution
+### 3. Test Execution
 
 #### Entry Point
 
