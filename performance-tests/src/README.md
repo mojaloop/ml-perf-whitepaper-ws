@@ -73,32 +73,6 @@ All phases propagate a `traceparent` header for distributed tracing.
 
 ---
 
-## Custom Metrics & Thresholds
-
-The test defines the following custom metrics:
-
-- `completed_transactions` (Counter)
-- `failed_transactions` (Counter)
-- `success_rate` (Rate)
-- `e2e_time` (Trend)
-- `discovery_time` (Trend)
-- `quote_time` (Trend)
-- `transfer_time` (Trend)
-
-### Default Thresholds
-
-```text
-completed_transactions >= 95% of target
-success_rate > 95%
-http_req_duration p95 < 5s
-e2e_time p95 < 15s
-discovery_time p95 < 3s
-quote_time p95 < 3s
-transfer_time p95 < 3s
-```
-
----
-
 ## Configuration (values/values.yaml)
 
 Test behavior is fully driven by Helm values.
