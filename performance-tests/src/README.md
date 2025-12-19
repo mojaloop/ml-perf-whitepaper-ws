@@ -136,25 +136,22 @@ Before running k6 load tests, a few preparatory steps are required to ensure suf
 A curl pod is used as a utility workspace to run MSISDN registration scripts against DFSP simulators.
 
 ```bash
-kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml \
-  apply -n k6-test -f curl-pod.yaml
+cd ml-perf-whitepaper-ws/performance-tests/src/utils
 ```
-
-Shell into the pod:
 
 ```bash
 kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml \
-  exec -n k6-test -it curl -- sh
+  apply -n k6-test -f curl-pod.yaml
 ```
 
 Copy the registration script into the pod and execute it:
 
 ```bash
 kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml \
-  cp register-msisdnOracle-on-sim.sh k6-test/curl:/tmp/register-msisdnOracle-on-sim.sh
+  cp register-msisdnOracle-on-sim.sh k6-test/curl-k6-test:/tmp/register-msisdnOracle-on-sim.sh
 
 kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml \
-  exec -n k6-test -it curl -- sh -c "chmod +x /tmp/register-msisdnOracle-on-sim.sh && /tmp/register-msisdnOracle-on-sim.sh"
+  exec -n k6-test -it curl-k6-test -- sh -c "chmod +x /tmp/register-msisdnOracle-on-sim.sh && /tmp/register-msisdnOracle-on-sim.sh"
 ```
 
 This registers MSISDNs on each DFSP simulator.
@@ -165,17 +162,13 @@ This registers MSISDNs on each DFSP simulator.
 
 After registering MSISDNs on the simulators, the same MSISDNs must be inserted into the `oracle_msisdn` database used by the Mojaloop switch.
 
-Shell into the MySQL pod on the Mojaloop switch cluster:
+Copy and execute the insertion script on the Mojaloop switch cluster:
 
 ```bash
-kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml -n mojaloop exec -it mysqldb-0 -- bash
-```
-
-Copy and execute the insertion script:
-
-```bash
-kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml -n mojaloop cp insert-msisdnOracle.sh mysqldb-0:/tmp/insert-msisdnOracle.sh
-kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml -n mojaloop exec -it mysqldb-0 -- bash -c "chmod +x /tmp/insert-msisdnOracle.sh && /tmp/insert-msisdnOracle.sh"
+kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml \
+  -n mojaloop cp insert-msisdnOracle.sh mysqldb-0:/tmp/insert-msisdnOracle.sh -c mysql
+kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml \
+  -n mojaloop exec -it mysqldb-0 -c mysql -- bash -c "chmod +x /tmp/insert-msisdnOracle.sh && /tmp/insert-msisdnOracle.sh"
 ```
 
 ---
