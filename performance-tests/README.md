@@ -65,7 +65,7 @@ performance-tests/
    See: [`ml-perf-whitepaper-ws/infrastructure/README.md`](../infrastructure/README.md)
 
 2. **Test Execution**
-   Execute the performance tests. 
+   Execute the performance tests.  
    See: [`ml-perf-whitepaper-ws/performance-tests/src/README.md`](src/README.md)
 
 3. **Collect Results**  
