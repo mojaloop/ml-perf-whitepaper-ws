@@ -5,7 +5,7 @@ The k6 test suite captures **end-to-end, phase-level, and system-level metrics**
 ---
 
 ## Getting Test Result
-Once you trigger the tests you can monito the k6 pods created in `k6-test` namespace on k6 node.  
+Once you trigger the tests you can monitor the k6 pods created in `k6-test` namespace on k6 node.  
 ```bash
 kubectl --kubeconfig ../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml \
   get pods -n k6-test
