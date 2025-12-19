@@ -1,207 +1,54 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-## Script to insert multiple records into the oracleMSISDN table in MySQL. Shell into the mysql container, modify the script and run as needed.
-set -e
+## Script to insert multiple records into the oracleMSISDN table in MySQL.
+## Copy into the mysqldb pod and run as needed.
 
-# insert into oracleMSISDN(id, fspId) values(17039811918, 'fsp201');
-# insert into oracleMSISDN(id, fspId) values(17039811919, 'fsp202');
-# insert into oracleMSISDN(id, fspId) values(17039811920, 'fsp203');
-# insert into oracleMSISDN(id, fspId) values(17039811921, 'fsp204');
-# insert into oracleMSISDN(id, fspId) values(17039811922, 'fsp205');
-# insert into oracleMSISDN(id, fspId) values(17039811923, 'fsp206');
-# insert into oracleMSISDN(id, fspId) values(17039811924, 'fsp207');
-# insert into oracleMSISDN(id, fspId) values(17039811925, 'fsp208');
+set -euo pipefail
 
 # Database connection details
 DB_USER="root"
-DB_PASS=""
+DB_PASS="${MYSQL_ROOT_PASSWORD:-}"
 DB_NAME="oracle_msisdn"
 
-# Starting ID
-START_ID=17039811929
-# Number of records to insert
+if [[ -z "$DB_PASS" ]]; then
+  echo "ERROR: MYSQL_ROOT_PASSWORD environment variable is not set." >&2
+  exit 1
+fi
+
+# Number of records to insert per FSP
 COUNT=1000
 
-# Loop to generate and execute INSERT statements
-for ((i=0; i<COUNT; i++))
-do
+# List of FSPs and their starting IDs (fspId:startId)
+FSP_CONFIGS=(
+  "fsp202:17039811929"
+  "fsp203:37039811929"
+  "fsp204:47039811929"
+  "fsp205:57039811929"
+  "fsp206:67039811929"
+  "fsp207:77039811929"
+  "fsp208:87039811929"
+)
+
+for cfg in "${FSP_CONFIGS[@]}"; do
+  IFS=':' read -r FSP_ID START_ID <<< "$cfg"
+
+  echo "Inserting $COUNT rows for ${FSP_ID} starting at ${START_ID}..."
+
+  # Build a single SQL batch wrapped in a transaction
+  SQL="START TRANSACTION;"
+  for ((i=0; i<COUNT; i++)); do
     CURRENT_ID=$((START_ID + i))
-    SQL="INSERT INTO oracleMSISDN (id, fspId) VALUES ($CURRENT_ID, 'fsp202');"
-    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"
-    
-    # Check if the command was successful
-    if [ $? -eq 0 ]; then
-        echo "Inserted ID: $CURRENT_ID"
-    else
-        echo "Error inserting ID: $CURRENT_ID"
-    fi
+    SQL+="INSERT INTO oracleMSISDN (id, fspId) VALUES (${CURRENT_ID}, '${FSP_ID}');"
+  done
+  SQL+="COMMIT;"
+
+  # Execute the batch
+  if mysql -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"; then
+    echo "Completed inserting $COUNT records for ${FSP_ID}"
+  else
+    echo "Error inserting records for ${FSP_ID}" >&2
+    exit 1
+  fi
 done
 
-echo "Completed inserting $COUNT records"
-
-
-# Database connection details
-DB_USER="root"
-DB_PASS=""
-DB_NAME="oracle_msisdn"
-
-# Starting ID
-START_ID=37039811929
-# Number of records to insert
-COUNT=1000
-
-# Loop to generate and execute INSERT statements
-for ((i=0; i<COUNT; i++))
-do
-    CURRENT_ID=$((START_ID + i))
-    SQL="INSERT INTO oracleMSISDN (id, fspId) VALUES ($CURRENT_ID, 'fsp203');"
-    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"
-    
-    # Check if the command was successful
-    if [ $? -eq 0 ]; then
-        echo "Inserted ID: $CURRENT_ID"
-    else
-        echo "Error inserting ID: $CURRENT_ID"
-    fi
-done
-
-echo "Completed inserting $COUNT records"
-
-# Database connection details
-DB_USER="root"
-DB_PASS=""
-DB_NAME="oracle_msisdn"
-
-# Starting ID
-START_ID=47039811929
-# Number of records to insert
-COUNT=1000
-
-# Loop to generate and execute INSERT statements
-for ((i=0; i<COUNT; i++))
-do
-    CURRENT_ID=$((START_ID + i))
-    SQL="INSERT INTO oracleMSISDN (id, fspId) VALUES ($CURRENT_ID, 'fsp204');"
-    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"
-    
-    # Check if the command was successful
-    if [ $? -eq 0 ]; then
-        echo "Inserted ID: $CURRENT_ID"
-    else
-        echo "Error inserting ID: $CURRENT_ID"
-    fi
-done
-
-echo "Completed inserting $COUNT records"
-
-# Database connection details
-DB_USER="root"
-DB_PASS=""
-DB_NAME="oracle_msisdn"
-
-# Starting ID
-START_ID=57039811929
-# Number of records to insert
-COUNT=1000
-
-# Loop to generate and execute INSERT statements
-for ((i=0; i<COUNT; i++))
-do
-    CURRENT_ID=$((START_ID + i))
-    SQL="INSERT INTO oracleMSISDN (id, fspId) VALUES ($CURRENT_ID, 'fsp205');"
-    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"
-    
-    # Check if the command was successful
-    if [ $? -eq 0 ]; then
-        echo "Inserted ID: $CURRENT_ID"
-    else
-        echo "Error inserting ID: $CURRENT_ID"
-    fi
-done
-
-echo "Completed inserting $COUNT records"
-
-
-# Database connection details
-DB_USER="root"
-DB_PASS=""
-DB_NAME="oracle_msisdn"
-
-# Starting ID
-START_ID=67039811929
-# Number of records to insert
-COUNT=1000
-
-# Loop to generate and execute INSERT statements
-for ((i=0; i<COUNT; i++))
-do
-    CURRENT_ID=$((START_ID + i))
-    SQL="INSERT INTO oracleMSISDN (id, fspId) VALUES ($CURRENT_ID, 'fsp206');"
-    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"
-    
-    # Check if the command was successful
-    if [ $? -eq 0 ]; then
-        echo "Inserted ID: $CURRENT_ID"
-    else
-        echo "Error inserting ID: $CURRENT_ID"
-    fi
-done
-
-echo "Completed inserting $COUNT records"
-
-
-# Database connection details
-DB_USER="root"
-DB_PASS=""
-DB_NAME="oracle_msisdn"
-
-# Starting ID
-START_ID=77039811929
-# Number of records to insert
-COUNT=1000
-
-# Loop to generate and execute INSERT statements
-for ((i=0; i<COUNT; i++))
-do
-    CURRENT_ID=$((START_ID + i))
-    SQL="INSERT INTO oracleMSISDN (id, fspId) VALUES ($CURRENT_ID, 'fsp207');"
-    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"
-    
-    # Check if the command was successful
-    if [ $? -eq 0 ]; then
-        echo "Inserted ID: $CURRENT_ID"
-    else
-        echo "Error inserting ID: $CURRENT_ID"
-    fi
-done
-
-echo "Completed inserting $COUNT records"
-
-
-
-# Database connection details
-DB_USER="root"
-DB_PASS=""
-DB_NAME="oracle_msisdn"
-
-# Starting ID
-START_ID=87039811929
-# Number of records to insert
-COUNT=1000
-
-# Loop to generate and execute INSERT statements
-for ((i=0; i<COUNT; i++))
-do
-    CURRENT_ID=$((START_ID + i))
-    SQL="INSERT INTO oracleMSISDN (id, fspId) VALUES ($CURRENT_ID, 'fsp208');"
-    mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$SQL"
-    
-    # Check if the command was successful
-    if [ $? -eq 0 ]; then
-        echo "Inserted ID: $CURRENT_ID"
-    else
-        echo "Error inserting ID: $CURRENT_ID"
-    fi
-done
-
-echo "Completed inserting $COUNT records"
+echo "All inserts completed."
