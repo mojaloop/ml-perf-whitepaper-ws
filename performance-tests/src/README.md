@@ -72,66 +72,15 @@ Each test iteration executes the following phases:
 All phases propagate a `traceparent` header for distributed tracing.
 
 ---
+## Running the Tests
 
-## Configuration (values/values.yaml)
-
-Test behavior is fully driven by Helm values.
-
-### Key Parameters
-
-```yaml
-k6:
-  targetTxnCount: 500000     # Total transactions to execute
-  targetTps: 2000            # Target transactions per second
-  abortOnError: false
-  transferAmount: "1"
-  currency: "XXX"
-```
-
-### DFSP Traffic Distribution
-
-Weighted FSP pairs control traffic routing:
-
-```yaml
-fspPairs:
-  - source: fsp201
-    dest: fsp202
-    weight: 0.25
-  - source: fsp203
-    dest: fsp204
-    weight: 0.25
-  - source: fsp205
-    dest: fsp206
-    weight: 0.25
-  - source: fsp207
-    dest: fsp208
-    weight: 0.25
-```
-
-### DFSP Configuration
-
-```yaml
-fspConfig: |
-  {
-    "fsp201": {
-      "id": "fsp201",
-      "msisdn": "17039811918",
-      "baseUrl": "http://sim-fsp201.local/sim/fsp201/outbound",
-      "startMsisdn": "17039811918",
-      "endMsisdn": "17039811918"
-    }
-  }
-```
-
----
-
-## Pre-test Setup
+### Pre-test Setup
 
 Before running k6 load tests, a few preparatory steps are required to ensure sufficient MSISDN data is available across DFSP simulators and the Mojaloop switch. Each DFSP should have **at least 1000 MSISDNs** provisioned to avoid contention during high‑TPS tests.
 
 ---
 
-### 1. Create a curl utility pod (k6 cluster)
+#### 1. Create a curl utility pod (k6 cluster)
 
 A curl pod is used as a utility workspace to run MSISDN registration scripts against DFSP simulators.
 
@@ -158,7 +107,7 @@ This registers MSISDNs on each DFSP simulator.
 
 ---
 
-### 2. Insert MSISDNs into `oracle_msisdn` database (Mojaloop switch)
+#### 2. Insert MSISDNs into `oracle_msisdn` database (Mojaloop switch)
 
 After registering MSISDNs on the simulators, the same MSISDNs must be inserted into the `oracle_msisdn` database used by the Mojaloop switch.
 
@@ -173,7 +122,7 @@ kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/
 
 ---
 
-### 3. (Optional) Kafka monitoring using Redpanda Console UI
+#### 3. (Optional) Kafka monitoring using Redpanda Console UI
 
 For Kafka monitoring during test execution, a lightweight Redpanda Console UI can be deployed in the `mojaloop` namespace.
 
@@ -192,17 +141,69 @@ Access the UI from a browser: http://localhost:3077/
 
 ---
 
-## Test Execution
+### Configuration (values/values.yaml)
 
-### Entry Point
+Test behavior is fully driven by Helm values. Modify the `values/values.yaml` for your scenario
+
+#### Key Parameters
+
+```yaml
+k6:
+  targetTxnCount: 500000     # Total transactions to execute
+  targetTps: 2000            # Target transactions per second
+  abortOnError: false
+  transferAmount: "1"
+  currency: "XXX"
+```
+
+#### DFSP Traffic Distribution
+
+Weighted FSP pairs control traffic routing:
+
+```yaml
+fspPairs:
+  - source: fsp201
+    dest: fsp202
+    weight: 0.25
+  - source: fsp203
+    dest: fsp204
+    weight: 0.25
+  - source: fsp205
+    dest: fsp206
+    weight: 0.25
+  - source: fsp207
+    dest: fsp208
+    weight: 0.25
+```
+
+#### DFSP Configuration (keep default unless you have made any modifications in your setup)
+
+```yaml
+fspConfig: |
+  {
+    "fsp201": {
+      "id": "fsp201",
+      "msisdn": "17039811918",
+      "baseUrl": "http://sim-fsp201.local/sim/fsp201/outbound",
+      "startMsisdn": "17039811918",
+      "endMsisdn": "17039811918"
+    }
+  }
+```
+
+---
+
+### Test Execution
+
+#### Entry Point
 
 All tests are triggered using a single script:
 
 ```bash
-scripts/trigger-tests.sh
+ml-perf-whitepaper-ws/performance-tests/src/scripts/trigger-tests.sh
 ```
 
-### What the Script Does
+#### What the Script Does
 
 1. Uses the k6 cluster kubeconfig
 2. Uninstalls any previous test run
@@ -210,10 +211,10 @@ scripts/trigger-tests.sh
 4. Creates a new `TestRun` CR
 5. k6 Operator starts the test automatically
 
-### Run the Test
+#### Run the Test
 
 ```bash
-cd scripts
+cd ml-perf-whitepaper-ws/performance-tests/src/scripts
 ./trigger-tests.sh
 ```
 
