@@ -184,14 +184,11 @@ kubectl apply --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeco
 Port-forward locally:
 
 ```bash
-kubectl port-forward -n mojaloop kafka-debug-ui 3077:8080
+kubectl --kubeconfig ../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml port-forward -n mojaloop kafka-debug-ui 3077:8080
 ```
 
-Access the UI from a browser:
+Access the UI from a browser: http://localhost:3077/
 
-```
-http://localhost:3077/
-```
 
 ---
 
