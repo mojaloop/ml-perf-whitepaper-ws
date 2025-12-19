@@ -1,151 +1,73 @@
-# Mojaloop Performance Testing Whitepaper
+# Mojaloop Performance Testing Workstream
 
-> **The Challenge**: Can Mojaloop handle 1000 transactions per second with full production security enabled? Where are the limits given the configuration and how to reach it?
->
-> **The Answer**: This repository proves it with a fully reproducible methodology.
+This repository contains the complete infrastructure, tooling, and test definitions used to perform **end-to-end performance testing of Mojaloop** at scale (hundreds to thousands of TPS).
 
-## 🚀 Start Your Journey
+The workspace is structured to clearly separate **infrastructure provisioning**, **test execution**, and **test results**, making it easy to reproduce, tune, and analyze performance runs.
 
-<div align="center">
+---
 
-### **[→ Follow the Setup Journey](SETUP_JOURNEY.md)**
-*A guided path to achieving 1000 TPS in up to 2 weeks, plus how to push the bounderies to max out the given configuration*
+## Repository Structure
 
-</div>
-
-## 🎯 What This Repository Provides
-
-A **complete, reproducible methodology** for performance testing Mojaloop at scale:
-
-- ✅ **Infrastructure as Code** - Every component automated
-- ✅ **Step-by-Step Journey** - From zero to 1000 TPS  
-- ✅ **Real Production Setup** - mTLS, JWS signatures, ILP validation
-- ✅ **Isolated Load Testing** - Accurate measurements with dedicated K6 infrastructure
-- ✅ **Comprehensive Analysis** - Detailed metrics, bottleneck identification, and reports
-
-## 📊 Proven Results
-
-```
-Achievement: 1000 TPS sustained for 1,000,000 transactions
-Success Rate: 100%
-P95 Latency: 187ms
-Infrastructure: AWS EKS with 15 nodes
-Configuration: 8 DFSPs with asymmetric load
-Security: Full stack enabled
-Cost: $x per million transactions
-```
-
-## 🗺️ Repository Structure
-
-```
-ml-perf-whitepaper-ws/
-├── 📍 SETUP_JOURNEY.md                    # Your guide to 1000 TPS
-├── 📁 phases/                             # Your journey in 8 phases
-│   ├── 01-prerequisites/                  # ✓ Get ready (2-4 hrs)
-│   │   ├── README.md                      # Start here
-│   │   ├── scripts/                       # Tool installation
-│   │   └── validation/                    # Readiness checks
-│   │
-│   ├── 02-infrastructure/                 # ✓ Build AWS foundation (4-8 hrs)
-│   │   ├── README.md                      # Phase guide
-│   │   ├── terraform/                     # Infrastructure as code
-│   │   │   ├── vpc/                       # Network setup
-│   │   │   ├── eks-mojaloop/             # Mojaloop cluster
-│   │   │   └── eks-k6/                    # K6 cluster
-│   │   └── scripts/                       # Deployment automation
-│   │
-│   ├── 03-kubernetes/                     # ✓ Deploy platform services (3-6 hrs)
-│   │   ├── README.md                      # Phase guide
-│   │   ├── platform-services/             # Base platform
-│   │   │   ├── istio/                     # Service mesh
-│   │   │   ├── cert-manager/              # TLS management
-│   │   │   └── monitoring/                # Prometheus & Grafana
-│   │   └── scripts/                       # Installation scripts
-│   │
-│   ├── 04-mojaloop/                       # ✓ Install Mojaloop + 8 DFSPs (4-8 hrs)
-│   │   ├── README.md                      # Phase guide
-│   │   ├── helm-values/                   # Mojaloop configuration
-│   │   ├── dfsp-setup/                    # 8 DFSP configurations
-│   │   ├── security-stack/                # mTLS, JWS, ILP setup
-│   │   └── scripts/                       # Deployment & validation
-│   │
-│   ├── 05-k6-infrastructure/              # ✓ Isolated load testing (3-6 hrs)
-│   │   ├── README.md                      # Phase guide
-│   │   ├── k6-operator/                   # K6 deployment
-│   │   ├── test-scenarios/                # Load test definitions
-│   │   └── scripts/                       # K6 cluster setup
-│   │
-│   ├── 06-first-test/                     # ✓ Validate everything works (2-4 hrs)
-│   │   ├── README.md                      # Phase guide
-│   │   ├── validation-tests/              # Small-scale tests
-│   │   └── scripts/                       # Test execution
-│   │
-│   ├── 07-performance-tests/              # ✓ Achieve 1000 TPS (2-5 days iterating)
-│   │   ├── README.md                      # Phase guide
-│   │   ├── test-suite/                    # Full test scenarios
-│   │   │   ├── 01-baseline-100tps/        # Warm-up test
-│   │   │   ├── 02-scale-500tps/           # Scale test
-│   │   │   ├── 03-target-1000tps/         # Target test
-│   │   │   ├── 04-endurance-1000tps/      # Sustain test
-│   │   │   └── 05-stress-to-failure/      # Breaking point
-│   │   ├── monitoring/                    # Real-time dashboards
-│   │   └── scripts/                       # Test orchestration
-│   │
-│   └── 08-analysis/                       # ✓ Generate insights (4-8 hrs)
-│       ├── README.md                      # Phase guide
-│       ├── analysis-tools/                # Data processing
-│       ├── report-templates/              # Output formats
-│       ├── results/                       # Test results go here
-│       └── scripts/                       # Analysis automation
+```text
+ML-PERF-WHITEPAPER-WS
+├── infrastructure/
+│   └── README.md
+│       - Provisioning of cloud infrastructure
+│       - Kubernetes clusters (MicroK8s)
+│       - Mojaloop backend, switch, DFSPs
+│       - k6 operator setup
 │
-├── 📁 docs/                               # Additional reading
-│   ├── architecture/                      # System design
-│   ├── troubleshooting/                   # Common issues
-│   └── theory/                            # Performance testing concepts
+├── performance-tests/
+│   ├── src/
+│   │   └── README.md
+│   │       - k6 test implementation
+│   │       - Helm chart for k6 Operator
+│   │       - Test configuration and execution scripts
+│   │
+│   └── results/
+│       - Test results (summaries, metrics, logs)
+│       - Scenario-specific configuration overrides
+│       - TPS-specific tuning references (e.g. 500 / 1000 / 2000 TPS)
 │
-└── 📁 .github/                            # Repository management
-    └── ISSUE_TEMPLATE/                    # Bug reports, questions
+├── docs/
+│   - Supporting documentation and notes
+│
+├── README.md
+└── LICENSE.md
 ```
 
-## 🚦 Getting Started
+---
 
-Start with [SETUP_JOURNEY.md](SETUP_JOURNEY.md) and follow each phase to understand the architecture and achieve 1000 TPS.
+## High-level Workflow
 
-## 💡 Key Insights
+1. **Provision Infrastructure**  
+   Use Terraform and Ansible to provision compute, networking, and Kubernetes clusters.  
+   See: [`infrastructure/README.md`](infrastructure/README.md)
 
-### Why This Approach Works
+2. **Deploy Mojaloop Stack**  
+   Deploy Mojaloop backend services, switch, DFSP simulators, monitoring, and security components.
 
-1. **Isolated K6 Infrastructure** - Load generation doesn't compete with Mojaloop for resources
-2. **Production Security** - Tests include full mTLS, JWS, and ILP overhead
-3. **Realistic Load Pattern** - 8 DFSPs with asymmetric traffic distribution
-4. **Comprehensive Monitoring** - Every metric captured for analysis
+3. **Prepare Test Data**  
+   Pre-register MSISDNs and verify Kafka, MySQL, and DFSP readiness.
 
-### What Makes This Reproducible
+4. **Run Performance Tests**  
+   Execute k6 tests via the k6 Operator from a dedicated k6 cluster.  
+   See: [`performance-tests/README.md`](performance-tests/README.md)
 
-- **Self-Contained Phases** - Each phase has everything it needs
-- **No Hidden Dependencies** - All configurations included
-- **Validated Progress** - Can't proceed until current phase succeeds
-- **Clear Recovery Path** - Every phase can be rolled back
+5. **Analyze Results**  
+   Review metrics, summaries, and scenario configurations under `performance-tests/results`.
 
-## 📋 Prerequisites
+---
 
-Before starting, you'll need:
-- AWS account with appropriate limits
-- Basic tools: kubectl, helm, terraform
-- Budget: ~$TBD/day during testing
-- Time: up to 2 weeks total (including iterative tuning)
+## Design Principles
 
-See [Phase 01: Prerequisites](phases/01-prerequisites/) for detailed requirements.
+- **Reproducibility** – Fully declarative infra and test configuration  
+- **Scalability** – Tested with multiple DFSPs and high TPS targets  
+- **Isolation** – Dedicated clusters for switch, DFSPs, and load generation  
+- **Observability** – Prometheus, Grafana, and Kafka UI support
 
-## 🤝 Contributing
+---
 
-This project is designed to be:
-- **Forked** and adapted for your specific needs
-- **Extended** with additional test scenarios
-- **Improved** based on your findings
+## License
 
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
-
-## 📜 License
-
-[Apache 2.0](LICENSE) - Use freely and contribute back!
+This project is licensed under the terms of the [`LICENSE.md`](LICENSE.md).

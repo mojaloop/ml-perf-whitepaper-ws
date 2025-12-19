@@ -1,0 +1,82 @@
+---
+- name: Install MicroK8s on all K8s nodes
+  hosts: switch:dfsps
+  become: yes
+  gather_facts: yes
+  vars:
+    config: "{{ lookup('file', '../../../provisioning/config.yaml') | from_yaml }}"
+
+  tasks:
+    - name: Wait for system to be ready
+      wait_for_connection:
+        timeout: 300
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - snapd
+          - curl
+          - wget
+          - net-tools
+        state: present
+
+    - name: Check if MicroK8s is already installed
+      shell: snap list microk8s 2>/dev/null | grep -q microk8s
+      register: microk8s_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install MicroK8s via snap command
+      shell: |
+        snap install microk8s --classic --channel={{ config.k8s.microk8s_version | default('1.30/stable') }}
+      when: microk8s_check.rc != 0
+      register: microk8s_install
+
+    - name: Refresh MicroK8s if already installed
+      shell: |
+        snap refresh microk8s --channel={{ config.k8s.microk8s_version | default('1.30/stable') }}
+      when: microk8s_check.rc == 0
+      register: microk8s_refresh
+      changed_when: "'has no updates available' not in microk8s_refresh.stderr"
+
+    - name: Add ubuntu user to microk8s group
+      user:
+        name: ubuntu
+        groups: microk8s
+        append: yes
+
+    - name: Create .kube directory
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Wait for MicroK8s to be ready
+      shell: microk8s status --wait-ready
+      changed_when: false
+      retries: 10
+      delay: 30
+      register: microk8s_status
+      until: microk8s_status.rc == 0
+
+    - name: Configure MicroK8s permissions
+      shell: |
+        chown -f -R ubuntu:ubuntu /home/ubuntu/.kube || true
+        chmod 600 /home/ubuntu/.kube/config || true
+      changed_when: false
+
+    - name: Verify MicroK8s installation
+      shell: microk8s version
+      register: microk8s_version_output
+      changed_when: false
+
+    - name: Display MicroK8s version
+      debug:
+        msg: "MicroK8s version installed: {{ microk8s_version_output.stdout }}"

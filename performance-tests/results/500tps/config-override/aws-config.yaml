@@ -1,0 +1,507 @@
+# Terraform Infrastructure Configuration
+# This file defines all infrastructure resources for the Mojaloop performance testing environment
+
+# AWS Configuration
+aws:
+  profile: gtmlab
+  region: eu-west-2
+  availability_zone: eu-west-2b
+
+  # Performance optimizations
+  placement_group:
+    enabled: true
+    name: "${project.name}-cluster-pg"
+    strategy: cluster  # All instances in same rack for lowest latency
+
+  cloudwatch:
+    detailed_monitoring: true  # 1-minute metrics instead of 5-minute
+
+# Project Configuration
+project:
+  name: p-202510161347
+  environment: perf-test
+
+# SSH Configuration
+ssh:
+  key_name: ndelma-gtm-202504091000
+
+# Network Configuration
+network:
+  vpc:
+    cidr: 10.112.0.0/16
+    enable_dns_hostnames: true
+    enable_dns_support: true
+
+  subnets:
+    public:
+      name: public-subnet
+      cidr: 10.112.1.0/24
+      map_public_ip: true  # Only for bastion
+
+    private:
+      name: private-subnet
+      cidr: 10.112.2.0/24
+      map_public_ip: false
+
+# Security Configuration
+security:
+  # Bastion security group - allows SSH from internet
+  bastion:
+    ingress_rules:
+      - port: 22
+        protocol: tcp
+        cidr_blocks:
+          - 0.0.0.0/0  # Replace with your specific IP ranges for better security
+        description: "SSH access to bastion"
+
+    egress_rules:
+      - port: 0-65535
+        protocol: -1
+        cidr_blocks:
+          - 0.0.0.0/0
+        description: "Allow all outbound internet traffic"
+
+  # Internal nodes security group - shared by switch and DFSP nodes
+  internal:
+    ingress_rules:
+      # SSH from bastion only
+      - port: 22
+        protocol: tcp
+        source: bastion_sg  # Reference to bastion security group
+        description: "SSH from bastion"
+
+      - port: 16443
+        protocol: tcp
+        source: bastion_sg  # Reference to bastion security group
+        description: "MicroK8s API server from bastion"
+
+      # MicroK8s cluster ports
+      - port: 16443
+        protocol: tcp
+        source: self  # Allow from same security group
+        description: "MicroK8s API server"
+
+      - port: 25000
+        protocol: tcp
+        source: self
+        description: "MicroK8s clustering"
+
+      - port: 4789
+        protocol: udp
+        source: self
+        description: "VXLAN for pod networking"
+
+      - port: 179
+        protocol: tcp
+        source: self
+        description: "Calico BGP"
+
+      - port: 12379-12380
+        protocol: tcp
+        source: self
+        description: "etcd"
+
+      # NodePort range (optional - only if external access needed)
+      - port: 30000-32767
+        protocol: tcp
+        source: bastion_sg  # Or specific CIDR if needed
+        description: "NodePort range"
+
+      # Allow all traffic between nodes in the same security group
+      - port: 0-65535
+        protocol: -1
+        source: self
+        description: "All internal cluster traffic"
+
+    egress_rules:
+      - port: 0-65535
+        protocol: -1
+        cidr_blocks:
+          - 0.0.0.0/0
+        description: "Allow all outbound internet traffic (for package downloads, updates, etc.)"
+
+# Virtual Machines Configuration
+vms:
+  # Ubuntu 24.04 LTS AMI
+  default_ami: ami-044415bb13eee2391
+
+  # Bastion Host
+  bastion:
+    enabled: true
+    name: bastion
+    instance_type: t3.small
+    root_volume:
+      size: 16
+      type: gp3
+      delete_on_termination: true
+    tags:
+      Role: bastion
+      Purpose: "SSH jump host"
+    # Terraform lifecycle policy
+    lifecycle:
+      prevent_destroy: false
+      create_before_destroy: false
+      ignore_changes: []
+
+  # Switch Nodes (Mojaloop Core) - 5-node cluster (3 generic + Kafka + MySQL)
+  switch:
+    # Default configuration for all switch nodes
+    defaults:
+      instance_type: m7i.2xlarge  #  c5n.2xlarge Network optimized: 25 Gbps, ENA, EBS optimized
+      root_volume:
+        size: 128
+        type: gp3
+        iops: 10000      # Maximum IOPS for gp3
+        throughput: 1000  # Maximum throughput for gp3 (MiB/s)
+        delete_on_termination: true
+      lifecycle:
+        prevent_destroy: false
+        create_before_destroy: false
+        ignore_changes: []
+      k8s:
+        role: mixed  # Options: control, worker, mixed (both control and worker)
+      performance:
+        ena_support: true          # Enhanced Networking Adapter
+        ebs_optimized: true        # Dedicated EBS bandwidth
+        placement_group: true      # Use cluster placement group
+
+    # Individual switch node configurations
+    instances:
+      # Generic nodes for Mojaloop services, MongoDB, Redis
+      - name: sw1-n1
+        instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+        k8s:
+          role: mixed
+          is_primary: true  # First node to initialize the cluster
+          node_labels:
+            workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+            workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+            workload-class.mojaloop.io/CORE-HANDLERS: "true"
+            workload-class.mojaloop.io/ALS-ORACLES: "true"
+            workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+            workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+            workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+            node-role: generic
+        tags:
+          Role: ml-sw-generic
+          NodeNumber: "1"
+
+      - name: sw1-n2
+        instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+        k8s:
+          role: mixed
+          node_labels:
+            workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+            workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+            workload-class.mojaloop.io/CORE-HANDLERS: "true"
+            workload-class.mojaloop.io/ALS-ORACLES: "true"
+            workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+            workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+            workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+            node-role: generic
+        tags:
+          Role: ml-sw-generic
+          NodeNumber: "2"
+
+      - name: sw1-n3
+        instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+        k8s:
+          role: mixed
+          node_labels:
+            workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+            workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+            workload-class.mojaloop.io/CORE-HANDLERS: "true"
+            workload-class.mojaloop.io/ALS-ORACLES: "true"
+            workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+            workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+            workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+            node-role: generic
+        tags:
+          Role: ml-sw-generic
+          NodeNumber: "3"
+
+      # Dedicated Kafka node
+      - name: sw1-kafka-ctrl-1
+        instance_type: m7i.4xlarge #c5n.2xlarge
+        root_volume:
+          size: 500
+          type: io2
+          iops: 10000     # High IOPS for Kafka message throughput
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: kafka
+            # workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+            workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+          node_taints:
+            - key: dedicated
+              value: kafka
+              effect: NoSchedule
+        tags:
+          Role: ml-sw-kafka
+          Service: kafka
+
+
+      - name: sw1-kafka-n1
+        instance_type: m7i.4xlarge #c5n.2xlarge
+        root_volume:
+          size: 500
+          type: io2
+          iops: 10000     # High IOPS for Kafka message throughput
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: kafka
+            workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+            # workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+          node_taints:
+            - key: dedicated
+              value: kafka
+              effect: NoSchedule
+        tags:
+          Role: ml-sw-kafka
+          Service: kafka
+
+      - name: sw1-kafka-n2
+        instance_type: m7i.4xlarge #c5n.2xlarge
+        root_volume:
+          size: 500
+          type: io2
+          iops: 10000     # High IOPS for Kafka message throughput
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: kafka
+            workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+            # workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+          node_taints:
+            - key: dedicated
+              value: kafka
+              effect: NoSchedule
+        tags:
+          Role: ml-sw-kafka
+          Service: kafka
+
+      - name: sw1-kafka-n3
+        instance_type: m7i.4xlarge #c5n.2xlarge
+        root_volume:
+          size: 500
+          type: io2
+          iops: 10000     # High IOPS for Kafka message throughput
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: kafka
+            workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+            # workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+          node_taints:
+            - key: dedicated
+              value: kafka
+              effect: NoSchedule
+        tags:
+          Role: ml-sw-kafka
+          Service: kafka
+
+      # Dedicated MySQL node
+      - name: sw1-mysql
+        instance_type: m7i.4xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
+        root_volume:
+          size: 200
+          type: io2
+          iops: 10000     # High IOPS for database operations
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: mysql
+            workload-class.mojaloop.io/RDBMS-ALS-LIVE: "true"
+            workload-class.mojaloop.io/RDBMS-CENTRAL-LEDGER-LIVE: "true"
+          node_taints:
+            - key: dedicated
+              value: mysql
+              effect: NoSchedule
+        tags:
+          Role: ml-sw-mysql
+          Service: mysql
+
+      # Dedicated Monitoring node
+      - name: sw1-monitoring
+        instance_type: m7i.xlarge  # Balanced compute/memory for monitoring stack
+        root_volume:
+          size: 256
+          type: gp3
+          iops: 10000     # High IOPS for metrics/logs storage
+          throughput: 750  # Good throughput for time-series data
+          delete_on_termination: true
+        k8s:
+          role: worker    # Worker only, not a control plane node
+          node_labels:
+            node-role: monitoring
+            workload-class.mojaloop.io/MONITORING: "true"
+          node_taints:
+            - key: dedicated
+              value: monitoring
+              effect: NoSchedule
+        tags:
+          Role: ml-sw-monitoring
+          Service: monitoring
+
+  # DFSP Nodes (Digital Financial Service Providers)
+  dfsps:
+    # Default configuration for all DFSPs (can be overridden per DFSP)
+    defaults:
+      instance_type: m7i.2xlarge  # Keep existing for DFSPs
+      root_volume:
+        size: 128
+        type: gp3
+        iops: 10000      # High IOPS for DFSP operations
+        throughput: 500   # Good throughput for gp3
+        delete_on_termination: true
+      lifecycle:
+        prevent_destroy: false
+        create_before_destroy: false
+        ignore_changes: []
+      k8s:
+        role: mixed  # Single node always runs both control and worker
+      performance:
+        placement_group: true  # Include DFSPs in placement group for low latency
+
+    # Individual DFSP configurations
+    instances:
+      - name: fsp201
+        instance_type: m7i.2xlarge  # Can override default
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "101"
+
+      - name: fsp202
+        instance_type: m7i.2xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "102"
+
+      - name: fsp203
+        instance_type: m7i.2xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "103"
+
+      - name: fsp204
+        instance_type: m7i.2xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "104"
+
+      - name: fsp205
+        instance_type: m7i.2xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "105"
+
+      - name: fsp206
+        instance_type: m7i.2xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "106"
+
+      - name: fsp207
+        instance_type: m7i.2xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "107"
+
+      - name: fsp208
+        instance_type: m7i.2xlarge
+        # root_volume:
+        #   size: 128  # Override for larger disk
+        #   type: gp3
+        #   delete_on_termination: true
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "108"
+
+      - name: k6
+        instance_type: m7i.4xlarge
+        tags:
+          Role: ml-dfsp
+          NodeNumber: "109"
+
+# Kubernetes Configuration
+k8s:
+  microk8s_version: "1.32/stable" # test 1.34/stable
+
+  # Cluster naming convention
+  switch_cluster_name: "mojaloop-switch"  # All switch nodes join this cluster
+  fsp_cluster_prefix: "fsp"  # Each FSP gets {prefix}{number}, e.g., fsp201
+
+  # Kubernetes networking
+  networking:
+    pod_network_cidr: "10.244.0.0/16"    # Pod subnet for Kubernetes
+    service_cidr: "10.96.0.0/12"         # Service subnet for Kubernetes
+    cluster_dns: "10.96.0.10"            # Default cluster DNS IP
+
+  # MicroK8s addons to enable
+  addons:
+    switch_cluster:  # Addons for the multi-node switch cluster
+      - dns
+      - storage
+      - ingress
+      - metrics-server
+    fsp_clusters:  # Addons for single-node FSP clusters
+      - dns
+      - storage
+      - ingress
+      - metrics-server
+
+# Terraform Backend Configuration (for state management)
+terraform:
+  backend:
+    type: s3  # or local
+    s3:
+      bucket: "terraform-state-${project.name}"  # Will be interpolated
+      key: "infrastructure/terraform.tfstate"
+      region: "${aws.region}"
+      profile: "${aws.profile}"
+      encrypt: true
+      dynamodb_table: "terraform-state-lock-${project.name}"
+
+  # Resource lifecycle policies
+  lifecycle_defaults:
+    prevent_destroy: false  # Set to true in production
+    create_before_destroy: false
+    ignore_changes: []  # Add attributes to ignore, e.g., ["ami", "user_data"]
+
+# Load Balancer Configuration
+load_balancers:
+  switch_nlb:
+    enabled: true
+    type: network  # NLB for TCP/UDP traffic (works with single AZ)
+    scheme: internal   # Internal-only, accessible via bastion
+    target_type: instance
+    health_check:
+      port: 30080
+      protocol: TCP
+      interval: 30
+      healthy_threshold: 2
+      unhealthy_threshold: 3
+    listeners:
+      - port: 80
+        protocol: TCP
+        target_port: 30080  # NodePort for ingress controller
+      - port: 443
+        protocol: TCP
+        target_port: 30443  # NodePort for ingress controller
+    target_nodes: switch_generic  # Only generic switch nodes (not Kafka/MySQL)
+    tags:
+      Purpose: "Mojaloop TCP load balancing"
+
+# Output Configuration
+outputs:
+  generate_ansible_inventory: true
+  inventory_file: "./inventory.yaml"
+  generate_ssh_config: true
+  ssh_config_file: "./ssh_config"
