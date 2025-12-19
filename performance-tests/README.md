@@ -64,34 +64,14 @@ performance-tests/
    Ensure Mojaloop switch, DFSPs, and k6 infrastructure are running.  
    See: [`ml-perf-whitepaper-ws/infrastructure/README.md`](../infrastructure/README.md)
 
-2. **Pre-test Setup**  
-   Register MSISDNs on DFSP simulators and populate the oracle database.
+2. **Test Execution**
+   Execute the performance tests. 
+   See: [`ml-perf-whitepaper-ws/performance-tests/src/README.md`](src/README.md)
 
-3. **Configure Test Scenario**  
-   Select or modify a `values.yaml` file under `ml-perf-whitepaper-ws/performance-tests/src/values/`:
-   - Target TPS
-   - Total transaction count
-   - DFSP pairs and weights
-   - Resource limits for k6 runners
-
-4. **Trigger Tests**  
-   Use the provided trigger script:
-   ```bash
-   cd performance-tests/src/scripts
-   ./trigger-tests.sh
-   ```
-
-5. **Collect Results**  
-   Review summaries, logs, and metrics under `ml-perf-whitepaper-ws/performance-tests/results`.
+3. **Collect Results**  
+   Review and record summaries, logs, and metrics under `ml-perf-whitepaper-ws/performance-tests/results`.
 
 ---
-
-## Documentation
-
-- **k6 Test Implementation & Execution**  
-  See: [`ml-perf-whitepaper-ws/performance-tests/src/README.md`](src/README.md)
-
-- **Test Results & Scenarios**  
  
 ## Test Results
 
