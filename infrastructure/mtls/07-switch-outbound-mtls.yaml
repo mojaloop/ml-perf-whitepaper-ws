@@ -1,0 +1,436 @@
+# ============================================================================
+# P7 — Switch outbound mTLS via Istio Egress Gateway (Leg B)
+# ============================================================================
+# Originates mTLS from switch -> DFSP simulators (sim-fspNNN.local:443).
+#
+# Architecture:
+#   1. Switch app pods (ALS, Quoting, ML-API-Adapter, TTK) carry hostAliases
+#      mapping sim-fspNNN.local -> 10.152.183.200 (the egress gateway's
+#      pinned ClusterIP). They send plain HTTP :80.
+#   2. The egress gateway pod (istio: egressgateway, in istio-system) is
+#      selected by the Gateway below. It receives the request and matches
+#      the host.
+#   3. The VirtualService rewrites /sim/fspNNN/inbound/ -> / (the original
+#      switch nginx did this on :80; the DFSP :443 ssl-passthrough Ingress
+#      in P8 can't rewrite paths) and routes to port 443 on the SE host.
+#   4. The DestinationRule applies MUTUAL TLS using switch-mtls-creds
+#      (read from istio-system, the gateway's namespace). SNI is set to
+#      the DFSP hostname so the DFSP nginx ssl-passthrough Ingress can
+#      route on it.
+#   5. The egress gateway pod resolves sim-fspNNN.local via CoreDNS
+#      (which has a hosts{} block with real DFSP IPs — see Phase 3 in
+#      README.md). The gateway pod has NO hostAliases, so it reaches the
+#      real DFSPs, not itself.
+#
+# Prerequisites:
+#   - P3 — Istio installed (istiod + istio-cni; ztunnel optional, unused here).
+#   - P4 — switch-mtls-creds Secret exists in istio-system (read by the
+#     egress gateway pod for mTLS origination).
+#   - P6 — istio-egressgateway Helm release deployed with pinned ClusterIP
+#     10.152.183.200 (see 06-istio-egressgateway-values.yaml).
+#   - Switch CoreDNS hosts{} block must list real DFSP IPs so the gateway
+#     pod can resolve sim-fspNNN.local (see README.md Phase 3).
+#   - Switch app pods must have hostAliases mapping sim-fspNNN.local to
+#     10.152.183.200 (see hostaliases-mtls.json artifact).
+# ============================================================================
+
+# ---- Gateway --------------------------------------------------------------
+# In istio-system, selects pods with `istio: egressgateway` (set by the
+# Helm values in 06-istio-egressgateway-values.yaml). Listens on :80 HTTP.
+# `hosts: mojaloop/sim-fspNNN.local` says "accept these hosts when bound to
+# a VS in the mojaloop namespace" — keeps the VS in mojaloop while the
+# gateway sits in istio-system.
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: dfsp-egress
+  namespace: istio-system
+spec:
+  selector:
+    istio: egressgateway
+  servers:
+    - port: { number: 80, name: http, protocol: HTTP }
+      hosts:
+        - mojaloop/sim-fsp201.local
+        - mojaloop/sim-fsp202.local
+        - mojaloop/sim-fsp203.local
+        - mojaloop/sim-fsp204.local
+        - mojaloop/sim-fsp205.local
+        - mojaloop/sim-fsp206.local
+        - mojaloop/sim-fsp207.local
+        - mojaloop/sim-fsp208.local
+---
+# ---- ServiceEntry × 8 -----------------------------------------------------
+# Defines each sim-fspNNN.local as a MESH_EXTERNAL host on port 443. The
+# egress gateway pod resolves the hostname via CoreDNS at runtime, gets
+# the real DFSP IP, and connects.
+#
+# No `istio.io/use-waypoint` label — we are not using ambient/waypoint here.
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp201
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp201.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp202
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp202.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp203
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp203.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp204
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp204.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp205
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp205.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp206
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp206.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp207
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp207.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp208
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp208.local]
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - { number: 443, name: https, protocol: HTTPS }
+---
+# ---- VirtualService × 8 ---------------------------------------------------
+# Bound to istio-system/dfsp-egress (the Gateway above).
+# - Matches URI prefix /sim/fspNNN/inbound/, rewrites to /.
+# - Routes to the SE host on port 443. The DR (below) attaches MUTUAL TLS
+#   on this port.
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp201
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp201.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp201/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp201.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp202
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp202.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp202/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp202.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp203
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp203.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp203/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp203.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp204
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp204.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp204/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp204.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp205
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp205.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp205/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp205.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp206
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp206.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp206/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp206.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp207
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp207.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp207/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp207.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp208
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp208.local]
+  gateways: [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp208/inbound/ }
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: sim-fsp208.local
+            port: { number: 443 }
+---
+# ---- DestinationRule × 8 --------------------------------------------------
+# MUTUAL TLS origination on port 443. credentialName references a Secret in
+# the egress gateway's namespace (istio-system). SNI is the DFSP hostname so
+# the DFSP nginx ssl-passthrough Ingress can route on it.
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp201
+  namespace: mojaloop
+spec:
+  host: sim-fsp201.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp201.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp202
+  namespace: mojaloop
+spec:
+  host: sim-fsp202.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp202.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp203
+  namespace: mojaloop
+spec:
+  host: sim-fsp203.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp203.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp204
+  namespace: mojaloop
+spec:
+  host: sim-fsp204.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp204.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp205
+  namespace: mojaloop
+spec:
+  host: sim-fsp205.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp205.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp206
+  namespace: mojaloop
+spec:
+  host: sim-fsp206.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp206.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp207
+  namespace: mojaloop
+spec:
+  host: sim-fsp207.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp207.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp208
+  namespace: mojaloop
+spec:
+  host: sim-fsp208.local
+  trafficPolicy:
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          credentialName: switch-mtls-creds
+          sni: sim-fsp208.local

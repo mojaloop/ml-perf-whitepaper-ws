@@ -33,7 +33,16 @@ simulators:
           CACHE_SHOULD_EXPIRE: true
           CACHE_EXPIRY_SECONDS: 3600
 
+          # mTLS toggles — flipped by Phase 2 / Phase 3 of infrastructure/mtls/README.md
+          OUTBOUND_MUTUAL_TLS_ENABLED: false
+          INBOUND_MUTUAL_TLS_ENABLED: false
+
+          # mTLS toggles — flipped by Phase 2 / Phase 3 of infrastructure/mtls/README.md
+          OUTBOUND_MUTUAL_TLS_ENABLED: true
+          INBOUND_MUTUAL_TLS_ENABLED: false
+
         secrets:
+          tlsSecretName: mtls-shared-creds
           jws:
             privateKey: |-
               -----BEGIN PRIVATE KEY-----

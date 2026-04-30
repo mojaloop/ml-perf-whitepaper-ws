@@ -1,0 +1,85 @@
+# ============================================================================
+# P5 — Switch inbound mTLS
+# ============================================================================
+# Creates the Istio path for DFSP → switch mTLS traffic on port 443:
+#   - Gateway: binds to istio-ingressgateway, terminates mTLS (tls.mode: MUTUAL),
+#     validates DFSP client certs against the shared CA in switch-mtls-creds.
+#   - VirtualServices: route each mTLS host to its in-cluster Service (port 80).
+#
+# This phase is ADDITIVE — nginx continues serving the same hostnames on :80,
+# so traffic behaviour is unchanged until the DFSP SDKs flip to HTTPS:443 with
+# their client cert in P7.
+#
+# Apply with:    kubectl apply -f infrastructure/mtls/05-switch-inbound-mtls.yaml
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: switch-mtls-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https-mtls
+        protocol: HTTPS
+      tls:
+        mode: MUTUAL
+        credentialName: switch-mtls-creds
+      hosts:
+        - account-lookup-service.local
+        - quoting-service.local
+        - ml-api-adapter.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: account-lookup-service-mtls
+  namespace: istio-system
+spec:
+  hosts:
+    - account-lookup-service.local
+  gateways:
+    - switch-mtls-gateway
+  http:
+    - route:
+        - destination:
+            host: moja-account-lookup-service.mojaloop.svc.cluster.local
+            port:
+              number: 80
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: quoting-service-mtls
+  namespace: istio-system
+spec:
+  hosts:
+    - quoting-service.local
+  gateways:
+    - switch-mtls-gateway
+  http:
+    - route:
+        - destination:
+            host: moja-quoting-service.mojaloop.svc.cluster.local
+            port:
+              number: 80
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ml-api-adapter-service-mtls
+  namespace: istio-system
+spec:
+  hosts:
+    - ml-api-adapter.local
+  gateways:
+    - switch-mtls-gateway
+  http:
+    - route:
+        - destination:
+            host: moja-ml-api-adapter-service.mojaloop.svc.cluster.local
+            port:
+              number: 80

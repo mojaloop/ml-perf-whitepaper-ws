@@ -1,0 +1,30 @@
+# Standalone Service for the istio-egressgateway pods.
+#
+# The istio/gateway Helm chart does not expose `service.clusterIP`, so we
+# disable its Service (`service.type: None` in 06-istio-egressgateway-values.yaml)
+# and create this one with a pinned ClusterIP that the switch app pods'
+# hostAliases reference.
+#
+# Selector matches the chart's pod labels (set via `labels:` in the values
+# file).
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-egressgateway
+  namespace: istio-system
+  labels:
+    app: istio-egressgateway
+    istio: egressgateway
+spec:
+  type: ClusterIP
+  clusterIP: 10.152.183.200
+  selector:
+    app: istio-egressgateway
+    istio: egressgateway
+  ports:
+    - name: status-port
+      port: 15021
+      targetPort: 15021
+    - name: http
+      port: 80
+      targetPort: 80

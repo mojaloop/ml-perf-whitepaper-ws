@@ -1,0 +1,18 @@
+# Istio IngressGateway overrides for P3 of the mTLS rollout.
+#
+# Deploy shape:
+#   - DaemonSet on the generic switch worker nodes (sw1-n1/n2/n3).
+#   - Port 443 exposure: hostPort on the container (bound on each node via
+#     kube-proxy NAT). This is NOT a chart value — set via a post-install
+#     DaemonSet patch. We don't use hostNetwork because Istio's sidecar
+#     injector skips pods with hostNetwork=true ("policy check"), leaving
+#     `image: auto` un-mutated.
+#
+# Security: chart defaults are used — the pod-level sysctl
+# `net.ipv4.ip_unprivileged_port_start=0` already lets the non-root container
+# (uid 1337) bind to :443.
+
+kind: DaemonSet
+
+nodeSelector:
+  workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"

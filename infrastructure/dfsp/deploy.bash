@@ -6,15 +6,21 @@ do
   echo "Starting deployment of FSP${i}..."
   echo ${i}
 
-  # The switch(one of the node on which switch is running) IP
-  SWITCH_IP=10.112.2.229
+  # The switch LB IP
+  SWITCH_IP=${SWITCH_IP:-10.112.2.229}
   # Number of sdk-scheme-adapter replicas - adjust according to test requirements
-  REPLICAS=12
-  # kubeconfig files path
-  KUBECONFIG_PATH=ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs
+  REPLICAS=${REPLICAS:-1}
+  # kubeconfig files path - use SCENARIO env var, default to base
+  SCENARIO=${SCENARIO:-base}
+  KUBECONFIG_PATH=$(pwd)/../../performance-tests/results/${SCENARIO}/artifacts/kubeconfigs
   export KUBECONFIG=${KUBECONFIG_PATH}/kubeconfig-fsp${i}.yaml
-  
+
+  # kubectl delete ns dfsps &
+  # continue
+
   kubectl create ns dfsps
+
+  kubectl apply -f ../mtls/04-dfsp-tls-secret.yaml
 
   kubectl create secret docker-registry dockerhub-secret \
     --docker-server="https://index.docker.io/v1/" \
@@ -22,16 +28,21 @@ do
     --docker-password="${DOCKERHUB_TOKEN}" \
     --docker-email="${DOCKERHUB_EMAIL}" \
     -n dfsps
-
 kubectl patch serviceaccount default \
     -n dfsps \
     -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}'
 
+
   # Install / upgrade the DFSP simulator
   helm -n dfsps upgrade --install dfsp mojaloop/mojaloop-simulator \
     --version 15.10.0 \
-    --values=ml-perf-whitepaper-ws/infrastructure/dfsp/values-fsp${i}.yaml \
+    --values=values-fsp${i}.yaml \
     --create-namespace
+
+#workaround fix jws
+kubectl -n dfsps set image deployment/dfsp-sim-fsp${i}-scheme-adapter scheme-adapter=kirgene/sdk-scheme-adapter:jws-fix
+kubectl -n dfsps rollout status deployment/dfsp-sim-fsp${i}-scheme-adapter --timeout=120s&
+# continue
 
   # Patch hostAliases so scheme-adapter can reach switch services
   kubectl patch deployment dfsp-sim-fsp${i}-scheme-adapter -n dfsps \

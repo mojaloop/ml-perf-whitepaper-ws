@@ -1,0 +1,26 @@
+# Per-DFSP passthrough Ingress for :443 -> SDK scheme-adapter :4000.
+# Substitute `fspNNN` per cluster (e.g. `sed "s/fspNNN/fsp${i}/g" …`).
+# See infrastructure/mtls/README.md (Phase 1B).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dfsp-sim-fspNNN-mtls-passthrough
+  namespace: dfsps
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [sim-fspNNN.local]
+  rules:
+    - host: sim-fspNNN.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dfsp-sim-fspNNN-scheme-adapter
+                port:
+                  name: inboundapi
