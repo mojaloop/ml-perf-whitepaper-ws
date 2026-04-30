@@ -166,8 +166,8 @@ kafka:
       compression.type=producer             # Use producer LZ4 compression
 
     extraEnvVars:
-      - name: KAFKA_HEAP_OPTS
-        value: "-Xms28g -Xmx28g"  # Optimized for 64gig  memory
+      # - name: KAFKA_HEAP_OPTS
+      #   value: "-Xms28g -Xmx28g"  # Optimized for 64gig  memory
       - name: KAFKA_JVM_PERFORMANCE_OPTS
         value: "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=15 -XX:InitiatingHeapOccupancyPercent=30 -XX:+ExplicitGCInvokesConcurrent -XX:+ParallelRefProcEnabled -Djava.awt.headless=true"
       - name: KAFKA_NUM_NETWORK_THREADS
@@ -263,17 +263,19 @@ kafka:
       - name: topic-admin-transfer
         partitions: 1
         replicationFactor: 1
+      # Bumped to 12 to match quoting-service-handler.replicaCount;
+      # otherwise 11/12 replicas stay unassigned and fail readiness.
       - name: topic-quotes-get
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-bulkquotes-post
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-bulkquotes-put
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-bulkquotes-get
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-bulk-prepare
         partitions: 1
@@ -288,13 +290,13 @@ kafka:
         partitions: 1
         replicationFactor: 1
       - name: topic-fx-quotes-post
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-fx-quotes-put
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
       - name: topic-fx-quotes-get
-        partitions: 1
+        partitions: 12
         replicationFactor: 1
 ## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/mysql/values.yaml
 mysql:
@@ -794,3 +796,16 @@ proxy-cache-redis:
       prometheus.io/scrape: "true"
       prometheus.io/port: "9121"
       prometheus.io/path: "/metrics"
+
+
+ttksims-redis:
+  # ...existing config...
+  commonConfiguration: |-
+    appendonly yes
+    save ""
+
+auth-svc-redis:
+  # ...existing config...
+  commonConfiguration: |-
+    appendonly yes
+    save ""

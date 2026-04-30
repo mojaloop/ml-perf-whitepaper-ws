@@ -29,12 +29,21 @@
     - kubeconfig
     - config
 
+- import_playbook: 06-generate-hostaliases.yml
+  tags:
+    - hostaliases
+    - config
+
 - name: Display deployment summary
   hosts: localhost
   gather_facts: no
   vars:
-    config: "{{ lookup('file', '../../../provisioning/config.yaml') | from_yaml }}"
-    artifacts_dir: "../../../provisioning/artifacts"
+    config_file: >-
+      {{ (playbook_dir ~ '/../../../../performance-tests/results/' ~ scenario ~ '/config-override/aws-config.yaml')
+         if (scenario | default('', true) | length > 0)
+         else (playbook_dir ~ '/../../../provisioning/config.yaml') }}
+    config: "{{ lookup('file', config_file) | from_yaml }}"
+    artifacts_dir: "../../../../performance-tests/results/{{ scenario | default('base', true) }}/artifacts"
     kubeconfig_dir: "{{ artifacts_dir }}/kubeconfigs"
   tasks:
     - name: Show deployment summary

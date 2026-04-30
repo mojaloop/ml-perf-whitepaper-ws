@@ -6,6 +6,12 @@ variable "config_file_path" {
   default     = "../config.yaml"
 }
 
+variable "artifacts_dir" {
+  description = "Directory for generated artifacts (inventory, kubeconfigs, state files)"
+  type        = string
+  default     = "../artifacts"
+}
+
 variable "override_project_name" {
   description = "Override the project name from config.yaml"
   type        = string

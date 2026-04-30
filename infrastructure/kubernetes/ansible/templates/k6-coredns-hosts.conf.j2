@@ -1,0 +1,7 @@
+        hosts {
+{% for fsp in groups['dfsps'] | select('match', '^fsp') | sort %}
+          {{ hostvars[fsp]['private_ip'] }} sim-{{ fsp }}.local
+{% endfor %}
+          {{ switch_ip }} account-lookup-service.local quoting-service.local ml-api-adapter.local
+          fallthrough
+        }

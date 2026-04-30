@@ -1,5 +1,5 @@
-# Terraform generated artifacts
-artifacts/*
+# Terraform generated artifacts moved to performance-tests/results/*/artifacts/
+# This directory is now deprecated
 
 # Old generated files (if any)
 inventory-generated.yaml

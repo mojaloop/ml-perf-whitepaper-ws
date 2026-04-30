@@ -184,15 +184,21 @@ account-lookup-service:
   account-lookup-service:
     enabled: true
     replicaCount: 16
+    nodeSelector:
+      workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
 
 quoting-service:
   quoting-service:
     enabled: true
     replicaCount: 12
+    nodeSelector:
+      workload-class.mojaloop.io/QUOTING-SERVICE: "true"
 
   quoting-service-handler:
     enabled: true
     replicaCount: 12
+    nodeSelector:
+      workload-class.mojaloop.io/QUOTING-SERVICE: "true"
     config:
       cache:
         participant_data_expires_in_ms: 60000
@@ -203,11 +209,15 @@ ml-api-adapter:
     enabled: true
     replicaCount: 12
     resources: {}
+    nodeSelector:
+      workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
 
   ml-api-adapter-handler-notification:
     enabled: true
     replicaCount: 18
     resources: {}
+    nodeSelector:
+      workload-class.mojaloop.io/CORE-HANDLERS: "true"
 
 
 centralledger:
@@ -216,22 +226,30 @@ centralledger:
     enabled: true
     replicaCount: 8
     resources: {}
+    nodeSelector:
+      workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
 
   centralledger-handler-transfer-prepare:
     enabled: true
     replicaCount: 12
     resources: {}
+    nodeSelector:
+      workload-class.mojaloop.io/CORE-HANDLERS: "true"
 
 
   centralledger-handler-transfer-position-batch:
     enabled: true
     replicaCount: 8
     resources: {}
+    nodeSelector:
+      workload-class.mojaloop.io/CORE-HANDLERS: "true"
 
   centralledger-handler-transfer-fulfil:
     enabled: true
     replicaCount: 12
     resources: {}
+    nodeSelector:
+      workload-class.mojaloop.io/CORE-HANDLERS: "true"
 
   centralledger-handler-timeout:
     enabled: false
@@ -241,3 +259,5 @@ centralledger:
 als-msisdn-oracle:
   enabled: true
   replicaCount: 8
+  nodeSelector:
+    workload-class.mojaloop.io/ALS-ORACLES: "true"

@@ -72,37 +72,45 @@ Retrieve DFSP IPs from the Terraform ssh_config:
 infrastructure/provisioning/artifacts/ssh_config
 ```
 
-And update the below file with correct ip addresses
-```
-ml-perf-whitepaper-ws/infrastructure/mojaloop/hostaliases.json
+`hostaliases.json` is auto-generated from the Terraform-emitted inventory by the
+Ansible playbook `06-generate-hostaliases.yml`. It runs as part of `make k8s-deploy`
+and can be re-rendered standalone:
+
+```bash
+make k8s-hostaliases SCENARIO=500tps
+# → performance-tests/results/500tps/artifacts/hostaliases.json
 ```
 
 ---
 
 ## Patch Mojaloop Deployments with HostAliases
 
+```bash
+HOSTALIASES=performance-tests/results/${SCENARIO}/artifacts/hostaliases.json
+```
+
 ### Account Lookup Service
 ```bash
 kubectl patch deployment moja-account-lookup-service \
-  -n mojaloop --type='strategic' --patch "$(cat ml-perf-whitepaper-ws/infrastructure/mojaloop/hostaliases.json)"
+  -n mojaloop --type='strategic' --patch "$(cat $HOSTALIASES)"
 ```
 
 ### Quoting Service
 ```bash
 kubectl patch deployment moja-quoting-service-handler \
-  -n mojaloop --type='strategic' --patch "$(cat ml-perf-whitepaper-ws/infrastructure/mojaloop/hostaliases.json)"
+  -n mojaloop --type='strategic' --patch "$(cat $HOSTALIASES)"
 ```
 
 ### ML-API-Adapter Notification Handler
 ```bash
 kubectl patch deployment moja-ml-api-adapter-handler-notification \
-  -n mojaloop --type='strategic' --patch "$(cat ml-perf-whitepaper-ws/infrastructure/mojaloop/hostaliases.json)"
+  -n mojaloop --type='strategic' --patch "$(cat $HOSTALIASES)"
 ```
 
 ### Testing Toolkit Backend
 ```bash
 kubectl patch statefulset moja-ml-testing-toolkit-backend \
-  -n mojaloop --type='strategic' --patch "$(cat ml-perf-whitepaper-ws/infrastructure/mojaloop/hostaliases.json)"
+  -n mojaloop --type='strategic' --patch "$(cat $HOSTALIASES)"
 ```
 
 ---

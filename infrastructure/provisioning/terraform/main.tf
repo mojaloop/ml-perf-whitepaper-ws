@@ -16,7 +16,7 @@ terraform {
 
 # Load configuration from YAML file
 locals {
-  config_file = yamldecode(file("${path.module}/../config.yaml"))
+  config_file = yamldecode(file(var.config_file_path))
 
   # Extract configuration sections
   aws_config      = local.config_file.aws
@@ -37,15 +37,15 @@ locals {
   }
 
   # Parse VM configurations
-  bastion_config = local.vms_config.bastion
+  bastion_config   = local.vms_config.bastion
   switch_instances = local.vms_config.switch.instances
-  switch_defaults = local.vms_config.switch.defaults
-  dfsp_instances = local.vms_config.dfsps.instances
-  dfsp_defaults = local.vms_config.dfsps.defaults
+  switch_defaults  = local.vms_config.switch.defaults
+  dfsp_instances   = local.vms_config.dfsps.instances
+  dfsp_defaults    = local.vms_config.dfsps.defaults
 
   # Performance settings
   placement_group_enabled = try(local.aws_config.placement_group.enabled, false)
-  detailed_monitoring = try(local.aws_config.cloudwatch.detailed_monitoring, false)
+  detailed_monitoring     = try(local.aws_config.cloudwatch.detailed_monitoring, false)
 
   # Load balancer settings
   nlb_config = try(local.lb_config.switch_nlb, null)
@@ -71,12 +71,12 @@ resource "aws_placement_group" "cluster" {
   count = local.placement_group_enabled ? 1 : 0
 
   name     = "${local.project_config.name}-cluster-pg"
-  strategy = "cluster"  # All instances in same physical rack for lowest latency
+  strategy = "cluster" # All instances in same physical rack for lowest latency
 
   tags = merge(
     local.common_tags,
     {
-      Name = "${local.project_config.name}-cluster-pg"
+      Name    = "${local.project_config.name}-cluster-pg"
       Purpose = "High-performance cluster placement"
     }
   )

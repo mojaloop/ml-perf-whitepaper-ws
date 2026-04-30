@@ -3,7 +3,7 @@
 
 # AWS Configuration
 aws:
-  profile: default
+  profile: gtmlab
   region: eu-west-2
   availability_zone: eu-west-2b
 
@@ -18,7 +18,7 @@ aws:
 
 # Project Configuration
 project:
-  name: p-202510161347
+  name: p-202602260904
   environment: perf-test
 
 # SSH Configuration
@@ -169,7 +169,7 @@ vms:
     instances:
       # Generic nodes for Mojaloop services, MongoDB, Redis
       - name: sw1-n1
-        instance_type: m7i.8xlarge # instance_type: c5n.2xlarge
+        instance_type: m7i.2xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           is_primary: true  # First node to initialize the cluster
@@ -187,7 +187,7 @@ vms:
           NodeNumber: "1"
 
       - name: sw1-n2
-        instance_type: m7i.8xlarge # instance_type: c5n.2xlarge
+        instance_type: m7i.2xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           node_labels:
@@ -204,7 +204,7 @@ vms:
           NodeNumber: "2"
 
       - name: sw1-n3
-        instance_type: m7i.8xlarge # instance_type: c5n.2xlarge
+        instance_type: m7i.2xlarge # instance_type: c5n.2xlarge
         k8s:
           role: mixed
           node_labels:
@@ -221,7 +221,7 @@ vms:
           NodeNumber: "3"
 
       # - name: sw1-n4
-      #   instance_type: m7i.4xlarge # instance_type: c5n.2xlarge
+      #   instance_type: m7i.xlarge # instance_type: c5n.2xlarge
       #   k8s:
       #     role: mixed
       #     node_labels:
@@ -239,7 +239,7 @@ vms:
 
       # Dedicated Kafka node
       # - name: sw1-kafka-ctrl-1
-      #   instance_type: m7i.4xlarge #c5n.2xlarge
+      #   instance_type: m7i.xlarge #c5n.2xlarge
       #   root_volume:
       #     size: 500
       #     type: io2
@@ -261,7 +261,7 @@ vms:
 
 
       - name: sw1-kafka-n1
-        instance_type: m7i.4xlarge #c5n.2xlarge
+        instance_type: m7i.2xlarge #c5n.2xlarge
         root_volume:
           size: 500
           type: io2
@@ -282,7 +282,7 @@ vms:
           Service: kafka
 
       # - name: sw1-kafka-n2
-      #   instance_type: m7i.4xlarge #c5n.2xlarge
+      #   instance_type: m7i.xlarge #c5n.2xlarge
       #   root_volume:
       #     size: 500
       #     type: io2
@@ -303,7 +303,7 @@ vms:
       #     Service: kafka
 
       # - name: sw1-kafka-n3
-      #   instance_type: m7i.4xlarge #c5n.2xlarge
+      #   instance_type: m7i.xlarge #c5n.2xlarge
       #   root_volume:
       #     size: 500
       #     type: io2
@@ -325,7 +325,7 @@ vms:
 
       # Dedicated MySQL node
       - name: sw1-mysql-n1
-        instance_type: m7i.8xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
+        instance_type: m7i.2xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
         root_volume:
           size: 200
           type: io2
@@ -346,7 +346,7 @@ vms:
           Service: mysql
       
       # - name: sw1-mysql-n2
-      #   instance_type: m7i.4xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
+      #   instance_type: m7i.xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
       #   root_volume:
       #     size: 200
       #     type: io2
@@ -392,7 +392,7 @@ vms:
   dfsps:
     # Default configuration for all DFSPs (can be overridden per DFSP)
     defaults:
-      instance_type: c7i.4xlarge  # Keep existing for DFSPs
+      instance_type: c7i.xlarge  # Keep existing for DFSPs
       root_volume:
         size: 128
         type: gp3
@@ -411,49 +411,49 @@ vms:
     # Individual DFSP configurations
     instances:
       - name: fsp201
-        instance_type: c7i.4xlarge  # Can override default
+        instance_type: c7i.xlarge  # Can override default
         tags:
           Role: ml-dfsp
           NodeNumber: "101"
 
       - name: fsp202
-        instance_type: c7i.4xlarge
+        instance_type: c7i.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "102"
 
       - name: fsp203
-        instance_type: c7i.4xlarge
+        instance_type: c7i.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "103"
 
       - name: fsp204
-        instance_type: c7i.4xlarge
+        instance_type: c7i.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "104"
 
       - name: fsp205
-        instance_type: c7i.4xlarge
+        instance_type: c7i.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "105"
 
       - name: fsp206
-        instance_type: c7i.4xlarge
+        instance_type: c7i.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "106"
 
       - name: fsp207
-        instance_type: c7i.4xlarge
+        instance_type: c7i.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "107"
 
       - name: fsp208
-        instance_type: c7i.4xlarge
+        instance_type: c7i.xlarge
         # root_volume:
         #   size: 128  # Override for larger disk
         #   type: gp3
@@ -463,7 +463,7 @@ vms:
           NodeNumber: "108"
 
       - name: k6
-        instance_type: m7i.4xlarge
+        instance_type: m7i.xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "109"

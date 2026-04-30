@@ -35,6 +35,7 @@ import crypto from "k6/crypto";
 import { vu } from 'k6/execution';
 import { randomString } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 import exec from 'k6/execution';
+import encoding from 'k6/encoding';
 
 
 // Custom metrics
@@ -59,7 +60,7 @@ const abortOnError = __ENV.K6_SCRIPT_ABORT_ON_ERROR === 'true' || false;
 const ENV = {
   TRANSFER_AMOUNT: __ENV.TRANSFER_AMOUNT || '1',
   CURRENCY: __ENV.CURRENCY || 'XXX',
-  FSP_CONFIG: JSON.parse(__ENV.FSP_CONFIG || '[]'),
+  FSP_CONFIG: JSON.parse(encoding.b64decode(__ENV.FSP_CONFIG_B64 || 'e30=', 'std', 's')),
 };
 
 
@@ -362,8 +363,8 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
 let FSP_PAIRS = []; 
 
 export default function() {
-  const FSP_CONFIG = JSON.parse(__ENV.FSP_CONFIG);
-  FSP_PAIRS = JSON.parse(__ENV.FSP_PAIRS_JSON).map(pair => ({
+  const FSP_CONFIG = JSON.parse(encoding.b64decode(__ENV.FSP_CONFIG_B64, 'std', 's'));
+  FSP_PAIRS = JSON.parse(encoding.b64decode(__ENV.FSP_PAIRS_JSON_B64, 'std', 's')).map(pair => ({
     source: FSP_CONFIG[pair.source],
     dest: FSP_CONFIG[pair.dest],
     weight: pair.weight,
@@ -395,7 +396,7 @@ export function handleSummary(data) {
       target_transactions: TARGET_TXN_COUNT,
       target_tps: TARGET_TPS,
       duration: testDuration,
-      fsp_pairs: JSON.parse(__ENV.FSP_PAIRS_JSON),
+      fsp_pairs: JSON.parse(encoding.b64decode(__ENV.FSP_PAIRS_JSON_B64, 'std', 's')),
     },
     results: {
       completed_transactions: completed,

@@ -5,6 +5,7 @@ set -e
 export HTTPS_PROXY=socks5://127.0.0.1:1080
 
 KUBECONFIG=../../../infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml
+KUBECONFIG=/Users/ndelma/Workspace/mojaloop/ml-iac3/_ext-rs/ml-perf-whitepaper-ws/performance-tests/results/500tps/artifacts/kubeconfigs/kubeconfig-k6.yaml
 NAMESPACE=k6-test
 VALUES_FILE=../values/values.yaml
 RELEASE_NAME=k6-test-mojaloop

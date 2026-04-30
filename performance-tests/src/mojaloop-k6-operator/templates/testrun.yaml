@@ -16,10 +16,15 @@ spec:
         value: {{ .Values.k6.targetTxnCount | quote }}
       - name: TARGET_TPS
         value: {{ .Values.k6.targetTps | quote }}
-      - name: FSP_PAIRS_JSON
-        value: {{ .Values.k6.fspPairs | toJson | quote }}
-      - name: FSP_CONFIG
-        value: {{ .Values.k6.fspConfig | quote }}
+      # Values are base64-encoded at render time and decoded in tests.js.
+      # Reason: k6-operator v1.3.1 injects env values into `sh -c "... -e KEY=VALUE ..."`
+      # without single-quoting; any " in VALUE is stripped by shell tokenization,
+      # producing invalid JSON at k6's __ENV. Base64 output (A-Za-z0-9+/=) survives
+      # shell parsing untouched. See pkg/resources/jobs/initializer.go:60.
+      - name: FSP_PAIRS_JSON_B64
+        value: {{ .Values.k6.fspPairs | toJson | b64enc | quote }}
+      - name: FSP_CONFIG_B64
+        value: {{ .Values.k6.fspConfig | toJson | b64enc | quote }}
       - name: K6_SCRIPT_ABORT_ON_ERROR
         value: {{ .Values.k6.abortOnError | quote }}
       - name: TRANSFER_AMOUNT

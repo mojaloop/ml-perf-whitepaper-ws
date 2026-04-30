@@ -16,8 +16,10 @@ export HTTPS_PROXY=socks5://127.0.0.1:1080
 
 K6_NAMESPACE="k6-test"
 K6_OPERATOR_NAMESPACE="k6-operator"
-KUBECONFIG="ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml"
-SSH_CONFIG_PATH="ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/ssh-config"
+# Use SCENARIO env var, default to base
+SCENARIO=${SCENARIO:-base}
+KUBECONFIG="ml-perf-whitepaper-ws/performance-tests/results/${SCENARIO}/artifacts/kubeconfigs/kubeconfig-k6.yaml"
+SSH_CONFIG_PATH="ml-perf-whitepaper-ws/performance-tests/results/${SCENARIO}/artifacts/ssh-config"
 
 echo "Using KUBECONFIG     : ${KUBECONFIG}"
 echo "Using namespace      : ${K6_NAMESPACE}"

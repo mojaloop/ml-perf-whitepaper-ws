@@ -14,7 +14,7 @@ resource "aws_instance" "bastion" {
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.bastion[0].id]
   associate_public_ip_address = true
-  monitoring                   = local.detailed_monitoring
+  monitoring                  = local.detailed_monitoring
 
   root_block_device {
     volume_size           = local.bastion_config.root_volume.size
@@ -92,7 +92,7 @@ resource "aws_instance" "switch" {
     throughput = try(
       each.value.root_volume.type,
       local.switch_defaults.root_volume.type
-    ) == "gp3" ? try(
+      ) == "gp3" ? try(
       each.value.root_volume.throughput,
       local.switch_defaults.root_volume.throughput,
       null

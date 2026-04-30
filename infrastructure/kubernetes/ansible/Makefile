@@ -2,43 +2,67 @@
 
 .PHONY: all install configure kubeconfig clean help check
 
+# Scenario selection (pass to Ansible via environment variable)
+SCENARIO ?=
+export SCENARIO
+
+# Map scenario to inventory and config paths
+ifeq ($(SCENARIO),)
+  INVENTORY_PATH = ../../../performance-tests/results/base/artifacts/inventory.yaml
+  CONFIG_PATH = ../../provisioning/config.yaml
+else
+  INVENTORY_PATH = ../../../performance-tests/results/$(SCENARIO)/artifacts/inventory.yaml
+  CONFIG_PATH = ../../../performance-tests/results/$(SCENARIO)/config-override/aws-config.yaml
+endif
+
+# Auto-discover scenarios: any dir under performance-tests/results that has a config-override/aws-config.yaml
+SCENARIOS = $(sort $(patsubst ../../../performance-tests/results/%/config-override/aws-config.yaml,%,$(wildcard ../../../performance-tests/results/*/config-override/aws-config.yaml)))
+
+# Export as environment variable so Ansible uses it automatically (overrides ansible.cfg)
+export ANSIBLE_INVENTORY := $(INVENTORY_PATH)
+
 # Default target
 all: deploy
 
 # Check prerequisites
 check:
 	@echo "Checking prerequisites..."
-	@test -f ../../provisioning/artifacts/inventory.yaml || (echo "ERROR: Inventory not found. Run Terraform first." && exit 1)
-	@test -f ../../provisioning/config.yaml || (echo "ERROR: Config file not found." && exit 1)
+	@test -f $(INVENTORY_PATH) || (echo "ERROR: Inventory not found at $(INVENTORY_PATH). Run Terraform first." && exit 1)
+	@test -f $(CONFIG_PATH) || (echo "ERROR: Config file not found at $(CONFIG_PATH)." && exit 1)
 	@ansible --version > /dev/null 2>&1 || (echo "ERROR: Ansible not installed." && exit 1)
 	@echo "✓ All prerequisites met"
+	@if [ -n "$(SCENARIO)" ]; then echo "Using scenario: $(SCENARIO)"; echo "Config: $(CONFIG_PATH)"; fi
 
 # Deploy everything
 deploy: check
-	ansible-playbook playbooks/deploy-k8s.yml
+	ansible-playbook playbooks/deploy-k8s.yml -e "scenario=$(SCENARIO)"
 
 # Install MicroK8s only
 install: check
-	ansible-playbook playbooks/01-install-microk8s.yml
+	ansible-playbook playbooks/01-install-microk8s.yml -e "scenario=$(SCENARIO)"
 
 # Configure Switch cluster only
 switch-cluster: check
-	ansible-playbook playbooks/02-configure-switch-cluster.yml
+	ansible-playbook playbooks/02-configure-switch-cluster.yml -e "scenario=$(SCENARIO)"
 
 # Configure FSP clusters only
 fsp-clusters: check
-	ansible-playbook playbooks/03-configure-fsp-clusters.yml
+	ansible-playbook playbooks/03-configure-fsp-clusters.yml -e "scenario=$(SCENARIO)"
 
 # Generate kubeconfigs only
 kubeconfig: check
-	ansible-playbook playbooks/04-generate-kubeconfigs.yml
+	ansible-playbook playbooks/04-generate-kubeconfigs.yml -e "scenario=$(SCENARIO)"
+
+# Generate hostaliases.json only (switch <-> DFSP DNS patch payload)
+hostaliases: check
+	ansible-playbook playbooks/06-generate-hostaliases.yml -e "scenario=$(SCENARIO)"
 
 # Run specific playbook with tags
 install-only: check
-	ansible-playbook playbooks/deploy-k8s.yml --tags install
+	ansible-playbook playbooks/deploy-k8s.yml --tags install -e "scenario=$(SCENARIO)"
 
 configure-only: check
-	ansible-playbook playbooks/deploy-k8s.yml --tags configure
+	ansible-playbook playbooks/deploy-k8s.yml --tags configure -e "scenario=$(SCENARIO)"
 
 # Test connectivity
 ping: check
@@ -65,13 +89,18 @@ help:
 	@echo "  make switch-cluster - Configure switch cluster only"
 	@echo "  make fsp-clusters  - Configure FSP clusters only"
 	@echo "  make kubeconfig    - Generate kubeconfig files"
+	@echo "  make hostaliases   - Generate hostaliases.json (switch <-> DFSP DNS)"
 	@echo "  make ping          - Test Ansible connectivity"
 	@echo "  make status        - Check cluster status"
 	@echo "  make uninstall     - Remove MicroK8s (DESTRUCTIVE)"
 	@echo ""
 	@echo "Configuration files:"
-	@echo "  Config: ../../provisioning/config.yaml"
-	@echo "  Inventory: ../../provisioning/artifacts/inventory.yaml"
+	@echo "  Config: $(CONFIG_PATH)"
+	@echo "  Inventory: $(INVENTORY_PATH)"
 	@echo ""
-	@echo "Output:"
-	@echo "  Kubeconfigs: ../../provisioning/artifacts/kubeconfigs/"
+	@echo "Scenario selection:"
+	@echo "  SCENARIO=            Use base config (default)"
+	@$(foreach s,$(SCENARIOS),echo "  SCENARIO=$(s)";)
+	@echo ""
+	@echo "Output (scenario-specific):"
+	@echo "  Kubeconfigs: ../../../performance-tests/results/<scenario>/artifacts/kubeconfigs/"

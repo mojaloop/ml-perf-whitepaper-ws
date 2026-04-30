@@ -1,0 +1,13 @@
+{
+  "spec": {
+    "template": {
+      "spec": {
+        "hostAliases": [
+{% for fsp in groups['dfsps'] | select('match', '^fsp') | sort %}
+          { "ip": "{{ hostvars[fsp]['private_ip'] }}", "hostnames": ["sim-{{ fsp }}.local"] }{{ "," if not loop.last else "" }}
+{% endfor %}
+        ]
+      }
+    }
+  }
+}
