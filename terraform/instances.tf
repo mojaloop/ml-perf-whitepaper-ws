@@ -1,6 +1,7 @@
-# Data source for SSH key
+# Data source for SSH key — name supplied via TF_VAR_ssh_key_name
+# (root .env -> Makefile -> here).
 data "aws_key_pair" "existing" {
-  key_name = local.ssh_config.key_name
+  key_name = var.ssh_key_name
 }
 
 # Bastion Instance

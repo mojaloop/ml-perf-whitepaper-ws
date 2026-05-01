@@ -21,7 +21,6 @@ locals {
   # Extract configuration sections
   aws_config      = local.config_file.aws
   project_config  = local.config_file.project
-  ssh_config      = local.config_file.ssh
   network_config  = local.config_file.network
   security_config = local.config_file.security
   vms_config      = local.config_file.vms
@@ -51,15 +50,16 @@ locals {
   nlb_config = try(local.lb_config.switch_nlb, null)
 }
 
-# Configure AWS Provider
+# Configure AWS Provider — region + profile come from env (AWS_PROFILE,
+# AWS_DEFAULT_REGION), set via the root .env loaded by the Makefile.
 provider "aws" {
-  region  = local.aws_config.region
-  profile = local.aws_config.profile
-
   default_tags {
     tags = local.common_tags
   }
 }
+
+# Lookups for outputs that need to display the active region.
+data "aws_region" "current" {}
 
 # Data source for availability zones
 data "aws_availability_zones" "available" {

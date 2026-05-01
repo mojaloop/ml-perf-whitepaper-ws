@@ -1,3 +1,13 @@
+# Required: name of the AWS key-pair to attach to all EC2 instances.
+# Set via TF_VAR_ssh_key_name (the Makefile derives this from SSH_KEY_NAME
+# in the root .env). The matching private key must live at
+# ~/.ssh/${ssh_key_name}.pem with mode 0600 — both the emitted ssh_config
+# and ansible's ANSIBLE_PRIVATE_KEY_FILE point there.
+variable "ssh_key_name" {
+  description = "AWS key-pair name (must already exist in the AWS account)"
+  type        = string
+}
+
 # Optional override variables (can be set via terraform.tfvars or command line)
 
 variable "config_file_path" {

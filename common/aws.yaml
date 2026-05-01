@@ -2,9 +2,10 @@
 # This file defines all infrastructure resources for the Mojaloop performance testing environment
 
 # AWS Configuration
+# NOTE: profile + region are NOT here — they come from the root .env
+# (AWS_PROFILE + AWS_DEFAULT_REGION) and are picked up automatically by
+# the terraform AWS provider. See .env.example.
 aws:
-  profile: gtmlab
-  region: eu-west-2
   availability_zone: eu-west-2b
 
   # Performance optimizations
@@ -22,8 +23,9 @@ project:
   environment: perf-test
 
 # SSH Configuration
-ssh:
-  key_name: ndelma-gtm-202504091000
+# NOTE: SSH_KEY_NAME comes from the root .env. Both terraform (EC2
+# key_name + ssh_config emission) and ansible (ANSIBLE_PRIVATE_KEY_FILE)
+# derive from it via the Makefile. See .env.example.
 
 # Network Configuration
 network:
@@ -496,14 +498,15 @@ k8s:
       - metrics-server
 
 # Terraform Backend Configuration (for state management)
+# NOTE: Active backend is `local` (see terraform/main.tf). The s3 block
+# below is a template for future use — region/profile come from the
+# root .env (AWS_PROFILE + AWS_DEFAULT_REGION) when activated.
 terraform:
   backend:
-    type: s3  # or local
+    type: local
     s3:
-      bucket: "terraform-state-${project.name}"  # Will be interpolated
+      bucket: "terraform-state-${project.name}"
       key: "infrastructure/terraform.tfstate"
-      region: "${aws.region}"
-      profile: "${aws.profile}"
       encrypt: true
       dynamodb_table: "terraform-state-lock-${project.name}"
 

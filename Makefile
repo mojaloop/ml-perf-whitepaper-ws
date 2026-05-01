@@ -28,12 +28,19 @@ ANS := cd $(ANS_DIR) && SCENARIO=$(SCENARIO) ansible-playbook $(ANS_INV) $(ANS_E
 SCENARIOS := $(shell find scenarios -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | sort)
 
 # ---- env loader ------------------------------------------------------------
-# Sources scenarios/<scenario>/.env if present so DOCKERHUB_*, MYSQL_*, etc.
-# get into the sub-process environment.
-ENV_FILE := scenarios/$(SCENARIO)/.env
+# Single root .env (scenario-agnostic). Template at .env.example.
+# Loads: AWS_PROFILE, AWS_DEFAULT_REGION, SSH_KEY_NAME, DOCKERHUB_*, MYSQL_*.
+ENV_FILE := .env
 ifneq ("$(wildcard $(ENV_FILE))","")
 include $(ENV_FILE)
 export
+endif
+
+# Derived: where ansible looks for the SSH private key, and the TF var
+# that the AWS key-pair lookup uses. Both follow ~/.ssh/<name>.pem.
+ifneq ($(strip $(SSH_KEY_NAME)),)
+export ANSIBLE_PRIVATE_KEY_FILE := $(HOME)/.ssh/$(SSH_KEY_NAME).pem
+export TF_VAR_ssh_key_name      := $(SSH_KEY_NAME)
 endif
 
 .PHONY: help tunnel \

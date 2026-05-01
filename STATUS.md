@@ -83,8 +83,13 @@ Each of these is shaped correctly but hasn't run end-to-end:
   adjustment** depending on what `example-mojaloop-backend` v17.1.0
   ships (some scenarios use `mysql-operator`'s selector).
 - `als_provision` calls `MYSQL_ROOT_PASSWORD` from env. The Makefile
-  loads `scenarios/<scenario>/.env` automatically — make sure that
-  file has the right value for the running cluster.
+  loads the **root `.env`** (scenario-agnostic) automatically — make sure
+  that file has the right value for the running cluster.
+- **Cleanup TODO**: `common/backend.yaml` hardcodes `rootPassword:
+  "db_password"`. Should be injected via `helm --set` from
+  `MYSQL_ROOT_PASSWORD` instead, dropping the password from committed
+  YAML. Today the `.env` value MUST literally be `db_password` to
+  match.
 - The `mtls_switch` role's CoreDNS patch reads
   `scenarios/<scenario>/artifacts/hostaliases.json` and parses
   `.spec.template.spec.hostAliases[]`. **Confirm playbook 06 still

@@ -11,11 +11,16 @@ its own — re-runnable mid-deploy without restarting from scratch.
 ## Quick start (500 TPS scenario, fresh AWS account)
 
 ```bash
-# 0. Once: drop AWS creds + DOCKERHUB_* + MYSQL_ROOT_PASSWORD into
-#    scenarios/500tps/.env (gitignored)
+# 0. Once:
+#      cp .env.example .env       # then fill in DOCKERHUB_* values
+#    Plus, on the operator's laptop:
+#      ~/.aws/credentials must have a [<AWS_PROFILE>] entry with valid creds
+#      ~/.ssh/<SSH_KEY_NAME>.pem must exist with mode 0600
+#    The .env is scenario-agnostic and lives at the repo root (gitignored).
 
 # 1. AWS infra (~10 min): VPC, bastion, switch nodes (3), DFSP nodes (8), k6 node
 make terraform-init
+make terraform-plan  SCENARIO=500tps
 make terraform-apply  SCENARIO=500tps
 
 # 2. SOCKS tunnel through bastion (every shell session)

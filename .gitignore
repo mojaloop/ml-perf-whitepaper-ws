@@ -3,3 +3,6 @@ kubeconfig-*
 *.log
 .DS_Store
 _*
+
+# Local secrets — root .env (scenario-agnostic). Template lives at .env.example.
+/.env

@@ -95,7 +95,7 @@ output "nlb_arn" {
 # SSH Connection Commands
 output "ssh_bastion_command" {
   description = "SSH command to connect to bastion"
-  value       = var.create_bastion && local.bastion_config.enabled ? "ssh -i ~/.ssh/${local.ssh_config.key_name}.pem ubuntu@${aws_instance.bastion[0].public_ip}" : null
+  value       = var.create_bastion && local.bastion_config.enabled ? "ssh -i ~/.ssh/${var.ssh_key_name}.pem ubuntu@${aws_instance.bastion[0].public_ip}" : null
 }
 
 output "ssh_config_file" {
@@ -124,7 +124,7 @@ output "ansible_inventory" {
     }
     project_name = local.project_config.name
     environment  = local.project_config.environment
-    region       = local.aws_config.region
+    region       = data.aws_region.current.name
   })
 }
 
@@ -148,7 +148,7 @@ resource "local_file" "ansible_inventory" {
     }
     project_name = local.project_config.name
     environment  = local.project_config.environment
-    region       = local.aws_config.region
+    region       = data.aws_region.current.name
   })
   filename = "${var.artifacts_dir}/inventory.yaml"
 
@@ -161,7 +161,7 @@ resource "local_file" "ansible_inventory" {
 resource "local_file" "ssh_config" {
   content = templatefile("${path.module}/templates/ssh_config.tpl", {
     bastion_public_ip = var.create_bastion && local.bastion_config.enabled ? aws_instance.bastion[0].public_ip : ""
-    ssh_key_name      = local.ssh_config.key_name
+    ssh_key_name      = var.ssh_key_name
     switch_nodes = {
       for name, instance in aws_instance.switch : name => {
         private_ip = instance.private_ip
@@ -217,7 +217,7 @@ Generated: ${timestamp()}
 
 BASTION HOST:
   Public IP: ${var.create_bastion && local.bastion_config.enabled ? aws_instance.bastion[0].public_ip : "N/A"}
-  SSH: ssh -i ~/.ssh/${local.ssh_config.key_name}.pem ubuntu@${var.create_bastion && local.bastion_config.enabled ? aws_instance.bastion[0].public_ip : "N/A"}
+  SSH: ssh -i ~/.ssh/${var.ssh_key_name}.pem ubuntu@${var.create_bastion && local.bastion_config.enabled ? aws_instance.bastion[0].public_ip : "N/A"}
 
 QUICK SETUP:
   1. Append SSH config to your local SSH config:
