@@ -1,223 +1,141 @@
-# Root Makefile for Mojaloop Performance Testing Infrastructure
-# Orchestrates the full deployment workflow across modules
+# Mojaloop Perf Lab — root Makefile
+#
+# Atomic stages (each callable independently); `deploy` chains them all
+# in order. SCENARIO selects per-scenario overrides under
+# scenarios/<scenario>/overrides/; defaults to "base".
+#
+# Usage:
+#   make tunnel SCENARIO=500tps        # one-shot: open the bastion SOCKS tunnel
+#   make terraform-apply SCENARIO=500tps
+#   make k8s SCENARIO=500tps
+#   make deploy SCENARIO=500tps        # backend -> switch -> mtls -> dfsp -> k6 -> onboard -> provision
+#   make smoke SCENARIO=500tps
+#   make load  SCENARIO=500tps
 
-.PHONY: help
-
-# Default target
 .DEFAULT_GOAL := help
 
-# Directories
-TERRAFORM_DIR := infrastructure/provisioning/terraform
-ANSIBLE_DIR := infrastructure/kubernetes/ansible
+SCENARIO ?= base
+TF_DIR   := terraform
+ANS_DIR  := ansible
+ARTIFACTS_DIR := scenarios/$(SCENARIO)/artifacts
 
-# Scenario selection (pass to sub-makes)
-SCENARIO ?=
+# ANSIBLE invocation defaults — every play uses scenarios/<scenario>/artifacts/inventory.yaml
+ANS_INV := -i $(ARTIFACTS_DIR)/inventory.yaml
+ANS_EXTRA := -e scenario=$(SCENARIO)
+ANS := cd $(ANS_DIR) && SCENARIO=$(SCENARIO) ansible-playbook $(ANS_INV) $(ANS_EXTRA)
 
-# Auto-discover scenarios: any dir under performance-tests/results that has a config-override/aws-config.yaml
-SCENARIOS = $(sort $(patsubst performance-tests/results/%/config-override/aws-config.yaml,%,$(wildcard performance-tests/results/*/config-override/aws-config.yaml)))
+# Auto-discover scenario list (directories only).
+SCENARIOS := $(shell find scenarios -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | sort)
 
-#=============================================================================
-# Infrastructure Provisioning (Terraform)
-#=============================================================================
+# ---- env loader ------------------------------------------------------------
+# Sources scenarios/<scenario>/.env if present so DOCKERHUB_*, MYSQL_*, etc.
+# get into the sub-process environment.
+ENV_FILE := scenarios/$(SCENARIO)/.env
+ifneq ("$(wildcard $(ENV_FILE))","")
+include $(ENV_FILE)
+export
+endif
 
-infra-init:
-	@echo "==> Initializing Terraform..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-init SCENARIO=$(SCENARIO)
+.PHONY: help tunnel \
+        terraform-init terraform-plan terraform-apply terraform-destroy \
+        k8s backend switch mtls dfsp k6 onboard provision smoke load \
+        deploy clean
 
-infra-plan:
-	@echo "==> Creating Terraform execution plan..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-plan SCENARIO=$(SCENARIO)
-
-infra-apply:
-	@echo "==> Applying Terraform plan..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-apply SCENARIO=$(SCENARIO)
-
-infra-apply-auto:
-	@echo "==> Applying Terraform (auto-approve)..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-apply-auto SCENARIO=$(SCENARIO)
-
-infra-destroy:
-	@echo "==> Destroying infrastructure..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-destroy SCENARIO=$(SCENARIO)
-
-infra-show:
-	@echo "==> Showing Terraform state..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-show SCENARIO=$(SCENARIO)
-
-infra-list:
-	@echo "==> Listing Terraform resources..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-list SCENARIO=$(SCENARIO)
-
-infra-validate:
-	@echo "==> Validating Terraform configuration..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-validate SCENARIO=$(SCENARIO)
-
-infra-fmt:
-	@echo "==> Formatting Terraform files..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-fmt SCENARIO=$(SCENARIO)
-
-infra-clean:
-	@echo "==> Cleaning Terraform artifacts..."
-	$(MAKE) -C $(TERRAFORM_DIR) infra-clean SCENARIO=$(SCENARIO)
-
-#=============================================================================
-# Kubernetes Deployment (Ansible)
-#=============================================================================
-
-k8s-deploy:
-	@echo "==> Deploying Kubernetes clusters..."
-	$(MAKE) -C $(ANSIBLE_DIR) deploy SCENARIO=$(SCENARIO)
-
-k8s-install:
-	@echo "==> Installing MicroK8s on all nodes..."
-	$(MAKE) -C $(ANSIBLE_DIR) install SCENARIO=$(SCENARIO)
-
-k8s-switch-cluster:
-	@echo "==> Configuring switch cluster..."
-	$(MAKE) -C $(ANSIBLE_DIR) switch-cluster SCENARIO=$(SCENARIO)
-
-k8s-fsp-clusters:
-	@echo "==> Configuring FSP clusters..."
-	$(MAKE) -C $(ANSIBLE_DIR) fsp-clusters SCENARIO=$(SCENARIO)
-
-k8s-kubeconfig:
-	@echo "==> Generating kubeconfig files..."
-	$(MAKE) -C $(ANSIBLE_DIR) kubeconfig SCENARIO=$(SCENARIO)
-
-k8s-hostaliases:
-	@echo "==> Generating hostaliases.json..."
-	$(MAKE) -C $(ANSIBLE_DIR) hostaliases SCENARIO=$(SCENARIO)
-
-k8s-ping:
-	@echo "==> Testing Ansible connectivity..."
-	$(MAKE) -C $(ANSIBLE_DIR) ping SCENARIO=$(SCENARIO)
-
-k8s-status:
-	@echo "==> Checking cluster status..."
-	$(MAKE) -C $(ANSIBLE_DIR) status SCENARIO=$(SCENARIO)
-
-k8s-uninstall:
-	@echo "==> Uninstalling MicroK8s (DESTRUCTIVE)..."
-	$(MAKE) -C $(ANSIBLE_DIR) uninstall SCENARIO=$(SCENARIO)
-
-#=============================================================================
-# End-to-End Deployment
-#=============================================================================
-
-deploy-all: infra-init infra-plan infra-apply k8s-deploy
-	@echo ""
-	@echo "=========================================="
-	@echo "✓ Full deployment completed successfully!"
-	@echo "=========================================="
-	@if [ -n "$(SCENARIO)" ]; then \
-		echo "Scenario: $(SCENARIO)"; \
-	fi
-	@echo ""
-	@echo "Next steps:"
-	@echo "  1. Set up SOCKS5 proxy: ssh -D 1080 perf-jump-host -N &"
-	@echo "  2. Export proxy: export HTTPS_PROXY=socks5://127.0.0.1:1080"
-	@echo "  3. Deploy platform services (cert-manager, monitoring, backend)"
-	@echo "  4. Deploy Mojaloop switch"
-	@echo "  5. Deploy DFSP simulators"
-	@echo "  6. Run performance tests"
-	@echo ""
-
-# Quick deploy (auto-approve terraform)
-deploy-all-auto: infra-init infra-apply-auto k8s-deploy
-	@echo ""
-	@echo "=========================================="
-	@echo "✓ Quick deployment completed successfully!"
-	@echo "=========================================="
-	@if [ -n "$(SCENARIO)" ]; then \
-		echo "Scenario: $(SCENARIO)"; \
+# ===========================================================================
+# 1. Tunnel
+# ===========================================================================
+tunnel: ## Open SOCKS5 tunnel via bastion (background, scenario-aware)
+	@if lsof -iTCP:1080 -sTCP:LISTEN >/dev/null 2>&1; then \
+	  echo "==> SOCKS tunnel already up on :1080"; \
+	else \
+	  ssh -F $(ARTIFACTS_DIR)/ssh-config -D 1080 perf-jump-host -N & \
+	  sleep 2 && echo "==> SOCKS tunnel started (PID $$!)"; \
 	fi
 
-#=============================================================================
+# ===========================================================================
+# 2-5. Terraform (4 atomic targets)
+# ===========================================================================
+terraform-init: ## Initialize terraform providers
+	cd $(TF_DIR) && terraform init -upgrade
+
+terraform-plan: ## Plan AWS infra (writes plan to scenarios/<scenario>/artifacts/)
+	@mkdir -p $(ARTIFACTS_DIR)
+	cd $(TF_DIR) && terraform plan -var "scenario=$(SCENARIO)" \
+	  -out ../$(ARTIFACTS_DIR)/terraform.plan
+
+terraform-apply: ## Apply the saved plan (or create+apply if missing)
+	@if [ -f $(ARTIFACTS_DIR)/terraform.plan ]; then \
+	  cd $(TF_DIR) && terraform apply ../$(ARTIFACTS_DIR)/terraform.plan; \
+	else \
+	  cd $(TF_DIR) && terraform apply -auto-approve -var "scenario=$(SCENARIO)"; \
+	fi
+
+terraform-destroy: ## Destroy AWS infra for the active scenario
+	cd $(TF_DIR) && terraform destroy -var "scenario=$(SCENARIO)"
+
+# ===========================================================================
+# 6. k8s — bootstrap MicroK8s clusters (existing playbooks 01-06)
+# ===========================================================================
+k8s: ## Install MicroK8s, form clusters, generate kubeconfigs + hostaliases
+	$(ANS) playbooks/deploy-k8s.yml
+
+# ===========================================================================
+# 7-13. App-layer deployment (one role per stage)
+# ===========================================================================
+backend: ## Deploy mojaloop backend (Kafka, MySQL, MongoDB, Redis)
+	$(ANS) playbooks/backend.yml
+
+switch: ## Deploy mojaloop switch + per-scenario configmap patches
+	$(ANS) playbooks/switch.yml
+
+mtls: ## Switch-side mTLS (Istio install + Leg A inbound + Leg B egress gateway)
+	$(ANS) playbooks/mtls-switch.yml
+
+dfsp: ## Deploy 8 DFSP simulators with mTLS Phase 1B + scaling
+	$(ANS) playbooks/dfsp.yml
+
+k6: ## Set up k6 cluster (operator + dockerhub secret + CoreDNS)
+	$(ANS) playbooks/k6.yml
+
+onboard: ## Hub setup + DFSP onboarding (TTK collections, two stages)
+	$(ANS) playbooks/switch-onboard.yml
+	$(ANS) playbooks/dfsp-onboard.yml
+
+provision: ## Insert MSISDNs into ALS DB + register parties on each sim
+	$(ANS) playbooks/als-provision.yml
+	$(ANS) playbooks/sim-provision.yml
+
+# ===========================================================================
+# 14. smoke + load
+# ===========================================================================
+smoke: ## Single end-to-end transfer (validates whole stack)
+	$(ANS) playbooks/smoke-test.yml
+
+load: ## Run k6 TestRun for the active scenario
+	$(ANS) playbooks/load-test.yml
+
+# ===========================================================================
+# Composite — full app deploy after k8s is up
+# ===========================================================================
+deploy: backend switch mtls dfsp k6 onboard provision smoke ## Backend -> switch -> mtls -> dfsp -> k6 -> onboard -> provision -> smoke
+
+# ===========================================================================
 # Cleanup
-#=============================================================================
+# ===========================================================================
+clean: ## Remove scenario artifacts (NOT terraform state — use terraform-destroy first)
+	rm -rf $(ARTIFACTS_DIR)/coredns-*.yaml \
+	       $(ARTIFACTS_DIR)/dfsp-fsp*.yaml \
+	       $(ARTIFACTS_DIR)/k6-coredns.yaml \
+	       $(ARTIFACTS_DIR)/ttk-* \
+	       $(ARTIFACTS_DIR)/terraform.plan
 
-clean-all: infra-destroy infra-clean
-	@echo "==> Cleanup completed"
-
-#=============================================================================
+# ===========================================================================
 # Help
-#=============================================================================
-
-help:
-	@echo "Mojaloop Performance Testing Infrastructure"
-	@echo ""
-	@echo "Usage: make <target> [SCENARIO=<scenario>]"
-	@echo ""
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "Infrastructure Provisioning (Terraform)"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "  infra-init         Initialize Terraform"
-	@echo "  infra-plan         Create execution plan"
-	@echo "  infra-apply        Apply the saved plan"
-	@echo "  infra-apply-auto   Apply with auto-approve (no plan file)"
-	@echo "  infra-destroy      Destroy all infrastructure"
-	@echo "  infra-show         Show current Terraform state"
-	@echo "  infra-list         List resources in state"
-	@echo "  infra-validate     Validate Terraform configuration"
-	@echo "  infra-fmt          Format Terraform files"
-	@echo "  infra-clean        Remove Terraform artifacts and state"
-	@echo ""
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "Kubernetes Deployment (Ansible)"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "  k8s-deploy         Full K8s deployment (install + configure)"
-	@echo "  k8s-install        Install MicroK8s on all nodes"
-	@echo "  k8s-switch-cluster Configure 3-node HA switch cluster"
-	@echo "  k8s-fsp-clusters   Configure DFSP single-node clusters"
-	@echo "  k8s-kubeconfig     Generate kubeconfig files"
-	@echo "  k8s-hostaliases    Generate hostaliases.json (switch <-> DFSP DNS)"
-	@echo "  k8s-ping           Test Ansible connectivity"
-	@echo "  k8s-status         Check cluster status"
-	@echo "  k8s-uninstall      Uninstall MicroK8s (DESTRUCTIVE)"
-	@echo ""
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "End-to-End Deployment"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "  deploy-all         Full deployment (infra init + plan + apply + k8s)"
-	@echo "  deploy-all-auto    Quick deployment (infra auto-apply + k8s)"
-	@echo "  clean-all          Destroy infrastructure and clean artifacts"
-	@echo ""
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "Scenario Selection"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "  SCENARIO=          Use base config (default)"
-	@$(foreach s,$(SCENARIOS),echo "  SCENARIO=$(s)";)
-	@echo ""
-	@echo "  Scenarios use different instance types, node counts, and sizing."
-	@echo "  Each scenario has its own state file in artifacts/<scenario>/"
-	@echo ""
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "Typical Workflow"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "  Base configuration:"
-	@echo "    1. make infra-init        # Initialize Terraform"
-	@echo "    2. make infra-plan        # Review infrastructure changes"
-	@echo "    3. make infra-apply       # Provision AWS infrastructure"
-	@echo "    4. make k8s-deploy        # Deploy MicroK8s clusters"
-	@echo "    5. make k8s-status        # Verify cluster health"
-	@echo ""
-	@echo "  Scenario-based (example):"
-	@$(if $(SCENARIOS),\
-		echo "    1. make infra-init SCENARIO=$(lastword $(SCENARIOS))"; \
-		echo "    2. make infra-plan SCENARIO=$(lastword $(SCENARIOS))"; \
-		echo "    3. make infra-apply SCENARIO=$(lastword $(SCENARIOS))"; \
-		echo "    4. make k8s-deploy SCENARIO=$(lastword $(SCENARIOS))"; \
-	)
-	@echo ""
-	@echo "  Quick deployment:"
-	@$(if $(SCENARIOS),echo "    make deploy-all SCENARIO=$(lastword $(SCENARIOS))";)
-	@echo ""
-	@echo "Configuration:"
-	@echo "  Base:        infrastructure/provisioning/config.yaml"
-	@echo "  Scenarios:   performance-tests/results/<tps>/config-override/aws-config.yaml"
-	@echo ""
-	@echo "Artifacts (scenario-specific):"
-	@echo "  Base:        performance-tests/results/base/artifacts/"
-	@echo "  Scenarios:   performance-tests/results/<tps>/artifacts/"
-	@echo "  Contents:    terraform.tfstate, inventory.yaml, kubeconfigs/, ssh-config"
-	@echo ""
+# ===========================================================================
+help: ## Show this help
+	@printf '\nMojaloop Perf Lab — root Makefile\n'
+	@printf 'Usage: make <target> [SCENARIO=<scenario>]\n\n'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | sort \
+	  | awk -F ':.*?## ' 'BEGIN {FS = ":.*?## "} {printf "  %-22s %s\n", $$1, $$2}'
+	@printf '\nKnown scenarios: $(SCENARIOS)\n'
+	@printf 'Active SCENARIO: $(SCENARIO)\n\n'
