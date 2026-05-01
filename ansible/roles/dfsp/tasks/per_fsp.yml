@@ -67,17 +67,46 @@
     path: "{{ scenario_overrides_dir }}/dfsp.yaml"
   register: _scenario_dfsp_stat
 
+# The override file is shared across all 8 per-FSP helm releases. It
+# typically declares per-FSP entries under `simulators.fspNNN.*`. Without
+# filtering, every cluster's chart would render Deployments for ALL 8
+# sims (24 deployments/cluster vs. the 3 actually needed). We filter to
+# `simulators.<this-fsp>.*` here, preserving any other top-level keys
+# the user might add for scenario-wide settings.
+- name: "fsp{{ fsp_idx }}: load + filter scenario override to this FSP"
+  when: _scenario_dfsp_stat.stat.exists
+  block:
+    - name: "fsp{{ fsp_idx }}: load full override"
+      ansible.builtin.set_fact:
+        _full_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
+
+    - name: "fsp{{ fsp_idx }}: build per-FSP override (simulators filtered)"
+      ansible.builtin.set_fact:
+        _per_fsp_override: >-
+          {{ _full_override
+             | combine({'simulators': {fsp_name: (_full_override.simulators | default({})).get(fsp_name, {})}}) }}
+
+    - name: "fsp{{ fsp_idx }}: write filtered override to artifacts"
+      ansible.builtin.copy:
+        content: "{{ _per_fsp_override | to_nice_yaml(indent=2) }}"
+        dest: "{{ scenario_artifacts_dir }}/dfsp-{{ fsp_name }}-override.yaml"
+        mode: '0644'
+
 - name: "fsp{{ fsp_idx }}: build scenario override -f arg"
   ansible.builtin.set_fact:
-    _fsp_override_arg: "{{ '--values ' ~ scenario_overrides_dir ~ '/dfsp.yaml' if _scenario_dfsp_stat.stat.exists else '' }}"
+    _fsp_override_arg: "{{ '--values ' ~ scenario_artifacts_dir ~ '/dfsp-' ~ fsp_name ~ '-override.yaml' if _scenario_dfsp_stat.stat.exists else '' }}"
 
 - name: "fsp{{ fsp_idx }}: helm install simulator"
   ansible.builtin.shell: |
+    # --force-conflicts --take-ownership: needed once per cluster to wrest
+    # field ownership from `kubectl-set` (legacy post-install env-setter
+    # that has since been moved into helm values). Safe to keep on.
     helm --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} upgrade --install \
       {{ dfsp_release }} {{ dfsp_chart }} \
       --version {{ dfsp_version }} \
       --values {{ fsp_values }} {{ _fsp_override_arg }} \
       --create-namespace \
+      --force-conflicts --take-ownership \
       --wait --timeout 10m
   register: _dfsp_helm
   changed_when: "'has been upgraded' in _dfsp_helm.stdout or 'has been deployed' in _dfsp_helm.stdout"
@@ -114,17 +143,11 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-# Flip mTLS env vars (Phase 2 OUTBOUND + Phase 3 INBOUND in one shot —
-# safe because mtls_switch role applies CoreDNS + egress gateway BEFORE
-# this role runs in the integrated deploy).
-- name: "fsp{{ fsp_idx }}: enable OUTBOUND/INBOUND mTLS env vars"
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} set env deployment/{{ fsp_sdk_deploy }} \
-      --containers=scheme-adapter \
-      OUTBOUND_MUTUAL_TLS_ENABLED=true \
-      INBOUND_MUTUAL_TLS_ENABLED=true
-  changed_when: false
-  environment: "{{ kubectl_env }}"
+# mTLS env vars (Phase 2 OUTBOUND + Phase 3 INBOUND) are now set
+# declaratively in scenarios/<scenario>/overrides/dfsp.yaml under
+# simulators.fspNNN.config.schemeAdapter.env.*_MUTUAL_TLS_ENABLED.
+# Was: a post-install `kubectl set env` step that took kubectl-set field
+# ownership and caused Helm 4 SSA conflicts on subsequent upgrades.
 
 # Patch hostAliases (switch services) + probe periodSeconds.
 - name: "fsp{{ fsp_idx }}: patch hostAliases for switch services"
@@ -163,11 +186,3 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-# Final scale-out.
-- name: "fsp{{ fsp_idx }}: scale scheme-adapter to {{ dfsp_replicas }}"
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment {{ fsp_sdk_deploy }} \
-      --replicas={{ dfsp_replicas }}
-    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} rollout status deployment/{{ fsp_sdk_deploy }} --timeout=600s
-  changed_when: false
-  environment: "{{ kubectl_env }}"

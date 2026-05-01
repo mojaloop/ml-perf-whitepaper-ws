@@ -1,58 +1,92 @@
 # Per-scenario DFSP simulator overrides — layered on top of
 # common/dfsp/values-fspNNN.yaml by the dfsp role's per_fsp loop.
 #
-# Today: pins the kirgene/sdk-scheme-adapter:jws-fix image (workaround
-# for an unreleased upstream JWS fix). One block per FSP because the
-# values structure is keyed by simulator name.
-# TODO: revert to upstream mojaloop/sdk-scheme-adapter:v24.12.0 once the
-# fix ships.
+# Today:
+#   - pins the kirgene/sdk-scheme-adapter:jws-fix image (workaround
+#     for an unreleased upstream JWS fix; revert to
+#     mojaloop/sdk-scheme-adapter:v24.12.0 once it ships)
+#   - bumps scheme-adapter replicaCount to 8 per FSP (required for
+#     500tps headroom; also lets each callback shard a Kafka partition)
+# One block per FSP because the values structure is keyed by simulator name.
 
 simulators:
   fsp201:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix
   fsp202:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix
   fsp203:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix
   fsp204:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix
   fsp205:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix
   fsp206:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix
   fsp207:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix
   fsp208:
     config:
       schemeAdapter:
+        env:
+          # Phase 2 (OUTBOUND) + Phase 3 (INBOUND) mTLS — declarative.
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
         image:
           repository: kirgene/sdk-scheme-adapter
           tag: jws-fix

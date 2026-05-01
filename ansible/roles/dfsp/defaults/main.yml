@@ -10,9 +10,6 @@ dfsp_version: "{{ chart_versions.mojaloop_simulator }}"
 # Per-FSP values files location.
 dfsp_values_dir: "{{ common_dir }}/dfsp"
 
-# Number of scheme-adapter replicas. Override via scenarios/<x>/overrides/dfsp.yaml
-# or directly on the playbook command line.
-dfsp_replicas: 1
 
 # Liveness/readiness periodSeconds for scheme-adapter (defaults are
 # too aggressive under high load).
