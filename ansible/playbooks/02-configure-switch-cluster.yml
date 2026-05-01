@@ -7,7 +7,7 @@
     config_file: >-
       {{ (playbook_dir ~ '/../../performance-tests/results/' ~ scenario ~ '/config-override/aws-config.yaml')
          if (scenario | default('', true) | length > 0)
-         else (playbook_dir ~ '/../../infrastructure/provisioning/config.yaml') }}
+         else (playbook_dir ~ '/../../common/aws.yaml') }}
     config: "{{ lookup('file', config_file) | from_yaml }}"
     primary_node: "{{ groups['switch'] | select('match', '.*n1$') | first }}"
 
