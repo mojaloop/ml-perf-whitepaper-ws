@@ -1,0 +1,18 @@
+---
+backend_chart: mojaloop/example-mojaloop-backend
+backend_release: backend
+backend_version: "{{ chart_versions.mojaloop_backend }}"
+
+# Override file precedence:
+#   common/backend.yaml                                 — base values
+#   scenarios/<scenario>/overrides/backend.yaml        — scenario tuning
+backend_values_files:
+  - "{{ common_dir }}/backend.yaml"
+  - "{{ scenario_overrides_dir }}/backend.yaml"
+
+# Replication mode requires Rancher local-path-provisioner instead of
+# the default microk8s-hostpath. Set true via scenario override file.
+backend_replication_mode: false
+
+local_path_provisioner_url: >-
+  https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.32/deploy/local-path-storage.yaml

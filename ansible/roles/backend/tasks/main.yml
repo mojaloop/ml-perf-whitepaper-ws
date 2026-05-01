@@ -1,0 +1,109 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Filter to existing values files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ backend_values_files }}"
+  register: _backend_values_stat
+
+- name: Build helm -f arg list
+  ansible.builtin.set_fact:
+    _backend_values_args: >-
+      {{ _backend_values_stat.results
+         | selectattr('stat.exists')
+         | map(attribute='item')
+         | map('regex_replace', '^(.*)$', '-f \1')
+         | join(' ') }}
+
+- name: Ensure mojaloop helm repo is present
+  ansible.builtin.shell: |
+    helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
+    helm repo update mojaloop
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Switch storage class to local-path (replication mode only)
+  when: backend_replication_mode
+  block:
+    - name: Remove default annotation from microk8s-hostpath
+      ansible.builtin.shell: |
+        kubectl --kubeconfig={{ kc_switch }} annotate sc microk8s-hostpath \
+          storageclass.kubernetes.io/is-default-class- --overwrite
+      changed_when: false
+      environment: "{{ kubectl_env }}"
+
+    - name: Install Rancher local-path-provisioner
+      ansible.builtin.shell: |
+        kubectl --kubeconfig={{ kc_switch }} apply -f {{ local_path_provisioner_url }}
+      register: _lpp_apply
+      changed_when: "'created' in _lpp_apply.stdout or 'configured' in _lpp_apply.stdout"
+      environment: "{{ kubectl_env }}"
+
+    - name: Mark local-path as default storage class
+      ansible.builtin.shell: |
+        kubectl --kubeconfig={{ kc_switch }} annotate storageclass local-path \
+          storageclass.kubernetes.io/is-default-class="true" --overwrite
+      changed_when: false
+      environment: "{{ kubectl_env }}"
+
+- name: Create mojaloop namespace
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} create ns {{ ns_mojaloop }} \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_switch }} apply -f -
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Create dockerhub-secret in mojaloop namespace
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} \
+      create secret docker-registry dockerhub-secret \
+      --docker-server=https://index.docker.io/v1/ \
+      --docker-username='{{ dockerhub_username }}' \
+      --docker-password='{{ dockerhub_token }}' \
+      --docker-email='{{ dockerhub_email }}' \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_switch }} apply -f -
+  changed_when: false
+  no_log: true
+  environment: "{{ kubectl_env }}"
+
+- name: Patch default ServiceAccount with imagePullSecrets
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch serviceaccount default \
+      -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}'
+  register: _sa_patch
+  changed_when: "'no change' not in (_sa_patch.stderr | default(''))"
+  failed_when:
+    - _sa_patch.rc != 0
+    - "'no change' not in (_sa_patch.stderr | default(''))"
+  environment: "{{ kubectl_env }}"
+
+- name: Helm install/upgrade backend
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} upgrade --install \
+      {{ backend_release }} {{ backend_chart }} \
+      --version {{ backend_version }} \
+      {{ _backend_values_args }} \
+      --wait --timeout 10m
+  register: _backend_helm
+  changed_when: "'has been upgraded' in _backend_helm.stdout or 'has been deployed' in _backend_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Apply MySQL service alias (replication mode only)
+  when: backend_replication_mode
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} apply -f \
+      {{ repo_root }}/manifests/mojaloop/mysqldb-service-alias.yaml
+  register: _alias
+  changed_when: "'created' in _alias.stdout or 'configured' in _alias.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for backend pods to be Ready
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} \
+      wait --for=condition=Ready pod -l app.kubernetes.io/instance={{ backend_release }} \
+      --timeout=10m
+  changed_when: false
+  environment: "{{ kubectl_env }}"

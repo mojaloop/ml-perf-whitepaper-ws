@@ -1,0 +1,193 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure istio helm repo is present
+  ansible.builtin.shell: |
+    helm repo add istio {{ helm_repos.istio }} 2>/dev/null || true
+    helm repo update istio
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# ----------------------------------------------------------------------
+# Phase 1A — switch nginx :443 freed, Istio installed, Leg A applied
+# ----------------------------------------------------------------------
+
+- name: Locate :443 port index on nginx ingress DaemonSet
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n ingress get daemonset \
+      nginx-ingress-microk8s-controller -o json \
+      | jq '[.spec.template.spec.containers[0].ports[] | .name] | index("https")'
+  register: _nginx_https_idx
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Remove :443 from nginx so Istio can take it
+  when: _nginx_https_idx.stdout != "null"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n ingress patch daemonset \
+      nginx-ingress-microk8s-controller --type=json \
+      -p='[{"op":"remove","path":"/spec/template/spec/containers/0/ports/{{ _nginx_https_idx.stdout }}"}]'
+    kubectl --kubeconfig={{ kc_switch }} -n ingress rollout status \
+      daemonset nginx-ingress-microk8s-controller --timeout=180s
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+
+- name: Apply Gateway API CRDs
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ gateway_api_url }}
+  register: _gw_crds
+  changed_when: "'created' in _gw_crds.stdout or 'configured' in _gw_crds.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Helm install istio-base
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
+      istio-base istio/base --create-namespace --version {{ istio_version }} --wait
+  register: _h_base
+  changed_when: "'has been upgraded' in _h_base.stdout or 'has been deployed' in _h_base.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Helm install istiod
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
+      istiod istio/istiod --version {{ istio_version }} --wait
+  register: _h_istiod
+  changed_when: "'has been upgraded' in _h_istiod.stdout or 'has been deployed' in _h_istiod.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Helm install istio-ingressgateway
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
+      istio-ingressgateway istio/gateway \
+      --version {{ istio_version }} --wait --skip-schema-validation \
+      -f {{ ingressgateway_values }}
+  register: _h_ingw
+  changed_when: "'has been upgraded' in _h_ingw.stdout or 'has been deployed' in _h_ingw.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Check if :443 hostPort exists on istio-ingressgateway DS
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} get daemonset istio-ingressgateway \
+      -o jsonpath='{.spec.template.spec.containers[0].ports[*].name}' \
+      | grep -qw https
+  register: _ingw_443
+  changed_when: false
+  failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Patch istio-ingressgateway with :443 host/container port
+  when: _ingw_443.rc != 0
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} patch daemonset \
+      istio-ingressgateway --type=json -p='[
+        {"op":"add","path":"/spec/template/spec/containers/0/ports/-",
+         "value":{"containerPort":443,"hostPort":443,"name":"https","protocol":"TCP"}}
+      ]'
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} rollout status \
+      daemonset istio-ingressgateway --timeout=180s
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+
+- name: Apply switch TLS secret + Leg A inbound resources
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_switch_tls_secret }}
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_switch_inbound }}
+  register: _legA
+  changed_when: "'created' in _legA.stdout or 'configured' in _legA.stdout"
+  environment: "{{ kubectl_env }}"
+
+# ----------------------------------------------------------------------
+# Phase 3 — egress gateway + Leg B + CoreDNS hosts + hostAliases swap
+# ----------------------------------------------------------------------
+
+- name: Install egress gateway
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
+      istio-egressgateway istio/gateway \
+      --version {{ istio_version }} --wait --skip-schema-validation \
+      -f {{ egressgateway_values }}
+  register: _h_eggw
+  changed_when: "'has been upgraded' in _h_eggw.stdout or 'has been deployed' in _h_eggw.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Apply egress gateway Service (pinned ClusterIP)
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_egressgw_service }}
+  register: _eg_svc
+  changed_when: "'created' in _eg_svc.stdout or 'configured' in _eg_svc.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Apply Leg B Istio resources (Gateway/SE/VS/DR x8)
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_switch_outbound }}
+  register: _legB
+  changed_when: "'created' in _legB.stdout or 'configured' in _legB.stdout"
+  environment: "{{ kubectl_env }}"
+
+# CoreDNS patch — needs the switch CORE-API-ADAPTERS node IP plus the
+# 8 DFSP node IPs from the hostaliases.json emitted by playbook 06.
+
+- name: Read switch CORE-API-ADAPTERS node IP
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} get node \
+      -l workload-class.mojaloop.io/CORE-API-ADAPTERS=true \
+      -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
+  register: _switch_node_ip
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Read DFSP hostAliases JSON (emitted by ansible playbook 06)
+  ansible.builtin.slurp:
+    src: "{{ scenario_artifacts_dir }}/hostaliases.json"
+  register: _hostaliases_blob
+
+- name: Build DFSP host entries list
+  ansible.builtin.set_fact:
+    dfsp_host_entries: >-
+      {{ (_hostaliases_blob.content | b64decode | from_json).spec.template.spec.hostAliases
+         | map('combine', {})
+         | list
+         | json_query('[*].{ip: ip, host: hostnames[0]}') }}
+
+- name: Set CoreDNS template facts
+  ansible.builtin.set_fact:
+    switch_node_ip: "{{ _switch_node_ip.stdout }}"
+
+- name: Render CoreDNS Corefile patch to a temp file
+  ansible.builtin.template:
+    src: coredns-corefile.j2
+    dest: "{{ scenario_artifacts_dir }}/coredns-corefile-mtls.yaml"
+    mode: '0644'
+
+- name: Patch switch CoreDNS with hosts{} block
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n kube-system patch configmap coredns \
+      --type merge --patch-file {{ scenario_artifacts_dir }}/coredns-corefile-mtls.yaml
+  register: _cdns_patch
+  changed_when: "'configured' in _cdns_patch.stdout or 'patched' in _cdns_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Restart CoreDNS
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n kube-system rollout restart deployment coredns
+    kubectl --kubeconfig={{ kc_switch }} -n kube-system rollout status  deployment coredns --timeout=120s
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Patch the four switch callback Deployments with mTLS hostAliases
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
+      --type=strategic -p "$(cat {{ hostaliases_mtls_json }})"
+  loop: "{{ mtls_callback_deployments }}"
+  register: _ha_patch
+  changed_when: "'patched' in _ha_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for callback Deployment rollouts
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status deployment {{ item }} --timeout=600s
+  loop: "{{ mtls_callback_deployments }}"
+  changed_when: false
+  environment: "{{ kubectl_env }}"

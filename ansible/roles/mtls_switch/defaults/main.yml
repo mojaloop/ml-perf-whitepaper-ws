@@ -1,0 +1,36 @@
+---
+# Switch-side mTLS Phase 1A + Phase 3 from infrastructure/mtls/README.md.
+# This role does:
+#  - Installs Gateway API CRDs + istio-base + istiod + istio-ingressgateway
+#  - Patches nginx (free :443 for Istio ingress)
+#  - Applies Leg A inbound resources (cert + Gateway + VirtualServices)
+#  - Phase 3: installs istio-egressgateway, pins ClusterIP, applies Leg B
+#    resources, patches switch CoreDNS for DFSP host mappings, and re-points
+#    callback Deployments' hostAliases at the egress gateway
+
+istio_version: "{{ chart_versions.istio }}"
+gateway_api_url: >-
+  https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+
+ingressgateway_values: "{{ common_dir }}/istio-ingressgateway.yaml"
+egressgateway_values:  "{{ common_dir }}/istio-egressgateway.yaml"
+
+# Static manifests (always-applied content):
+mtls_switch_inbound:        "{{ repo_root }}/manifests/mtls/switch-inbound.yaml"
+mtls_switch_outbound:       "{{ repo_root }}/manifests/mtls/switch-outbound.yaml"
+mtls_egressgw_service:      "{{ repo_root }}/manifests/mtls/egressgateway-service.yaml"
+mtls_switch_tls_secret:     "{{ repo_root }}/certs/switch-tls-secret.yaml"
+hostaliases_mtls_json:      "{{ repo_root }}/manifests/mojaloop/hostaliases-mtls.json"
+
+# Switch callback Deployments that originate DFSP-bound traffic — they
+# need hostAliases override to reach the egress gateway ClusterIP.
+mtls_callback_deployments:
+  - moja-ml-api-adapter-handler-notification
+  - moja-account-lookup-service
+  - moja-quoting-service
+  - moja-quoting-service-handler
+
+# Egress gateway pinned ClusterIP — must agree with the Service manifest
+# AND with hostaliases-mtls.json. If the IP is taken on a fresh cluster,
+# update both files together.
+egressgateway_pinned_ip: 10.152.183.200

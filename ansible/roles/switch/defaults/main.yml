@@ -1,0 +1,51 @@
+---
+mojaloop_chart: mojaloop/mojaloop
+mojaloop_release: moja
+mojaloop_version: "{{ chart_versions.mojaloop }}"
+
+mojaloop_values_files:
+  - "{{ common_dir }}/mojaloop.yaml"
+  - "{{ scenario_overrides_dir }}/mojaloop.yaml"
+
+# hostAliases JSON emitted by playbooks/06-generate-hostaliases.yml.
+# Patched onto the four ALS / Quoting / ML-API-Adapter / TTK-backend
+# Deployments BEFORE mTLS Phase 3 — Phase 3 then overwrites these with
+# the egress-gateway hostAliases via mtls_switch role.
+mojaloop_hostaliases_json: "{{ scenario_artifacts_dir }}/hostaliases.json"
+
+# Pre-mTLS hostAliases targets (DFSP node IPs, scenario-specific).
+mojaloop_hostalias_deployments:
+  - moja-account-lookup-service
+  - moja-quoting-service-handler
+  - moja-ml-api-adapter-handler-notification
+
+mojaloop_hostalias_statefulsets:
+  - moja-ml-testing-toolkit-backend
+
+# ConfigMap overrides — keys map to ConfigMap names; values to JSON files
+# under scenarios/<x>/configmaps/. Used when the scenario directory
+# defines a configmaps/ subdirectory.
+mojaloop_configmap_patches:
+  moja-account-lookup-service-config:                    account-lookup-service-config.json
+  moja-quoting-service-config:                           quoting-service-config.json
+  moja-quoting-service-handler-config:                   quoting-service-handler-config.json
+  moja-ml-api-adapter-service-config:                    ml-api-adapter-service-config.json
+  moja-ml-api-adapter-handler-notification-config:       ml-api-adapter-handler-notification-config.json
+  moja-centralledger-handler-transfer-prepare-config:    centralledger-handler-transfer-prepare-config.json
+  moja-handler-pos-batch-config:                         handler-pos-batch-config.json
+  moja-centralledger-handler-transfer-fulfil-config:     centralledger-handler-transfer-fulfil-config.json
+
+# Deployments restarted (scale 0 → N) after a configmap-patch round.
+mojaloop_restart_deployments:
+  - moja-account-lookup-service
+  - moja-centralledger-handler-transfer-fulfil
+  - moja-centralledger-handler-transfer-prepare
+  - moja-handler-pos-batch
+  - moja-ml-api-adapter-handler-notification
+  - moja-ml-api-adapter-service
+  - moja-quoting-service
+  - moja-quoting-service-handler
+
+# NetworkPolicy that constrains mojaloop ingress (optional).
+mojaloop_network_policy: "{{ repo_root }}/manifests/mojaloop/network-policy.yaml"
+apply_network_policy: false

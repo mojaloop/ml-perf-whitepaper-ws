@@ -1,0 +1,102 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Filter to existing values files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ mojaloop_values_files }}"
+  register: _moja_values_stat
+
+- name: Build helm -f arg list
+  ansible.builtin.set_fact:
+    _moja_values_args: >-
+      {{ _moja_values_stat.results
+         | selectattr('stat.exists')
+         | map(attribute='item')
+         | map('regex_replace', '^(.*)$', '-f \1')
+         | join(' ') }}
+
+- name: Helm install/upgrade Mojaloop switch
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} upgrade --install \
+      {{ mojaloop_release }} {{ mojaloop_chart }} \
+      --version {{ mojaloop_version }} \
+      {{ _moja_values_args }} \
+      --wait --timeout 15m
+  register: _moja_helm
+  changed_when: "'has been upgraded' in _moja_helm.stdout or 'has been deployed' in _moja_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Apply NetworkPolicy (optional)
+  when: apply_network_policy
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} apply -f {{ mojaloop_network_policy }}
+  register: _np
+  changed_when: "'created' in _np.stdout or 'configured' in _np.stdout"
+  environment: "{{ kubectl_env }}"
+
+# ---- hostAliases (pre-mTLS step) ----
+# Patches the four DFSP-callback Deployments + TTK backend with the
+# DFSP node IPs. mtls_switch role overrides this for the mTLS callback
+# Deployments later (egress gateway IP).
+
+- name: Stat hostAliases JSON
+  ansible.builtin.stat:
+    path: "{{ mojaloop_hostaliases_json }}"
+  register: _ha_stat
+
+- name: Patch Deployments with hostAliases
+  when: _ha_stat.stat.exists
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
+      --type=strategic --patch "$(cat {{ mojaloop_hostaliases_json }})"
+  loop: "{{ mojaloop_hostalias_deployments }}"
+  register: _ha_dep
+  changed_when: "'patched' in _ha_dep.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Patch StatefulSets with hostAliases
+  when: _ha_stat.stat.exists
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch statefulset {{ item }} \
+      --type=strategic --patch "$(cat {{ mojaloop_hostaliases_json }})"
+  loop: "{{ mojaloop_hostalias_statefulsets }}"
+  register: _ha_sts
+  changed_when: "'patched' in _ha_sts.stdout"
+  environment: "{{ kubectl_env }}"
+
+# ---- Per-scenario configmap overrides ----
+
+- name: Stat scenario configmaps directory
+  ansible.builtin.stat:
+    path: "{{ scenario_dir }}/configmaps"
+  register: _cm_dir_stat
+
+- name: Patch Mojaloop configmaps from scenario overrides
+  when: _cm_dir_stat.stat.exists
+  ansible.builtin.shell: |
+    file="{{ scenario_dir }}/configmaps/{{ item.value }}"
+    if [ -f "$file" ]; then
+      kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch configmap {{ item.key }} \
+        --type merge -p "$(jq -n --arg cfg "$(cat $file)" '{data: {"default.json": $cfg}}')"
+    else
+      echo "skip: $file not present"
+    fi
+  loop: "{{ mojaloop_configmap_patches | dict2items }}"
+  register: _cm_patch
+  changed_when: "'patched' in (_cm_patch.stdout | default(''))"
+  environment: "{{ kubectl_env }}"
+
+- name: Restart core deployments after configmap changes
+  when: _cm_dir_stat.stat.exists
+  ansible.builtin.shell: |
+    replicas=$(kubectl --kubeconfig={{ kc_switch }} get deploy {{ item }} -n {{ ns_mojaloop }} -o jsonpath='{.spec.replicas}')
+    kubectl --kubeconfig={{ kc_switch }} scale deploy/{{ item }} -n {{ ns_mojaloop }} --replicas=0
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status deploy/{{ item }} --timeout=120s || true
+    kubectl --kubeconfig={{ kc_switch }} scale deploy/{{ item }} -n {{ ns_mojaloop }} --replicas=$replicas
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status deploy/{{ item }} --timeout=600s
+  loop: "{{ mojaloop_restart_deployments }}"
+  changed_when: false
+  environment: "{{ kubectl_env }}"
