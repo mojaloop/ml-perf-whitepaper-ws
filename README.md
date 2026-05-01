@@ -1,129 +1,69 @@
 # Mojaloop Performance Testing Workstream
 
-End-to-end perf lab for the Mojaloop financial switch — Terraform provisions
-AWS infra, Ansible deploys MicroK8s + the Mojaloop stack on top, k6 drives
-load through 8 DFSP simulators with mTLS on both legs, and per-scenario
-configs target 500 / 1000 / 2000 TPS.
+End-to-end perf lab: Terraform on AWS → Ansible deploys MicroK8s + Mojaloop
++ 8 DFSP simulators with mTLS → k6 drives load. Per-scenario configs target
+500 / 1000 / 2000 TPS.
 
-Single root `Makefile` chains 14 atomic stages. Each stage is callable on
-its own — re-runnable mid-deploy without restarting from scratch.
+Each `make` stage is idempotent — re-run any failing stage in place.
 
-## Quick start (500 TPS scenario, fresh AWS account)
+## Prerequisites
+
+- AWS account; profile `<AWS_PROFILE>` in `~/.aws/credentials`
+- SSH key pair in AWS named `<SSH_KEY_NAME>`; private key at
+  `~/.ssh/<SSH_KEY_NAME>.pem` (mode 0600)
+- Local: `terraform`, `ansible`, `kubectl`, `helm`, `make`, `ssh`
+
+## Setup once
 
 ```bash
-# 0. Once:
-#      cp .env.example .env       # then fill in DOCKERHUB_* values
-#    Plus, on the operator's laptop:
-#      ~/.aws/credentials must have a [<AWS_PROFILE>] entry with valid creds
-#      ~/.ssh/<SSH_KEY_NAME>.pem must exist with mode 0600
-#    The .env is scenario-agnostic and lives at the repo root (gitignored).
-
-# 1. AWS infra (~10 min): VPC, bastion, switch nodes (3), DFSP nodes (8), k6 node
-make terraform-init
-make terraform-plan  SCENARIO=500tps
-make terraform-apply  SCENARIO=500tps
-
-# 2. SOCKS tunnel through bastion (every shell session)
-make tunnel           SCENARIO=500tps
-
-# 3. MicroK8s on all 12 nodes, form clusters, write kubeconfigs +
-#    hostaliases.json (~15 min)
-make k8s              SCENARIO=500tps
-
-# 4. App layer — each is one playbook, each idempotent
-make backend          SCENARIO=500tps   # Kafka/MySQL/MongoDB/Redis on switch
-make switch           SCENARIO=500tps   # Mojaloop core helm + configmap patches
-make mtls             SCENARIO=500tps   # Istio install + Leg A inbound + Leg B egress gateway
-make dfsp             SCENARIO=500tps   # 8 sims, mTLS Phase 1B baked in, scaled
-make k6               SCENARIO=500tps   # k6-operator + cluster CoreDNS
-
-# 5. Wire data (TTK collections + MSISDN seed)
-make onboard          SCENARIO=500tps   # TTK hub setup + DFSP onboarding (Jobs)
-make provision        SCENARIO=500tps   # 1000 MSISDNs/FSP into ALS DB + sim repos
-
-# 6. Validate
-make smoke            SCENARIO=500tps   # single transfer reaches COMPLETED
-
-# 7. Run the load test
-make load             SCENARIO=500tps   # k6 TestRun; per-pod logs land in scenarios/500tps/results/<UTC-stamp>/
+cp .env.example .env
+# edit .env: set AWS_PROFILE, AWS_DEFAULT_REGION, SSH_KEY_NAME,
+#            DOCKERHUB_{USERNAME,TOKEN,EMAIL}, MYSQL_ROOT_PASSWORD
 ```
 
-Or compress steps 4–6 into one: `make deploy SCENARIO=500tps` chains
+## Run the 500 TPS scenario from scratch
+
+```bash
+make terraform-init
+make terraform-apply  SCENARIO=500tps      # ~10 min   AWS infra
+make tunnel           SCENARIO=500tps      #          SOCKS5 via bastion
+make k8s              SCENARIO=500tps      # ~15 min   MicroK8s + kubeconfigs
+
+make backend          SCENARIO=500tps      # ~5 min    Kafka/MySQL/MongoDB/Redis
+make switch           SCENARIO=500tps      # ~3 min    Mojaloop core
+make mtls             SCENARIO=500tps      # ~2 min    Istio + egress gateway
+make dfsp             SCENARIO=500tps      # ~5 min    8 sims + mTLS Phase 1B
+make k6               SCENARIO=500tps      #          k6-operator + CoreDNS
+
+make onboard          SCENARIO=500tps      # ~1 min    TTK Jobs (see onboard.yaml below)
+make provision        SCENARIO=500tps      # ~1 min    1000 MSISDNs/FSP
+
+make smoke            SCENARIO=500tps      # MUST PASS — single transfer COMPLETED
+make load             SCENARIO=500tps      # k6 TestRun; logs in scenarios/500tps/results/<UTC-stamp>/
+```
+
+Compress steps 4–6 into one: `make deploy SCENARIO=500tps` runs
 `backend → switch → mtls → dfsp → k6 → onboard → provision → smoke`.
 
-Total wall-clock from a fresh AWS account: **~45–60 min**, dominated by
-terraform (10 min) + k8s bootstrap (15 min) + backend Helm wait
-(5–10 min). The app-layer roles each take 1–3 min once their
-dependencies are up. `dfsp` is the slowest (8× helm install + per-FSP
-mTLS plumbing).
+`make help` lists every target. `make terraform-destroy SCENARIO=500tps`
+tears it all down.
 
-If anything fails mid-chain, just re-run the failing target — every
-role drift-corrects.
+## Per-scenario customization
 
-`make help` lists every stage with a one-line description.
+`scenarios/<scenario>/`:
+- `overrides/<chart>.yaml` — diffs against `common/<chart>.yaml`
+- `configmaps/*.json` — per-service Mojaloop configmap patches
+- `onboard.yaml` — manifest of TTK collection files to run during `make onboard`
+- `artifacts/` — generated (kubeconfigs, plans, inventory)
+- `results/<UTC-stamp>/` — per-load-test pod logs
 
-## Repository layout
+## Documentation
 
-```
-ansible/                Roles + playbooks (one role per Make stage)
-  roles/                _common, backend, switch, mtls_switch, dfsp, k6,
-                         monitoring, switch_onboard, dfsp_onboard,
-                         als_provision, sim_provision, smoke_test, load_test
-  playbooks/            One per role + the legacy 01-06 cluster bootstrap
-                         (called by `make k8s`)
-
-certs/                  Lab CA + leaf material (Kubernetes Secret manifests)
-  regen-certs.sh        Rotate the shared CA + SAN leaf
-  jws/                  JWS signing keypair used by the SDK adapters
-
-charts/k6/              Local Helm chart that wraps the k6 TestRun CR
-
-common/                 Default values consumed by every scenario
-  aws.yaml              Terraform/Ansible cluster topology
-  backend.yaml          example-mojaloop-backend chart values
-  mojaloop.yaml         mojaloop chart values
-  istio-{ingress,egress}gateway.yaml
-  monitoring.yaml       promfana chart values
-  k6.yaml               k6 TestRun config
-  dfsp/                 Per-FSP simulator values (values-fsp201..208.yaml)
-
-docs/
-  architecture.md       Topology + component layout
-  mtls.md               Cert chain, Istio install, both mTLS legs
-  parameter-tuning.md   Per-TPS sizing rationale (kafka partitions, replicas)
-  cheatsheet.md         Ad-hoc ops (SOCKS, scale, kafka, mTLS probes)
-
-manifests/              Static k8s manifests (mTLS Istio resources, hostAliases)
-scenarios/<scenario>/
-  overrides/            Per-scenario file pairs that override common/*.yaml
-  configmaps/           Per-scenario service configmap JSONs
-  artifacts/            Generated: kubeconfigs/, inventory.yaml, plans, ...
-  results/<UTC-stamp>/  Per-load-test pod logs
-
-terraform/              AWS provisioning (VPC, EC2, NLB, bastion, IAM)
-tools/                  Debug pods (curl, kafka-ui)
-ttk-collections/        Testing-Toolkit JSON collections (hub setup + sim onboarding)
-```
-
-## What changed vs the original layout
-
-The repo was reorganised from a `infrastructure/<service>/{README.md, deploy.bash}`
-+ `performance-tests/results/<tps>/config-override/*` layout into the structure
-above. Drivers:
-
-- **Single Make orchestrator** at the root replaces three sub-Makefiles.
-- **Common-vs-overrides** for every helm chart: `common/<chart>.yaml` is the
-  base, `scenarios/<x>/overrides/<chart>.yaml` is the diff. No more copying
-  full values files between scenarios.
-- **Ansible roles, not bash scripts** for every deploy step (idempotent,
-  re-runnable), driven by per-role playbooks under `ansible/playbooks/`.
-- **mTLS on by default** — the dfsp role flips OUTBOUND/INBOUND mTLS env
-  vars and mounts the shared cert during initial install, instead of a
-  multi-phase post-install ritual.
-
-See `docs/architecture.md` for the full topology and `docs/mtls.md` for the
-mTLS chain of trust.
+- [docs/architecture.md](docs/architecture.md) — topology + components
+- [docs/mtls.md](docs/mtls.md) — cert chain + both mTLS legs
+- [docs/parameter-tuning.md](docs/parameter-tuning.md) — per-TPS sizing
+- [docs/cheatsheet.md](docs/cheatsheet.md) — ad-hoc ops
 
 ## License
 
-[LICENSE.md](LICENSE.md).
+[LICENSE.md](LICENSE.md)
