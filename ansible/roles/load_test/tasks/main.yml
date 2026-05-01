@@ -49,10 +49,10 @@
 
 - name: Wait for k6 TestRun completion
   ansible.builtin.shell: |
-    # k6-operator marks the TestRun's "stage" as "finished" when done.
-    # The TestRun resource is named "<release>-k6-test" (chart convention).
-    # We address by name (not label selector — the chart only emits
-    # `app.kubernetes.io/managed-by=Helm`, no instance label).
+    # k6-operator marks the TestRun stage field as finished when done.
+    # The TestRun resource is named <release>-k6-test (chart convention).
+    # We address by name (not label selector) because the chart only
+    # emits app.kubernetes.io/managed-by=Helm, no instance label.
     TR={{ k6_release }}-k6-test
     end=$(( $(date +%s) + {{ load_test_wait_timeout }} ))
     while [ "$(date +%s)" -lt "$end" ]; do
