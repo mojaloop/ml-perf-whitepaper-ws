@@ -8,3 +8,7 @@ artifacts_dir: "{{ playbook_dir }}/../../scenarios/{{ scenario | default('base',
 # Bastion configuration for kubeconfig ProxyCommand
 bastion_host: "{{ hostvars[groups['bastion'][0]]['ansible_host'] }}"
 bastion_user: ubuntu
+
+# Note: ssh-config is wired in via ANSIBLE_SSH_ARGS env var by the
+# root Makefile (single source of truth). Group-vars approach didn't
+# work for wait_for_connection / become tasks.

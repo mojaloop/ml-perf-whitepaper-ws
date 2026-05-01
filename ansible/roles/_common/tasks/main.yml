@@ -1,0 +1,26 @@
+---
+# Pre-flight checks shared by every deployment role.
+# Roles include this via `import_role: name=_common` at the top of
+# their tasks/main.yml.
+
+- name: Verify SOCKS tunnel is up
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 1080
+    timeout: 2
+    msg: |
+      SOCKS5 tunnel on 127.0.0.1:1080 is not up.
+      Start it with: make tunnel SCENARIO={{ scenario }}
+
+- name: Verify scenario artifacts directory exists
+  ansible.builtin.stat:
+    path: "{{ scenario_artifacts_dir }}"
+  register: _artifacts_stat
+
+- name: Fail if scenario artifacts are missing
+  ansible.builtin.fail:
+    msg: |
+      Scenario artifacts not found at {{ scenario_artifacts_dir }}.
+      Run `make terraform-apply SCENARIO={{ scenario }}` and
+      `make k8s SCENARIO={{ scenario }}` first.
+  when: not _artifacts_stat.stat.exists

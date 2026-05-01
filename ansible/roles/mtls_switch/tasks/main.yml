@@ -41,10 +41,15 @@
   changed_when: "'created' in _gw_crds.stdout or 'configured' in _gw_crds.stdout"
   environment: "{{ kubectl_env }}"
 
+# --force-conflicts --take-ownership: re-runs of istio chart upgrades fail
+# under Helm 4 SSA when shared CRD/Webhook fields have been touched by
+# istiod (pilot-discovery becomes the field owner). Force helm to take
+# ownership back. Safe — these resources are managed by Istio charts only.
 - name: Helm install istio-base
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
-      istio-base istio/base --create-namespace --version {{ istio_version }} --wait
+      istio-base istio/base --create-namespace --version {{ istio_version }} --wait \
+      --force-conflicts --take-ownership
   register: _h_base
   changed_when: "'has been upgraded' in _h_base.stdout or 'has been deployed' in _h_base.stdout"
   environment: "{{ kubectl_env }}"
@@ -52,7 +57,8 @@
 - name: Helm install istiod
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
-      istiod istio/istiod --version {{ istio_version }} --wait
+      istiod istio/istiod --version {{ istio_version }} --wait \
+      --force-conflicts --take-ownership
   register: _h_istiod
   changed_when: "'has been upgraded' in _h_istiod.stdout or 'has been deployed' in _h_istiod.stdout"
   environment: "{{ kubectl_env }}"
@@ -62,6 +68,7 @@
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
       istio-ingressgateway istio/gateway \
       --version {{ istio_version }} --wait --skip-schema-validation \
+      --force-conflicts --take-ownership \
       -f {{ ingressgateway_values }}
   register: _h_ingw
   changed_when: "'has been upgraded' in _h_ingw.stdout or 'has been deployed' in _h_ingw.stdout"
@@ -107,6 +114,7 @@
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
       istio-egressgateway istio/gateway \
       --version {{ istio_version }} --wait --skip-schema-validation \
+      --force-conflicts --take-ownership \
       -f {{ egressgateway_values }}
   register: _h_eggw
   changed_when: "'has been upgraded' in _h_eggw.stdout or 'has been deployed' in _h_eggw.stdout"
@@ -185,9 +193,17 @@
   changed_when: "'patched' in _ha_patch.stdout"
   environment: "{{ kubectl_env }}"
 
-- name: Wait for callback Deployment rollouts
+- name: Wait for callback Deployment rollouts (parallel; kafka-consuming handlers are slow)
   ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status deployment {{ item }} --timeout=600s
-  loop: "{{ mtls_callback_deployments }}"
+    set -e
+    pids=()
+    for d in {{ mtls_callback_deployments | join(' ') }}; do
+      kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} \
+        rollout status deployment "$d" --timeout=1200s &
+      pids+=($!)
+    done
+    rc=0
+    for p in "${pids[@]}"; do wait "$p" || rc=$?; done
+    exit $rc
   changed_when: false
   environment: "{{ kubectl_env }}"

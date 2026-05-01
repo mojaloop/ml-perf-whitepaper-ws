@@ -2,7 +2,8 @@
 kubeconfig-*
 *.log
 .DS_Store
-_*
+# Top-level _-prefixed dirs (_ext-rs/, _legacy/, _test/) — root-only, not nested.
+/_*
 
 # Local secrets — root .env (scenario-agnostic). Template lives at .env.example.
 /.env

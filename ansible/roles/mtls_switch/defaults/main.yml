@@ -31,6 +31,8 @@ mtls_callback_deployments:
   - moja-quoting-service-handler
 
 # Egress gateway pinned ClusterIP — must agree with the Service manifest
-# AND with hostaliases-mtls.json. If the IP is taken on a fresh cluster,
-# update both files together.
-egressgateway_pinned_ip: 10.152.183.200
+# AND with hostaliases-mtls.json. Originally .200; bumped to .254 because
+# .200 collided with the example-mojaloop-backend mysqldb Service when
+# backend deployed first. .254 is in the high range, well clear of
+# auto-allocated IPs (which cluster < .100 in MicroK8s).
+egressgateway_pinned_ip: 10.152.183.254

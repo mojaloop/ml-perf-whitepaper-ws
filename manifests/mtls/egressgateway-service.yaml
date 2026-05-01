@@ -17,7 +17,7 @@ metadata:
     istio: egressgateway
 spec:
   type: ClusterIP
-  clusterIP: 10.152.183.200
+  clusterIP: 10.152.183.254
   selector:
     app: istio-egressgateway
     istio: egressgateway

@@ -19,8 +19,9 @@ TF_DIR   := terraform
 ANS_DIR  := ansible
 ARTIFACTS_DIR := scenarios/$(SCENARIO)/artifacts
 
-# ANSIBLE invocation defaults — every play uses scenarios/<scenario>/artifacts/inventory.yaml
-ANS_INV := -i $(ARTIFACTS_DIR)/inventory.yaml
+# ANSIBLE invocation defaults. The Makefile `cd ansible &&` first, so
+# inventory path must be ../-relative to that.
+ANS_INV := -i ../$(ARTIFACTS_DIR)/inventory.yaml
 ANS_EXTRA := -e scenario=$(SCENARIO)
 ANS := cd $(ANS_DIR) && SCENARIO=$(SCENARIO) ansible-playbook $(ANS_INV) $(ANS_EXTRA)
 
@@ -43,6 +44,29 @@ export ANSIBLE_PRIVATE_KEY_FILE := $(HOME)/.ssh/$(SSH_KEY_NAME).pem
 export TF_VAR_ssh_key_name      := $(SSH_KEY_NAME)
 endif
 
+# Terraform consumes a single config file; pick scenario override if it
+# exists, else fall back to common/aws.yaml. Path is relative to the
+# terraform/ working directory (where `cd terraform &&` runs).
+SCENARIO_AWS_YAML := scenarios/$(SCENARIO)/overrides/aws.yaml
+ifneq ("$(wildcard $(SCENARIO_AWS_YAML))","")
+  export TF_VAR_config_file_path := ../$(SCENARIO_AWS_YAML)
+else
+  export TF_VAR_config_file_path := ../common/aws.yaml
+endif
+
+# Per-scenario terraform state isolation via workspaces. Each scenario
+# gets its own state under terraform/terraform.tfstate.d/<scenario>/.
+export TF_WORKSPACE := $(SCENARIO)
+
+# Where terraform writes inventory.yaml + ssh-config + kubeconfigs.
+export TF_VAR_artifacts_dir := ../$(ARTIFACTS_DIR)
+
+# Tell ansible's ssh connection plugin to use the terraform-emitted
+# ssh-config (so hostnames like sw1-n1, fsp201 resolve via ProxyJump).
+# Must include the ControlMaster opts that ansible.cfg's ssh_args
+# normally supplies — this env var REPLACES that setting.
+export ANSIBLE_SSH_ARGS := -o ControlMaster=auto -o ControlPersist=30m -o ServerAliveInterval=60 -F $(CURDIR)/$(ARTIFACTS_DIR)/ssh-config
+
 .PHONY: help tunnel \
         terraform-init terraform-plan terraform-apply terraform-destroy \
         k8s backend monitoring switch mtls dfsp k6 onboard provision smoke load \
@@ -55,30 +79,37 @@ tunnel: ## Open SOCKS5 tunnel via bastion (background, scenario-aware)
 	@if lsof -iTCP:1080 -sTCP:LISTEN >/dev/null 2>&1; then \
 	  echo "==> SOCKS tunnel already up on :1080"; \
 	else \
-	  ssh -F $(ARTIFACTS_DIR)/ssh-config -D 1080 perf-jump-host -N & \
-	  sleep 2 && echo "==> SOCKS tunnel started (PID $$!)"; \
+	  ssh -F $(ARTIFACTS_DIR)/ssh-config -D 1080 -N -f perf-jump-host && \
+	    echo "==> SOCKS tunnel started"; \
 	fi
 
 # ===========================================================================
 # 2-5. Terraform (4 atomic targets)
 # ===========================================================================
+# Workspace selection — ensures the scenario-named workspace exists.
+# TF_WORKSPACE must be UNSET for `terraform workspace` subcommands;
+# downstream plan/apply pick it up from the environment-level export.
+_tf-workspace:
+	@cd $(TF_DIR) && unset TF_WORKSPACE && \
+	  (terraform workspace select $(SCENARIO) 2>/dev/null \
+	   || terraform workspace new $(SCENARIO)) >/dev/null
+
 terraform-init: ## Initialize terraform providers
-	cd $(TF_DIR) && terraform init -upgrade
+	cd $(TF_DIR) && TF_WORKSPACE= terraform init -upgrade
 
-terraform-plan: ## Plan AWS infra (writes plan to scenarios/<scenario>/artifacts/)
+terraform-plan: _tf-workspace ## Plan AWS infra (writes plan to scenarios/<scenario>/artifacts/)
 	@mkdir -p $(ARTIFACTS_DIR)
-	cd $(TF_DIR) && terraform plan -var "scenario=$(SCENARIO)" \
-	  -out ../$(ARTIFACTS_DIR)/terraform.plan
+	cd $(TF_DIR) && terraform plan -out ../$(ARTIFACTS_DIR)/terraform.plan
 
-terraform-apply: ## Apply the saved plan (or create+apply if missing)
+terraform-apply: _tf-workspace ## Apply the saved plan (or create+apply if missing)
 	@if [ -f $(ARTIFACTS_DIR)/terraform.plan ]; then \
 	  cd $(TF_DIR) && terraform apply ../$(ARTIFACTS_DIR)/terraform.plan; \
 	else \
-	  cd $(TF_DIR) && terraform apply -auto-approve -var "scenario=$(SCENARIO)"; \
+	  cd $(TF_DIR) && terraform apply -auto-approve; \
 	fi
 
-terraform-destroy: ## Destroy AWS infra for the active scenario
-	cd $(TF_DIR) && terraform destroy -var "scenario=$(SCENARIO)"
+terraform-destroy: _tf-workspace ## Destroy AWS infra for the active scenario
+	cd $(TF_DIR) && terraform destroy
 
 # ===========================================================================
 # 6. k8s — bootstrap MicroK8s clusters (existing playbooks 01-06)

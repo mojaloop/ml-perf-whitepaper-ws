@@ -3,7 +3,7 @@
     "template": {
       "spec": {
         "hostAliases": [
-          { "ip": "10.152.183.200", "hostnames": ["sim-fsp201.local", "sim-fsp202.local", "sim-fsp203.local", "sim-fsp204.local", "sim-fsp205.local", "sim-fsp206.local", "sim-fsp207.local", "sim-fsp208.local"] }
+          { "ip": "10.152.183.254", "hostnames": ["sim-fsp201.local", "sim-fsp202.local", "sim-fsp203.local", "sim-fsp204.local", "sim-fsp205.local", "sim-fsp206.local", "sim-fsp207.local", "sim-fsp208.local"] }
         ]
       }
     }

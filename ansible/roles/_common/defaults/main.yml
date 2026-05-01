@@ -1,0 +1,60 @@
+---
+# Shared defaults consumed by every deployment role.
+# Loaded by including the _common role (`- import_role: name=_common`)
+# at the start of any consumer role's tasks/main.yml.
+
+# Scenario selection — overrides under scenarios/<scenario>/overrides/
+# fall through to common/* when missing.
+scenario: "{{ lookup('env', 'SCENARIO') | default('base', true) }}"
+
+# Repo paths (resolved relative to the playbook). Playbooks live in
+# ansible/playbooks/ so we go up two levels.
+repo_root: "{{ playbook_dir }}/../.."
+common_dir: "{{ repo_root }}/common"
+scenario_dir: "{{ repo_root }}/scenarios/{{ scenario }}"
+scenario_overrides_dir: "{{ scenario_dir }}/overrides"
+scenario_artifacts_dir: "{{ scenario_dir }}/artifacts"
+scenario_results_dir: "{{ scenario_dir }}/results"
+
+kubeconfig_dir: "{{ scenario_artifacts_dir }}/kubeconfigs"
+kc_switch: "{{ kubeconfig_dir }}/kubeconfig-mojaloop-switch.yaml"
+kc_k6:     "{{ kubeconfig_dir }}/kubeconfig-k6.yaml"
+# Per-DFSP: "{{ kubeconfig_dir }}/kubeconfig-fsp{{ idx }}.yaml" — built per-task.
+
+dfsp_indices: [201, 202, 203, 204, 205, 206, 207, 208]
+
+# SOCKS proxy assumed to be listening on the laptop. Tunnel is brought up
+# by `make tunnel`; roles inherit HTTPS_PROXY in their shell environments.
+https_proxy: "socks5://127.0.0.1:1080"
+
+# Default kubectl/helm environment for shell tasks.
+kubectl_env:
+  HTTPS_PROXY: "{{ https_proxy }}"
+
+# Chart versions — pinned. Override per-role if needed.
+chart_versions:
+  mojaloop: "17.1.0"
+  mojaloop_backend: "17.1.0"
+  mojaloop_simulator: "15.10.0"
+  istio: "1.24.1"
+  k6_operator: latest
+
+# Namespaces.
+ns_mojaloop: mojaloop
+ns_dfsps: dfsps
+ns_istio: istio-system
+ns_k6_test: k6-test
+ns_k6_operator: k6-operator
+
+# Helm repo URLs.
+helm_repos:
+  mojaloop: https://mojaloop.io/helm/repo/
+  istio: https://istio-release.storage.googleapis.com/charts
+  grafana: https://grafana.github.io/helm-charts
+
+# Image-pull secret material (consumed wherever DFSP/switch/k6 need
+# Docker Hub access). Sourced from .env via TF_VAR-style export, or
+# directly from the shell environment at playbook invocation.
+dockerhub_username: "{{ lookup('env', 'DOCKERHUB_USERNAME') }}"
+dockerhub_token:    "{{ lookup('env', 'DOCKERHUB_TOKEN') }}"
+dockerhub_email:    "{{ lookup('env', 'DOCKERHUB_EMAIL') }}"

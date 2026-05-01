@@ -11,15 +11,15 @@ variable "ssh_key_name" {
 # Optional override variables (can be set via terraform.tfvars or command line)
 
 variable "config_file_path" {
-  description = "Path to the configuration YAML file"
+  description = "Path to the configuration YAML file. Set by Makefile via TF_VAR_config_file_path: scenario override if present, else common/aws.yaml."
   type        = string
-  default     = "../config.yaml"
+  default     = "../common/aws.yaml"
 }
 
 variable "artifacts_dir" {
-  description = "Directory for generated artifacts (inventory, kubeconfigs, state files)"
+  description = "Directory for generated artifacts. Set by Makefile via TF_VAR_artifacts_dir to ../scenarios/<scenario>/artifacts."
   type        = string
-  default     = "../artifacts"
+  default     = "../scenarios/base/artifacts"
 }
 
 variable "override_project_name" {

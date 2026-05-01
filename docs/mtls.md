@@ -67,7 +67,7 @@ kubectl -n istio-system exec ${GPOD} -- pilot-agent request GET config_dump \
 The harder leg. We use the **Istio egress gateway pattern**:
 
 - A second Istio Deployment (`istio-egressgateway`) in `istio-system`
-  with a **pinned ClusterIP `10.152.183.200`** originates switch→DFSP
+  with a **pinned ClusterIP `10.152.183.254`** originates switch→DFSP
   mTLS.
 - The four switch callback Deployments
   (`moja-ml-api-adapter-handler-notification`,
@@ -94,7 +94,7 @@ Resources (in this repo):
 | Path | Purpose |
 |---|---|
 | `common/istio-egressgateway.yaml` | Helm values for the egress gateway. `service.type: None` so the chart skips its own Service (it has no `service.clusterIP` field). |
-| `manifests/mtls/egressgateway-service.yaml` | Standalone Service with the **pinned ClusterIP `10.152.183.200`**. Must agree with `manifests/mojaloop/hostaliases-mtls.json`. |
+| `manifests/mtls/egressgateway-service.yaml` | Standalone Service with the **pinned ClusterIP `10.152.183.254`**. Must agree with `manifests/mojaloop/hostaliases-mtls.json`. |
 | `manifests/mtls/switch-outbound.yaml` | `Gateway` (port 80, hosts `sim-fsp*.local`) + 8× `ServiceEntry` (`resolution: DNS`) + 8× `VirtualService` (URI prefix `/sim/fspNNN/inbound/` rewritten to `/`) + 8× `DestinationRule` (`MUTUAL` origination on `:443`, SNI = DFSP host). |
 | `manifests/mojaloop/hostaliases-mtls.json` | The strategic-merge patch applied to the four callback Deployments. |
 | `manifests/mtls/dfsp-passthrough.yaml.j2` | Per-DFSP passthrough Ingress (`:443` → SDK `:4000`); `fspNNN` substituted at apply time. |
@@ -113,7 +113,7 @@ Ingress, swaps the SDK volumes to `mtls-shared-creds`, and sets
 
 ## Pinned ClusterIP
 
-`10.152.183.200` is the egress gateway's pinned ClusterIP, picked from
+`10.152.183.254` is the egress gateway's pinned ClusterIP, picked from
 the MicroK8s default service CIDR `10.152.183.0/24`. **Two files must
 agree on this IP**:
 

@@ -3,8 +3,6 @@
 
 # AWS Configuration
 aws:
-  profile: gtmlab
-  region: eu-west-2
   availability_zone: eu-west-2b
 
   # Performance optimizations
@@ -21,9 +19,6 @@ project:
   name: p-202603061651
   environment: perf-test
 
-# SSH Configuration
-ssh:
-  key_name: ndelma-gtm-202504091000
 
 # Network Configuration
 network:
@@ -460,12 +455,10 @@ k8s:
 # Terraform Backend Configuration (for state management)
 terraform:
   backend:
-    type: s3  # or local
+    type: local
     s3:
       bucket: "terraform-state-${project.name}"  # Will be interpolated
       key: "infrastructure/terraform.tfstate"
-      region: "${aws.region}"
-      profile: "${aws.profile}"
       encrypt: true
       dynamodb_table: "terraform-state-lock-${project.name}"
 
