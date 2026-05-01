@@ -26,7 +26,7 @@ cp .env.example .env
 ```bash
 make terraform-init
 make terraform-apply  SCENARIO=500tps      # ~10 min   AWS infra
-make tunnel           SCENARIO=500tps      #          SOCKS5 via bastion
+make tunnel           SCENARIO=500tps      # SOCKS5 via bastion. To stop: lsof -ti :1080 | xargs kill
 make k8s              SCENARIO=500tps      # ~15 min   MicroK8s + kubeconfigs
 
 make backend          SCENARIO=500tps      # ~5 min    Kafka/MySQL/MongoDB/Redis
