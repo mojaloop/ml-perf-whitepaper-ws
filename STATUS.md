@@ -35,9 +35,15 @@ scenarios/ terraform/ tools/ ttk-collections/` + `Makefile` + `README.md`
    env.json -i master.json`. **Verify on real deploy** that the CLI
    args + image entrypoint are still correct — fall back to
    `ansible.builtin.uri` loops (path B) if the image is broken.
-2. **JWS-fix image kept in `ansible/roles/dfsp/defaults/main.yml`** as
-   `dfsp_sdk_image_override: kirgene/sdk-scheme-adapter:jws-fix` with
-   a TODO comment to drop when upstream ships the fix.
+2. **JWS-fix image baked into scenario overrides (not common/) — REVISED 2026-05-01.**
+   `kirgene/sdk-scheme-adapter:jws-fix` and `kirgene/ml-api-adapter:jws-fix`
+   are pinned in `scenarios/500tps/overrides/{dfsp,mojaloop}.yaml`.
+   The dfsp role layers the override onto each per-FSP helm install via
+   `_fsp_override_arg`; the switch role picks up the mojaloop one
+   automatically (it was already in the override -f chain). Old
+   post-install `kubectl set image` workaround (which caused Helm 4 SSA
+   conflicts on re-runs) is removed. TODO: revert the overrides once
+   upstream Mojaloop ships the JWS fix.
 3. **Per-FSP values in `common/dfsp/values-fsp{201..208}.yaml`**
    (transient location). The dfsp role consumes them via
    `dfsp_values_dir: "{{ common_dir }}/dfsp"`. If you'd rather keep
@@ -129,6 +135,14 @@ Each of these is shaped correctly but hasn't run end-to-end:
   and the tunnel happens to be up via some other means (e.g. an
   always-on autossh), it'll still pass. If you use a different SOCKS
   port, override `https_proxy` in your inventory.
+
+## Open improvements (asked to defer)
+
+- **Add `SSH_PRIVATE_KEY_PATH` to `.env`.** Today the path is forced
+  to `${HOME}/.ssh/${SSH_KEY_NAME}.pem` by both Makefile and Terraform.
+  Should accept an explicit override (default to the convention),
+  letting operators keep PEMs anywhere (e.g. `~/.aws/keys/`,
+  `/secrets/`). Asked 2026-05-01.
 
 ## How to verify it actually deploys
 

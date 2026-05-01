@@ -62,25 +62,25 @@
 
 # ---- helm install simulator ----
 
+- name: "fsp{{ fsp_idx }}: stat scenario dfsp.yaml override"
+  ansible.builtin.stat:
+    path: "{{ scenario_overrides_dir }}/dfsp.yaml"
+  register: _scenario_dfsp_stat
+
+- name: "fsp{{ fsp_idx }}: build scenario override -f arg"
+  ansible.builtin.set_fact:
+    _fsp_override_arg: "{{ '--values ' ~ scenario_overrides_dir ~ '/dfsp.yaml' if _scenario_dfsp_stat.stat.exists else '' }}"
+
 - name: "fsp{{ fsp_idx }}: helm install simulator"
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} upgrade --install \
       {{ dfsp_release }} {{ dfsp_chart }} \
       --version {{ dfsp_version }} \
-      --values {{ fsp_values }} \
+      --values {{ fsp_values }} {{ _fsp_override_arg }} \
       --create-namespace \
       --wait --timeout 10m
   register: _dfsp_helm
   changed_when: "'has been upgraded' in _dfsp_helm.stdout or 'has been deployed' in _dfsp_helm.stdout"
-  environment: "{{ kubectl_env }}"
-
-# JWS-fix image override (TODO: drop when upstream ships the fix).
-- name: "fsp{{ fsp_idx }}: override scheme-adapter image (JWS workaround)"
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} set image \
-      deployment/{{ fsp_sdk_deploy }} scheme-adapter={{ dfsp_sdk_image_override }}
-    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} rollout status deployment/{{ fsp_sdk_deploy }} --timeout=180s
-  changed_when: false
   environment: "{{ kubectl_env }}"
 
 # Defuse :80 -> :443 auto-redirect that fires once a TLS Ingress appears.

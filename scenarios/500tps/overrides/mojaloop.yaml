@@ -211,6 +211,11 @@ ml-api-adapter:
     resources: {}
     nodeSelector:
       workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+    # JWS-fix workaround — kirgene fork carries an unreleased fix.
+    # TODO: revert to mojaloop/ml-api-adapter:v16.5.9 once upstream ships.
+    image:
+      repository: kirgene/ml-api-adapter
+      tag: jws-fix
 
   ml-api-adapter-handler-notification:
     enabled: true
@@ -218,6 +223,9 @@ ml-api-adapter:
     resources: {}
     nodeSelector:
       workload-class.mojaloop.io/CORE-HANDLERS: "true"
+    image:
+      repository: kirgene/ml-api-adapter
+      tag: jws-fix
 
 
 centralledger:

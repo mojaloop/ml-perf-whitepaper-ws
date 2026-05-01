@@ -27,5 +27,7 @@ switch_lb_ip: ""
 dfsp_tls_secret:        "{{ repo_root }}/certs/dfsp-tls-secret.yaml"
 dfsp_passthrough_tmpl:  "{{ repo_root }}/manifests/mtls/dfsp-passthrough.yaml.j2"
 
-# JWS-fix workaround image (TODO: drop when upstream ships fix).
-dfsp_sdk_image_override: kirgene/sdk-scheme-adapter:jws-fix
+# Note: scheme-adapter image override (kirgene/...:jws-fix workaround) now
+# lives in scenarios/<scenario>/overrides/dfsp.yaml — layered onto the
+# helm install via per_fsp.yml's _fsp_override_arg. No post-install
+# `kubectl set image` (was source of Helm 4 SSA conflicts on re-runs).

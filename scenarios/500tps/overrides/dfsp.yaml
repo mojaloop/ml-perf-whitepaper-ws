@@ -1,0 +1,58 @@
+# Per-scenario DFSP simulator overrides — layered on top of
+# common/dfsp/values-fspNNN.yaml by the dfsp role's per_fsp loop.
+#
+# Today: pins the kirgene/sdk-scheme-adapter:jws-fix image (workaround
+# for an unreleased upstream JWS fix). One block per FSP because the
+# values structure is keyed by simulator name.
+# TODO: revert to upstream mojaloop/sdk-scheme-adapter:v24.12.0 once the
+# fix ships.
+
+simulators:
+  fsp201:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
+  fsp202:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
+  fsp203:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
+  fsp204:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
+  fsp205:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
+  fsp206:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
+  fsp207:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
+  fsp208:
+    config:
+      schemeAdapter:
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix
