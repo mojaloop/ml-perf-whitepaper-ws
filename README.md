@@ -1,73 +1,90 @@
 # Mojaloop Performance Testing Workstream
 
-This repository contains the complete infrastructure, tooling, and test definitions used to perform **end-to-end performance testing of Mojaloop** at scale (hundreds to thousands of TPS).
+End-to-end perf lab for the Mojaloop financial switch — Terraform provisions
+AWS infra, Ansible deploys MicroK8s + the Mojaloop stack on top, k6 drives
+load through 8 DFSP simulators with mTLS on both legs, and per-scenario
+configs target 500 / 1000 / 2000 TPS.
 
-The workspace is structured to clearly separate **infrastructure provisioning**, **test execution**, and **test results**, making it easy to reproduce, tune, and analyze performance runs.
+Single root `Makefile` chains 14 atomic stages. Each stage is callable on
+its own — re-runnable mid-deploy without restarting from scratch.
 
----
+## Quick start (500 TPS scenario, fresh AWS account)
 
-## Repository Structure
-
-```text
-ML-PERF-WHITEPAPER-WS
-├── infrastructure/
-│   └── README.md
-│       - Provisioning of cloud infrastructure
-│       - Kubernetes clusters (MicroK8s)
-│       - Mojaloop backend, switch, DFSPs
-│       - k6 operator setup
-│
-├── performance-tests/
-│   ├── src/
-│   │   └── README.md
-│   │       - k6 test implementation
-│   │       - Helm chart for k6 Operator
-│   │       - Test configuration and execution scripts
-│   │
-│   └── results/
-│       - Test results (summaries, metrics, logs)
-│       - Scenario-specific configuration overrides
-│       - TPS-specific tuning references (e.g. 500 / 1000 / 2000 TPS)
-│
-├── docs/
-│   - Supporting documentation and notes
-│
-├── README.md
-└── LICENSE.md
+```bash
+# 0. config: drop your AWS creds, DOCKERHUB_*, MYSQL_ROOT_PASSWORD
+#    into scenarios/500tps/.env (gitignored)
+make terraform-init
+make terraform-apply  SCENARIO=500tps    # provision EC2 + VPC + bastion
+make tunnel           SCENARIO=500tps    # bastion SOCKS5 proxy on :1080
+make k8s              SCENARIO=500tps    # MicroK8s cluster (10 clusters)
+make deploy           SCENARIO=500tps    # backend -> switch -> mtls -> dfsp -> k6 -> onboard -> provision -> smoke
+make load             SCENARIO=500tps    # run k6 TestRun, dump per-pod logs
 ```
 
----
+`make help` lists every stage with a one-line description.
 
-## High-level Workflow
+## Repository layout
 
-1. **Provision Infrastructure**  
-   Use Terraform and Ansible to provision compute, networking, and Kubernetes clusters.  
-   See: [`infrastructure/README.md`](infrastructure/README.md)
+```
+ansible/                Roles + playbooks (one role per Make stage)
+  roles/                _common, backend, switch, mtls_switch, dfsp, k6,
+                         monitoring, switch_onboard, dfsp_onboard,
+                         als_provision, sim_provision, smoke_test, load_test
+  playbooks/            One per role + the legacy 01-06 cluster bootstrap
+                         (called by `make k8s`)
 
-2. **Deploy Mojaloop Stack**  
-   Deploy Mojaloop backend services, switch, DFSP simulators, monitoring, and security components.
+certs/                  Lab CA + leaf material (Kubernetes Secret manifests)
+  regen-certs.sh        Rotate the shared CA + SAN leaf
+  jws/                  JWS signing keypair used by the SDK adapters
 
-3. **Prepare Test Data**  
-   Pre-register MSISDNs and verify Kafka, MySQL, and DFSP readiness.
+charts/k6/              Local Helm chart that wraps the k6 TestRun CR
 
-4. **Run Performance Tests**  
-   Execute k6 tests via the k6 Operator from a dedicated k6 cluster.  
-   See: [`performance-tests/README.md`](performance-tests/README.md)
+common/                 Default values consumed by every scenario
+  aws.yaml              Terraform/Ansible cluster topology
+  backend.yaml          example-mojaloop-backend chart values
+  mojaloop.yaml         mojaloop chart values
+  istio-{ingress,egress}gateway.yaml
+  monitoring.yaml       promfana chart values
+  k6.yaml               k6 TestRun config
+  dfsp/                 Per-FSP simulator values (values-fsp201..208.yaml)
 
-5. **Analyze Results**  
-   Review metrics, summaries, and scenario configurations under `performance-tests/results`.
+docs/
+  architecture.md       Topology + component layout
+  mtls.md               Cert chain, Istio install, both mTLS legs
+  parameter-tuning.md   Per-TPS sizing rationale (kafka partitions, replicas)
+  cheatsheet.md         Ad-hoc ops (SOCKS, scale, kafka, mTLS probes)
 
----
+manifests/              Static k8s manifests (mTLS Istio resources, hostAliases)
+scenarios/<scenario>/
+  overrides/            Per-scenario file pairs that override common/*.yaml
+  configmaps/           Per-scenario service configmap JSONs
+  artifacts/            Generated: kubeconfigs/, inventory.yaml, plans, ...
+  results/<UTC-stamp>/  Per-load-test pod logs
 
-## Design Principles
+terraform/              AWS provisioning (VPC, EC2, NLB, bastion, IAM)
+tools/                  Debug pods (curl, kafka-ui)
+ttk-collections/        Testing-Toolkit JSON collections (hub setup + sim onboarding)
+```
 
-- **Reproducibility** – Fully declarative infra and test configuration  
-- **Scalability** – Tested with multiple DFSPs and high TPS targets  
-- **Isolation** – Dedicated clusters for switch, DFSPs, and load generation  
-- **Observability** – Prometheus, Grafana, and Kafka UI support
+## What changed vs the original layout
 
----
+The repo was reorganised from a `infrastructure/<service>/{README.md, deploy.bash}`
++ `performance-tests/results/<tps>/config-override/*` layout into the structure
+above. Drivers:
+
+- **Single Make orchestrator** at the root replaces three sub-Makefiles.
+- **Common-vs-overrides** for every helm chart: `common/<chart>.yaml` is the
+  base, `scenarios/<x>/overrides/<chart>.yaml` is the diff. No more copying
+  full values files between scenarios.
+- **Ansible roles, not bash scripts** for every deploy step (idempotent,
+  re-runnable), driven by per-role playbooks under `ansible/playbooks/`.
+- **mTLS on by default** — the dfsp role flips OUTBOUND/INBOUND mTLS env
+  vars and mounts the shared cert during initial install, instead of a
+  multi-phase post-install ritual.
+
+See `docs/architecture.md` for the full topology and `docs/mtls.md` for the
+mTLS chain of trust.
 
 ## License
 
-This project is licensed under the terms of the [`LICENSE.md`](LICENSE.md).
+[LICENSE.md](LICENSE.md).
