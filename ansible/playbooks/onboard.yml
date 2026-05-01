@@ -1,0 +1,6 @@
+---
+- name: TTK onboarding (manifest-driven, sequential Jobs)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: onboard

@@ -138,9 +138,8 @@ dfsp: ## Deploy 8 DFSP simulators with mTLS Phase 1B + scaling
 k6: ## Set up k6 cluster (operator + dockerhub secret + CoreDNS)
 	$(ANS) playbooks/k6.yml
 
-onboard: ## Hub setup + DFSP onboarding (TTK collections, two stages)
-	$(ANS) playbooks/switch-onboard.yml
-	$(ANS) playbooks/dfsp-onboard.yml
+onboard: ## TTK onboarding — runs Jobs listed in scenarios/<scenario>/onboard.yaml
+	$(ANS) playbooks/onboard.yml
 
 provision: ## Insert MSISDNs into ALS DB + register parties on each sim
 	$(ANS) playbooks/als-provision.yml

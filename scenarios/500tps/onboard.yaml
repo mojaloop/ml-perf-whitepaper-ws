@@ -1,0 +1,29 @@
+# TTK onboarding manifest for the 500tps scenario.
+#
+# Each entry in `jobs` becomes one in-cluster Kubernetes Job that runs
+# the Mojaloop Testing Toolkit CLI against the in-cluster TTK backend
+# (moja-ml-testing-toolkit-backend:5050). Jobs run sequentially in the
+# order listed below; a non-zero exit from any Job stops the chain.
+#
+# Paths are relative to the repo root. The `env` file provides TTK
+# input variables (BASE_CENTRAL_LEDGER_ADMIN, FSP names, MSISDNs, ...).
+# The `files` list is the exact set of TTK collection JSONs the CLI
+# will execute — what's listed runs, nothing else.
+
+env: ttk-collections/perf-env-example.json
+
+jobs:
+  - name: hub-setup
+    files:
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopHub_Setup/hub.json
+
+  - name: sims-onboarding
+    files:
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp201.json
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp202.json
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp203.json
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp204.json
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp205.json
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp206.json
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp207.json
+      - ttk-collections/hub/provisioning/for_golden_path/MojaloopSims_Onboarding/fsp208.json

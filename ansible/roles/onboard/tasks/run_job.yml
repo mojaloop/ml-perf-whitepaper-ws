@@ -1,0 +1,127 @@
+---
+# Per-Job runner. `job` = {name, files} from the manifest.
+#
+# Stages env.json + every file in `files` into a flat per-Job dir, builds
+# a ConfigMap (server-side apply — avoids the 256 KiB client annotation
+# cap), then submits a Kubernetes Job that runs the TTK CLI against the
+# in-cluster TTK backend.
+
+- name: "{{ job.name }}: facts"
+  ansible.builtin.set_fact:
+    _job_dir:    "{{ scenario_artifacts_dir }}/onboard/{{ job.name }}"
+    _job_cm:     "ttk-{{ job.name }}-collection"
+    _job_k8s:    "ttk-{{ job.name }}"
+    _job_files_abs: "{{ job.files | map('regex_replace', '^', repo_root + '/') | list }}"
+
+- name: "{{ job.name }}: verify each listed file exists"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: _file_stats
+  loop: "{{ _job_files_abs }}"
+
+- name: "{{ job.name }}: fail if any listed file is missing"
+  ansible.builtin.fail:
+    msg: "Onboard manifest references missing file: {{ item.item }}"
+  when: not item.stat.exists
+  loop: "{{ _file_stats.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: "{{ job.name }}: purge stale stage dir"
+  ansible.builtin.file:
+    path: "{{ _job_dir }}"
+    state: absent
+
+- name: "{{ job.name }}: create stage dir"
+  ansible.builtin.file:
+    path: "{{ _job_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "{{ job.name }}: copy env file"
+  ansible.builtin.copy:
+    src: "{{ _env_file }}"
+    dest: "{{ _job_dir }}/env.json"
+    mode: '0644'
+
+- name: "{{ job.name }}: copy collection files"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ _job_dir }}/{{ item | basename }}"
+    mode: '0644'
+  loop: "{{ _job_files_abs }}"
+  loop_control:
+    label: "{{ item | basename }}"
+
+- name: "{{ job.name }}: build CSV input list (for the Job command)"
+  ansible.builtin.set_fact:
+    _job_inputs_csv: "{{ job.files | map('basename') | join(',') }}"
+
+- name: "{{ job.name }}: (re)create ConfigMap (server-side apply)"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} create configmap \
+      {{ _job_cm }} \
+      --from-file={{ _job_dir }}/ \
+      --dry-run=client -o yaml \
+      | kubectl --kubeconfig={{ kc_switch }} apply --server-side --force-conflicts -f -
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "{{ job.name }}: render Job manifest"
+  ansible.builtin.template:
+    src: ttk-job.yaml.j2
+    dest: "{{ _job_dir }}/job.yaml"
+    mode: '0644'
+
+- name: "{{ job.name }}: delete prior Job (if any)"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} delete job \
+      {{ _job_k8s }} --ignore-not-found
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "{{ job.name }}: apply Job"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ _job_dir }}/job.yaml
+  register: _job_apply
+  changed_when: "'created' in _job_apply.stdout or 'configured' in _job_apply.stdout"
+  environment: "{{ kubectl_env }}"
+
+# Poll for terminal Job status (Complete=True | Failed=True) so we exit
+# fast on failure instead of timing out for 600s. exit 0 = Complete,
+# exit 1 = Failed, exit 124 = timeout.
+- name: "{{ job.name }}: wait for Complete or Failed"
+  ansible.builtin.shell: |
+    deadline=$(( $(date +%s) + {{ ttk_job_timeout }} ))
+    while [ $(date +%s) -lt $deadline ]; do
+      complete=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} get job {{ _job_k8s }} \
+        -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null)
+      failed=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} get job {{ _job_k8s }} \
+        -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null)
+      [ "$complete" = "True" ] && exit 0
+      [ "$failed"   = "True" ] && exit 1
+      sleep 5
+    done
+    echo "Timeout after {{ ttk_job_timeout }}s waiting for Job {{ _job_k8s }}" >&2
+    exit 124
+  register: _job_wait
+  changed_when: false
+  failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "{{ job.name }}: capture Job logs"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} logs job/{{ _job_k8s }} --tail=-1
+  register: _job_logs
+  changed_when: false
+  failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "{{ job.name }}: dump Job logs"
+  ansible.builtin.debug:
+    msg: "{{ _job_logs.stdout_lines }}"
+
+- name: "{{ job.name }}: stop chain on non-zero Job exit"
+  ansible.builtin.fail:
+    msg: "Job ttk-{{ job.name }} did not complete successfully (rc={{ _job_wait.rc }}). See logs above."
+  when: _job_wait.rc != 0

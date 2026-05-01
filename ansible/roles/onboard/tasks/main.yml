@@ -1,0 +1,38 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Verify onboard manifest exists
+  ansible.builtin.stat:
+    path: "{{ onboard_manifest }}"
+  register: _manifest_stat
+
+- name: Fail if onboard manifest is missing
+  ansible.builtin.fail:
+    msg: "Onboard manifest not found at {{ onboard_manifest }}"
+  when: not _manifest_stat.stat.exists
+
+- name: Load onboard manifest
+  ansible.builtin.set_fact:
+    _manifest: "{{ lookup('file', onboard_manifest) | from_yaml }}"
+
+- name: Resolve env file path (absolute)
+  ansible.builtin.set_fact:
+    _env_file: "{{ repo_root }}/{{ _manifest.env }}"
+
+- name: Verify env file exists
+  ansible.builtin.stat:
+    path: "{{ _env_file }}"
+  register: _env_stat
+
+- name: Fail if env file is missing
+  ansible.builtin.fail:
+    msg: "Onboard env file not found at {{ _env_file }} (declared in {{ onboard_manifest }})"
+  when: not _env_stat.stat.exists
+
+- name: Run each Job in manifest order (first failure stops the chain)
+  ansible.builtin.include_tasks: run_job.yml
+  loop: "{{ _manifest.jobs }}"
+  loop_control:
+    loop_var: job

@@ -1,6 +1,0 @@
----
-- name: Hub setup via TTK collection (one-shot, post-mojaloop install)
-  hosts: localhost
-  gather_facts: false
-  roles:
-    - role: switch_onboard

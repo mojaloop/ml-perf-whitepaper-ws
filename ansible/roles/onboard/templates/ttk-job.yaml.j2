@@ -1,11 +1,11 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ttk-{{ coll.name }}
+  name: {{ _job_k8s }}
   namespace: {{ ttk_job_ns }}
 spec:
-  ttlSecondsAfterFinished: 300
-  backoffLimit: 1
+  ttlSecondsAfterFinished: 1800
+  backoffLimit: 0
   template:
     spec:
       restartPolicy: Never
@@ -18,12 +18,14 @@ spec:
             - |
               set -eux
               cd /collections
-              node /opt/app/cli.js -e env.json -i master.json -o /tmp/results.json
-              cat /tmp/results.json
+              node /opt/app/src/client.js \
+                -u {{ ttk_backend_url }} \
+                -e env.json \
+                -i {{ _job_inputs_csv }}
           volumeMounts:
             - name: collection
               mountPath: /collections
       volumes:
         - name: collection
           configMap:
-            name: ttk-{{ coll.name }}-collection
+            name: {{ _job_cm }}

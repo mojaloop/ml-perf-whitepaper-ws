@@ -1,0 +1,23 @@
+---
+# Onboarding via TTK collections — driven by scenarios/<scenario>/onboard.yaml.
+#
+# The manifest lists Jobs (in run order) and, per Job, the exact list of
+# collection JSONs to feed the TTK CLI. The role iterates the manifest,
+# stages each Job's files into a per-Job ConfigMap, and runs an in-cluster
+# Job until it completes. Jobs run sequentially; first non-zero exit
+# stops the chain.
+
+# Per-scenario manifest — read by the role. User-editable.
+onboard_manifest: "{{ scenario_dir }}/onboard.yaml"
+
+# In-cluster TTK backend the CLI talks to (svc:port in the mojaloop ns).
+ttk_backend_url: "http://moja-ml-testing-toolkit-backend:5050"
+
+# CLI image. Tag pinned to a published upstream version (the image has
+# no /opt/app/bin/cli.js despite what package.json says — the actual
+# entrypoint is /opt/app/src/client.js, which the Job command invokes).
+ttk_cli_image: mojaloop/ml-testing-toolkit-client-lib:v1.13.0-infitx.4
+
+# Job-level defaults.
+ttk_job_ns: "{{ ns_mojaloop }}"
+ttk_job_timeout: 600
