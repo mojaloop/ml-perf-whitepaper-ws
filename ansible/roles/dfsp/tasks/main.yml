@@ -1,0 +1,32 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure mojaloop helm repo is present
+  ansible.builtin.shell: |
+    helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
+    helm repo update mojaloop
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# Resolve switch LB IP from the switch cluster if not pinned.
+- name: Discover switch LB IP (when not provided)
+  when: switch_lb_ip == ""
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} get node \
+      -l workload-class.mojaloop.io/CORE-API-ADAPTERS=true \
+      -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
+  register: _switch_lb
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Set switch_lb_ip fact
+  ansible.builtin.set_fact:
+    switch_lb_ip: "{{ switch_lb_ip if switch_lb_ip else _switch_lb.stdout }}"
+
+- name: Per-DFSP loop
+  ansible.builtin.include_tasks: per_fsp.yml
+  loop: "{{ dfsp_indices }}"
+  loop_control:
+    loop_var: fsp_idx

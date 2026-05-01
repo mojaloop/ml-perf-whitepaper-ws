@@ -1,0 +1,6 @@
+---
+- name: Deploy 8 DFSP simulators with mTLS Phase 1B + scaling
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: dfsp

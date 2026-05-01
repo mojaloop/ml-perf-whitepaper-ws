@@ -1,0 +1,75 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure grafana helm repo is present
+  ansible.builtin.shell: |
+    helm repo add grafana {{ helm_repos.grafana }} 2>/dev/null || true
+    helm repo update grafana
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Ensure k6-test namespace
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} create ns {{ ns_k6_test }} \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_k6 }} apply -f -
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: dockerhub-secret in k6-test
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} \
+      create secret docker-registry dockerhub-secret \
+      --docker-server=https://index.docker.io/v1/ \
+      --docker-username='{{ dockerhub_username }}' \
+      --docker-password='{{ dockerhub_token }}' \
+      --docker-email='{{ dockerhub_email }}' \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_k6 }} apply -f -
+  changed_when: false
+  no_log: true
+  environment: "{{ kubectl_env }}"
+
+- name: Patch default SA in k6-test with imagePullSecrets
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} patch serviceaccount default \
+      -p '{"imagePullSecrets":[{"name":"dockerhub-secret"}]}'
+  changed_when: false
+  failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Install k6-operator
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_k6 }} -n {{ ns_k6_operator }} upgrade --install \
+      {{ k6_operator_release }} {{ k6_chart_repo }} \
+      --create-namespace --wait
+  register: _k6op
+  changed_when: "'has been upgraded' in _k6op.stdout or 'has been deployed' in _k6op.stdout"
+  environment: "{{ kubectl_env }}"
+
+# CoreDNS hosts block for sim-fsp*.local resolution from the k6 cluster.
+- name: Read DFSP hostAliases JSON
+  ansible.builtin.slurp:
+    src: "{{ k6_hostaliases_json }}"
+  register: _ha_blob
+
+- name: Build dfsp_host_entries
+  ansible.builtin.set_fact:
+    dfsp_host_entries: >-
+      {{ (_ha_blob.content | b64decode | from_json).spec.template.spec.hostAliases
+         | json_query('[*].{ip: ip, host: hostnames[0]}') }}
+
+- name: Render k6 cluster CoreDNS Corefile
+  ansible.builtin.template:
+    src: k6-coredns.j2
+    dest: "{{ scenario_artifacts_dir }}/k6-coredns.yaml"
+    mode: '0644'
+
+- name: Patch k6 cluster CoreDNS
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} -n kube-system patch configmap coredns \
+      --type merge --patch-file {{ scenario_artifacts_dir }}/k6-coredns.yaml
+    kubectl --kubeconfig={{ kc_k6 }} -n kube-system rollout restart deployment coredns
+    kubectl --kubeconfig={{ kc_k6 }} -n kube-system rollout status  deployment coredns --timeout=120s
+  changed_when: false
+  environment: "{{ kubectl_env }}"

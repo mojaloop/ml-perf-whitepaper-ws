@@ -1,0 +1,31 @@
+---
+# DFSP simulator deployment + mTLS Phase 1B (passthrough Ingress, mounted
+# shared TLS Secret, OUTBOUND_MUTUAL_TLS_ENABLED + INBOUND_MUTUAL_TLS_ENABLED
+# flips to true).
+
+dfsp_chart: mojaloop/mojaloop-simulator
+dfsp_release: dfsp
+dfsp_version: "{{ chart_versions.mojaloop_simulator }}"
+
+# Per-FSP values files location.
+dfsp_values_dir: "{{ common_dir }}/dfsp"
+
+# Number of scheme-adapter replicas. Override via scenarios/<x>/overrides/dfsp.yaml
+# or directly on the playbook command line.
+dfsp_replicas: 1
+
+# Liveness/readiness periodSeconds for scheme-adapter (defaults are
+# too aggressive under high load).
+dfsp_probe_period_seconds: 180
+
+# Switch ingress IP — used by the per-FSP hostAliases that resolve
+# account-lookup-service.local / quoting-service.local / ml-api-adapter.local.
+# Defaults to discovery; can be pinned via override.
+switch_lb_ip: ""
+
+# DFSP cert + Phase 1B passthrough resources.
+dfsp_tls_secret:        "{{ repo_root }}/certs/dfsp-tls-secret.yaml"
+dfsp_passthrough_tmpl:  "{{ repo_root }}/manifests/mtls/dfsp-passthrough.yaml.j2"
+
+# JWS-fix workaround image (TODO: drop when upstream ships fix).
+dfsp_sdk_image_override: kirgene/sdk-scheme-adapter:jws-fix

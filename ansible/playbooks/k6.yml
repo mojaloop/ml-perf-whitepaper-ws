@@ -1,0 +1,6 @@
+---
+- name: k6 cluster setup (k6-operator + dockerhub secret + CoreDNS)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: k6

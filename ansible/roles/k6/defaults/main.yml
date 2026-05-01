@@ -1,0 +1,11 @@
+---
+# k6 cluster preparation: namespace + dockerhub secret + k6-operator install
+# + CoreDNS sim-fsp*.local hosts{} block.
+
+k6_chart_repo: grafana/k6-operator
+k6_operator_release: k6-operator
+k6_operator_version: "{{ chart_versions.k6_operator }}"
+
+# k6 cluster needs to resolve sim-fspNNN.local — DFSP node IPs come from
+# the same hostaliases.json the switch uses (emitted by playbook 06).
+k6_hostaliases_json: "{{ scenario_artifacts_dir }}/hostaliases.json"
