@@ -17,21 +17,39 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
+# One `kubectl exec` per FSP (was: one per MSISDN). The whole loop runs
+# inside the curl-pod with `xargs -P` for concurrency, so 1000 MSISDNs/FSP
+# completes in seconds instead of ~17 min of tunnel round-trips. Idempotent:
+# 500 "already registered" tolerated so re-runs after partial failure work.
 - name: Register MSISDNs on each target FSP
-  ansible.builtin.shell: |
-    URL="http://sim-{{ item.fsp }}.local/sim/{{ item.fsp }}/test/repository/parties"
-    BASE={{ item.base }}
-    for i in $(seq 0 $(( {{ sim_count_per_fsp }} - 1 ))); do
-      ID=$((BASE + i))
-      PAYLOAD="{\"displayName\":\"Test FSP\",\"firstName\":\"Test\",\"middleName\":\"Test\",\"lastName\":\"FSP${ID}\",\"dateOfBirth\":\"1984-01-01\",\"idType\":\"MSISDN\",\"idValue\":\"${ID}\"}"
-      kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} exec -i {{ sim_curl_pod }} -- \
-        curl -fsS -o /dev/null \
-          -H "fspiop-source: {{ sim_fsp_source }}" \
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} \
+        exec -i {{ sim_curl_pod }} -- env \
+          URL="http://sim-{{ item.fsp }}.local/sim/{{ item.fsp }}/test/repository/parties" \
+          BASE="{{ item.base }}" \
+          COUNT="{{ sim_count_per_fsp }}" \
+          PARALLEL="{{ sim_concurrency }}" \
+          SOURCE="{{ sim_fsp_source }}" \
+          sh -s <<'INNER'
+      set -eu
+      seq 0 $((COUNT - 1)) | xargs -P "$PARALLEL" -I{} sh -c '
+        ID=$((BASE + $1))
+        BODY=$(mktemp)
+        RESP=$(curl -sS -o "$BODY" -w "%{http_code}" \
+          -H "fspiop-source: $SOURCE" \
           -H "content-type: application/json" \
-          --data-binary "$PAYLOAD" \
-          "$URL"
-    done
-    echo "Registered {{ sim_count_per_fsp }} parties on {{ item.fsp }}"
+          --data-binary "{\"displayName\":\"Test FSP\",\"firstName\":\"Test\",\"middleName\":\"Test\",\"lastName\":\"FSP${ID}\",\"dateOfBirth\":\"1984-01-01\",\"idType\":\"MSISDN\",\"idValue\":\"${ID}\"}" \
+          "$URL")
+        case "$RESP" in
+          2*) rm -f "$BODY" ;;
+          500) grep -q "already registered" "$BODY" || { echo "FSP$ID rc=$RESP body=$(cat $BODY)" >&2; rm -f "$BODY"; exit 1; } ; rm -f "$BODY" ;;
+          *)   echo "FSP$ID rc=$RESP body=$(cat $BODY)" >&2; rm -f "$BODY"; exit 1 ;;
+        esac
+      ' _ {}
+      echo "Registered $COUNT parties"
+      INNER
   loop: "{{ sim_fsp_msisdn_bases }}"
   register: _reg
   changed_when: true

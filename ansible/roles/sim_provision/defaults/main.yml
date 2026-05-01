@@ -8,6 +8,10 @@
 sim_count_per_fsp: 1000
 sim_fsp_source: fsp201
 
+# Parallel curls per FSP inside the curl-pod. Bumped from serial=1 to 50
+# to drop the ~17min/FSP wall-clock to a few seconds.
+sim_concurrency: 50
+
 # Same bases as als_provision (consistency: an MSISDN reachable in ALS must
 # resolve to a party registered on its target sim).
 sim_fsp_msisdn_bases:
