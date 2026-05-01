@@ -1,0 +1,6 @@
+---
+- name: DFSP onboarding via TTK collections (sims + CGS-specific)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: dfsp_onboard

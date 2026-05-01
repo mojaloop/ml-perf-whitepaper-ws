@@ -1,0 +1,25 @@
+---
+# Inserts MSISDN -> fspId mappings into the oracle_msisdn MySQL DB on
+# the switch cluster. Each FSP gets `als_count_per_fsp` rows starting at
+# its base MSISDN. Mirrors performance-tests/src/utils/insert-msisdnOracle.sh.
+
+als_db_user: root
+als_db_pass: "{{ lookup('env', 'MYSQL_ROOT_PASSWORD') }}"
+als_db_name: oracle_msisdn
+als_count_per_fsp: 1000
+
+# Same MSISDN block layout as the original script. Note: fsp201 is the
+# default source — only payee FSPs (202..208) get pre-registered MSISDNs.
+als_fsp_msisdn_bases:
+  - { fsp: fsp202, base: 17039811929 }
+  - { fsp: fsp203, base: 37039811929 }
+  - { fsp: fsp204, base: 47039811929 }
+  - { fsp: fsp205, base: 57039811929 }
+  - { fsp: fsp206, base: 67039811929 }
+  - { fsp: fsp207, base: 77039811929 }
+  - { fsp: fsp208, base: 87039811929 }
+
+# How to reach the mysqldb pod. Default selector is the example-mojaloop-backend
+# StatefulSet/Deployment.
+als_mysql_pod_selector: app.kubernetes.io/name=mysql
+als_mysql_namespace: "{{ ns_mojaloop }}"

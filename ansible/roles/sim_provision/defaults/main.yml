@@ -1,0 +1,24 @@
+---
+# Registers MSISDN parties on each DFSP simulator's backend repository.
+# Mirrors performance-tests/src/utils/register-msisdnOracle-on-sim.sh.
+#
+# Run from a curl-pod inside the k6 cluster (which can reach sim-fspNNN.local
+# via the k6 CoreDNS hosts{} block programmed by the k6 role).
+
+sim_count_per_fsp: 1000
+sim_fsp_source: fsp201
+
+# Same bases as als_provision (consistency: an MSISDN reachable in ALS must
+# resolve to a party registered on its target sim).
+sim_fsp_msisdn_bases:
+  - { fsp: fsp202, base: 17039811929 }
+  - { fsp: fsp203, base: 37039811929 }
+  - { fsp: fsp204, base: 47039811929 }
+  - { fsp: fsp205, base: 57039811929 }
+  - { fsp: fsp206, base: 67039811929 }
+  - { fsp: fsp207, base: 77039811929 }
+  - { fsp: fsp208, base: 87039811929 }
+
+# curl-pod assumed to already exist (k6 role + tools/curl-pod.yaml apply).
+sim_curl_pod: curl-k6-test
+sim_curl_ns:  "{{ ns_k6_test }}"

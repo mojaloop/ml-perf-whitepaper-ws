@@ -1,0 +1,42 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure curl-pod exists in k6 cluster
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} apply -f \
+      {{ repo_root }}/tools/curl-pod.yaml
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for curl-pod to be Running
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} wait \
+      --for=condition=Ready pod/{{ sim_curl_pod }} --timeout=120s
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Register MSISDNs on each target FSP
+  ansible.builtin.shell: |
+    URL="http://sim-{{ item.fsp }}.local/sim/{{ item.fsp }}/test/repository/parties"
+    BASE={{ item.base }}
+    for i in $(seq 0 $(( {{ sim_count_per_fsp }} - 1 ))); do
+      ID=$((BASE + i))
+      PAYLOAD="{\"displayName\":\"Test FSP\",\"firstName\":\"Test\",\"middleName\":\"Test\",\"lastName\":\"FSP${ID}\",\"dateOfBirth\":\"1984-01-01\",\"idType\":\"MSISDN\",\"idValue\":\"${ID}\"}"
+      kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} exec -i {{ sim_curl_pod }} -- \
+        curl -fsS -o /dev/null \
+          -H "fspiop-source: {{ sim_fsp_source }}" \
+          -H "content-type: application/json" \
+          --data-binary "$PAYLOAD" \
+          "$URL"
+    done
+    echo "Registered {{ sim_count_per_fsp }} parties on {{ item.fsp }}"
+  loop: "{{ sim_fsp_msisdn_bases }}"
+  register: _reg
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+
+- name: Summary
+  ansible.builtin.debug:
+    msg: "Registered {{ sim_count_per_fsp }} parties on each of {{ sim_fsp_msisdn_bases | length }} FSPs"

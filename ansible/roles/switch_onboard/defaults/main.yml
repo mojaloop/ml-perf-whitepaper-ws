@@ -1,0 +1,14 @@
+---
+# TTK MojaloopHub_Setup collection — runs once, post-mojaloop install,
+# to seed the hub with currencies, accounts, settlement model, etc.
+
+ttk_collections_root: "{{ repo_root }}/ttk-collections"
+ttk_hub_setup_dir:    "{{ ttk_collections_root }}/hub/provisioning/for_golden_path/MojaloopHub_Setup"
+ttk_env_file:         "{{ ttk_collections_root }}/perf-env-example.json"
+
+ttk_cli_image: mojaloop/ml-testing-toolkit-client-lib:13.4.4
+ttk_job_name:  ttk-hub-setup
+ttk_job_ns:    "{{ ns_mojaloop }}"
+
+# How long to wait for the Job to complete.
+ttk_job_timeout: 600

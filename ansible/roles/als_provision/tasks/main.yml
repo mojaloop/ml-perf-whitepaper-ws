@@ -1,0 +1,44 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Verify MYSQL_ROOT_PASSWORD is set
+  ansible.builtin.fail:
+    msg: "MYSQL_ROOT_PASSWORD not set in environment — required to write to {{ als_db_name }}"
+  when: als_db_pass | default('') | length == 0
+
+- name: Locate mysql pod
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ als_mysql_namespace }} get pods \
+      -l {{ als_mysql_pod_selector }} -o jsonpath='{.items[0].metadata.name}'
+  register: _mysql_pod
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Fail if no mysql pod found
+  ansible.builtin.fail:
+    msg: "No pod matched selector '{{ als_mysql_pod_selector }}' in {{ als_mysql_namespace }}"
+  when: _mysql_pod.stdout | length == 0
+
+- name: Render SQL batch per FSP and run inside mysql pod
+  ansible.builtin.shell: |
+    BASE={{ item.base }}
+    FSP="{{ item.fsp }}"
+    SQL="START TRANSACTION;"
+    for i in $(seq 0 $(( {{ als_count_per_fsp }} - 1 ))); do
+      SQL="$SQL INSERT IGNORE INTO oracleMSISDN (id, fspId) VALUES ($((BASE + i)), '$FSP');"
+    done
+    SQL="$SQL COMMIT;"
+    kubectl --kubeconfig={{ kc_switch }} -n {{ als_mysql_namespace }} \
+      exec -i {{ _mysql_pod.stdout }} -- \
+      mysql -u{{ als_db_user }} -p"{{ als_db_pass }}" {{ als_db_name }} -e "$SQL"
+  loop: "{{ als_fsp_msisdn_bases }}"
+  register: _insert
+  changed_when: true
+  no_log: true
+  environment: "{{ kubectl_env }}"
+
+- name: Report counts inserted
+  ansible.builtin.debug:
+    msg: "Inserted {{ als_count_per_fsp }} MSISDNs for {{ als_fsp_msisdn_bases | length }} FSPs into {{ als_db_name }}.oracleMSISDN"

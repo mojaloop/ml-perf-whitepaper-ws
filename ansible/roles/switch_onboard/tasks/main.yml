@@ -1,0 +1,94 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Verify collection directory exists
+  ansible.builtin.stat:
+    path: "{{ ttk_hub_setup_dir }}"
+  register: _coll_stat
+
+- name: Fail if hub-setup collection is missing
+  ansible.builtin.fail:
+    msg: "TTK hub-setup collection not found at {{ ttk_hub_setup_dir }}"
+  when: not _coll_stat.stat.exists
+
+# Build a ConfigMap from the collection files + the env file. We rely on
+# kubectl create configmap --from-file, which is the simplest way to ship
+# many JSON files without templating each one.
+
+- name: Stage env.json + master.json into a tmp dir
+  ansible.builtin.file:
+    path: "{{ scenario_artifacts_dir }}/ttk-hub-setup"
+    state: directory
+    mode: '0755'
+
+- name: Copy env file
+  ansible.builtin.copy:
+    src: "{{ ttk_env_file }}"
+    dest: "{{ scenario_artifacts_dir }}/ttk-hub-setup/env.json"
+    mode: '0644'
+
+- name: Find all JSON files in hub setup
+  ansible.builtin.find:
+    paths: "{{ ttk_hub_setup_dir }}"
+    patterns: "*.json"
+    recurse: true
+  register: _hub_jsons
+
+- name: Copy each collection file
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ scenario_artifacts_dir }}/ttk-hub-setup/{{ item.path | basename }}"
+    mode: '0644'
+  loop: "{{ _hub_jsons.files }}"
+
+- name: (Re)create collection ConfigMap
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} create configmap \
+      {{ ttk_job_name }}-collection \
+      --from-file={{ scenario_artifacts_dir }}/ttk-hub-setup/ \
+      --dry-run=client -o yaml \
+      | kubectl --kubeconfig={{ kc_switch }} apply -f -
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Render Job manifest
+  ansible.builtin.template:
+    src: ttk-job.yaml.j2
+    dest: "{{ scenario_artifacts_dir }}/ttk-hub-setup/job.yaml"
+    mode: '0644'
+
+- name: Delete prior Job (if any)
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} delete job \
+      {{ ttk_job_name }} --ignore-not-found
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Apply Job
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f \
+      {{ scenario_artifacts_dir }}/ttk-hub-setup/job.yaml
+  register: _job_apply
+  changed_when: "'created' in _job_apply.stdout or 'configured' in _job_apply.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for Job to complete
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} wait \
+      --for=condition=complete job/{{ ttk_job_name }} \
+      --timeout={{ ttk_job_timeout }}s
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Capture Job logs
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ttk_job_ns }} logs job/{{ ttk_job_name }}
+  register: _job_logs
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Show Job logs (head)
+  ansible.builtin.debug:
+    msg: "{{ _job_logs.stdout_lines[:80] }}"

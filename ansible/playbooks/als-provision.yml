@@ -1,0 +1,6 @@
+---
+- name: Insert MSISDN -> fspId rows into oracle_msisdn MySQL DB
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: als_provision

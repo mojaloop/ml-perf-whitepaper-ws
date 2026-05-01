@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ ttk_job_name }}
+  namespace: {{ ttk_job_ns }}
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: cli
+          image: {{ ttk_cli_image }}
+          command:
+            - sh
+            - -c
+            - |
+              set -eux
+              cd /collections
+              # The ttk-cli entrypoint invokes the runner against the env
+              # + collection. Adjust if upstream cli args change.
+              node /opt/app/cli.js -e env.json -i master.json -o /tmp/results.json
+              cat /tmp/results.json
+          volumeMounts:
+            - name: collection
+              mountPath: /collections
+      volumes:
+        - name: collection
+          configMap:
+            name: {{ ttk_job_name }}-collection

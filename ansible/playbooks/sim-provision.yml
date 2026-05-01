@@ -1,0 +1,6 @@
+---
+- name: Register MSISDN parties on each DFSP simulator's repository
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: sim_provision
