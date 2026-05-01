@@ -1,0 +1,16 @@
+---
+# Promfana (prometheus + grafana + alertmanager) on the switch cluster.
+# Source chart: mojaloop/promfana from the upstream helm repo.
+# NOTE: chart was historically pulled from a feature branch
+# (fix/grafana-prometheus-upgrade); revisit if a published version is now
+# available on mojaloop.io/helm/repo/.
+
+monitoring_chart: mojaloop/promfana
+monitoring_release: promfana
+monitoring_version: ""        # empty -> latest from repo
+
+monitoring_values_files:
+  - "{{ common_dir }}/monitoring.yaml"
+  - "{{ scenario_overrides_dir }}/monitoring.yaml"
+
+monitoring_namespace: monitoring

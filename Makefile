@@ -38,7 +38,7 @@ endif
 
 .PHONY: help tunnel \
         terraform-init terraform-plan terraform-apply terraform-destroy \
-        k8s backend switch mtls dfsp k6 onboard provision smoke load \
+        k8s backend monitoring switch mtls dfsp k6 onboard provision smoke load \
         deploy clean
 
 # ===========================================================================
@@ -84,6 +84,9 @@ k8s: ## Install MicroK8s, form clusters, generate kubeconfigs + hostaliases
 # ===========================================================================
 backend: ## Deploy mojaloop backend (Kafka, MySQL, MongoDB, Redis)
 	$(ANS) playbooks/backend.yml
+
+monitoring: ## Deploy promfana stack (prometheus + grafana + alertmanager)
+	$(ANS) playbooks/monitoring.yml
 
 switch: ## Deploy mojaloop switch + per-scenario configmap patches
 	$(ANS) playbooks/switch.yml

@@ -1,0 +1,65 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Filter to existing monitoring values files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ monitoring_values_files }}"
+  register: _mon_vals_stat
+
+- name: Build helm -f arg list
+  ansible.builtin.set_fact:
+    _mon_vals_args: >-
+      {{ _mon_vals_stat.results
+         | selectattr('stat.exists')
+         | map(attribute='item')
+         | map('regex_replace', '^(.*)$', '-f \1')
+         | join(' ') }}
+
+- name: Ensure mojaloop helm repo is present
+  ansible.builtin.shell: |
+    helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
+    helm repo update mojaloop
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Ensure monitoring namespace
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} create ns {{ monitoring_namespace }} \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_switch }} apply -f -
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: dockerhub-secret in monitoring namespace
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      create secret docker-registry dockerhub-secret \
+      --docker-server=https://index.docker.io/v1/ \
+      --docker-username='{{ dockerhub_username }}' \
+      --docker-password='{{ dockerhub_token }}' \
+      --docker-email='{{ dockerhub_email }}' \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_switch }} apply -f -
+  changed_when: false
+  no_log: true
+  environment: "{{ kubectl_env }}"
+
+- name: Patch default SA in monitoring with imagePullSecrets
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} patch serviceaccount default \
+      -p '{"imagePullSecrets":[{"name":"dockerhub-secret"}]}'
+  changed_when: false
+  failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Helm install promfana
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} upgrade --install \
+      {{ monitoring_release }} {{ monitoring_chart }} \
+      {% if monitoring_version != "" %}--version {{ monitoring_version }}{% endif %} \
+      {{ _mon_vals_args }} \
+      --wait --timeout 10m
+  register: _mon_helm
+  changed_when: "'has been upgraded' in _mon_helm.stdout or 'has been deployed' in _mon_helm.stdout"
+  environment: "{{ kubectl_env }}"
