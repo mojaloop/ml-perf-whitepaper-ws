@@ -12,7 +12,7 @@
   hosts: localhost
   gather_facts: no
   vars:
-    artifacts_dir: "{{ playbook_dir }}/../../performance-tests/results/{{ scenario | default('base', true) }}/artifacts"
+    artifacts_dir: "{{ playbook_dir }}/../../scenarios/{{ scenario | default('base', true) }}/artifacts"
     # First generic switch worker (sw1-n1, sw1-n2, ...) — used as switch IP target today.
     switch_ip: "{{ hostvars[(groups['switch'] | select('match', '^sw1-n[0-9]+$') | sort | first)]['private_ip'] }}"
   tasks:
