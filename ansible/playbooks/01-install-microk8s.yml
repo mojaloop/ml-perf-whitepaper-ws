@@ -5,9 +5,9 @@
   gather_facts: yes
   vars:
     config_file: >-
-      {{ (playbook_dir ~ '/../../../../performance-tests/results/' ~ scenario ~ '/config-override/aws-config.yaml')
+      {{ (playbook_dir ~ '/../../performance-tests/results/' ~ scenario ~ '/config-override/aws-config.yaml')
          if (scenario | default('', true) | length > 0)
-         else (playbook_dir ~ '/../../../provisioning/config.yaml') }}
+         else (playbook_dir ~ '/../../infrastructure/provisioning/config.yaml') }}
     config: "{{ lookup('file', config_file) | from_yaml }}"
 
   tasks:
