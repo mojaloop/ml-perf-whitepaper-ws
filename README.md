@@ -11,15 +11,49 @@ its own — re-runnable mid-deploy without restarting from scratch.
 ## Quick start (500 TPS scenario, fresh AWS account)
 
 ```bash
-# 0. config: drop your AWS creds, DOCKERHUB_*, MYSQL_ROOT_PASSWORD
-#    into scenarios/500tps/.env (gitignored)
+# 0. Once: drop AWS creds + DOCKERHUB_* + MYSQL_ROOT_PASSWORD into
+#    scenarios/500tps/.env (gitignored)
+
+# 1. AWS infra (~10 min): VPC, bastion, switch nodes (3), DFSP nodes (8), k6 node
 make terraform-init
-make terraform-apply  SCENARIO=500tps    # provision EC2 + VPC + bastion
-make tunnel           SCENARIO=500tps    # bastion SOCKS5 proxy on :1080
-make k8s              SCENARIO=500tps    # MicroK8s cluster (10 clusters)
-make deploy           SCENARIO=500tps    # backend -> switch -> mtls -> dfsp -> k6 -> onboard -> provision -> smoke
-make load             SCENARIO=500tps    # run k6 TestRun, dump per-pod logs
+make terraform-apply  SCENARIO=500tps
+
+# 2. SOCKS tunnel through bastion (every shell session)
+make tunnel           SCENARIO=500tps
+
+# 3. MicroK8s on all 12 nodes, form clusters, write kubeconfigs +
+#    hostaliases.json (~15 min)
+make k8s              SCENARIO=500tps
+
+# 4. App layer — each is one playbook, each idempotent
+make backend          SCENARIO=500tps   # Kafka/MySQL/MongoDB/Redis on switch
+make switch           SCENARIO=500tps   # Mojaloop core helm + configmap patches
+make mtls             SCENARIO=500tps   # Istio install + Leg A inbound + Leg B egress gateway
+make dfsp             SCENARIO=500tps   # 8 sims, mTLS Phase 1B baked in, scaled
+make k6               SCENARIO=500tps   # k6-operator + cluster CoreDNS
+
+# 5. Wire data (TTK collections + MSISDN seed)
+make onboard          SCENARIO=500tps   # TTK hub setup + DFSP onboarding (Jobs)
+make provision        SCENARIO=500tps   # 1000 MSISDNs/FSP into ALS DB + sim repos
+
+# 6. Validate
+make smoke            SCENARIO=500tps   # single transfer reaches COMPLETED
+
+# 7. Run the load test
+make load             SCENARIO=500tps   # k6 TestRun; per-pod logs land in scenarios/500tps/results/<UTC-stamp>/
 ```
+
+Or compress steps 4–6 into one: `make deploy SCENARIO=500tps` chains
+`backend → switch → mtls → dfsp → k6 → onboard → provision → smoke`.
+
+Total wall-clock from a fresh AWS account: **~45–60 min**, dominated by
+terraform (10 min) + k8s bootstrap (15 min) + backend Helm wait
+(5–10 min). The app-layer roles each take 1–3 min once their
+dependencies are up. `dfsp` is the slowest (8× helm install + per-FSP
+mTLS plumbing).
+
+If anything fails mid-chain, just re-run the failing target — every
+role drift-corrects.
 
 `make help` lists every stage with a one-line description.
 
