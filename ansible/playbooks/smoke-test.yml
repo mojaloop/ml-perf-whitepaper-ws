@@ -1,0 +1,6 @@
+---
+- name: Single end-to-end transfer (validates whole stack post-deploy)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: smoke_test

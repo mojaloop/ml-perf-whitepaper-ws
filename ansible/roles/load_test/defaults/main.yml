@@ -1,0 +1,16 @@
+---
+# Drives the k6 TestRun via the local charts/k6/ Helm chart.
+# Common k6 config in common/k6.yaml; per-scenario tuning in
+# scenarios/<scenario>/overrides/k6.yaml.
+
+k6_chart_path: "{{ repo_root }}/charts/k6"
+k6_release: k6-test-mojaloop
+k6_values_files:
+  - "{{ common_dir }}/k6.yaml"
+  - "{{ scenario_overrides_dir }}/k6.yaml"
+
+# Where to drop run artifacts on the controller (timestamped per run).
+load_test_results_dir: "{{ scenario_results_dir }}/{{ ansible_date_time.iso8601_basic_short | default(lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ')) }}"
+
+# How long to wait for the TestRun pods to complete.
+load_test_wait_timeout: 7200

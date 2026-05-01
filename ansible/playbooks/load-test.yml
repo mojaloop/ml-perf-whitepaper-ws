@@ -1,0 +1,6 @@
+---
+- name: Drive k6 TestRun for the active scenario
+  hosts: localhost
+  gather_facts: true
+  roles:
+    - role: load_test

@@ -1,0 +1,80 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Filter to existing k6 values files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ k6_values_files }}"
+  register: _k6_vals_stat
+
+- name: Build helm -f arg list
+  ansible.builtin.set_fact:
+    _k6_vals_args: >-
+      {{ _k6_vals_stat.results
+         | selectattr('stat.exists')
+         | map(attribute='item')
+         | map('regex_replace', '^(.*)$', '-f \1')
+         | join(' ') }}
+
+- name: Uninstall any prior k6 release
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} uninstall {{ k6_release }} 2>/dev/null || true
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Create results dir on controller
+  ansible.builtin.file:
+    path: "{{ load_test_results_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Helm install k6 TestRun
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} upgrade --install \
+      {{ k6_release }} {{ k6_chart_path }} \
+      {{ _k6_vals_args }} \
+      --create-namespace
+  register: _k6_helm
+  changed_when: "'has been upgraded' in _k6_helm.stdout or 'has been deployed' in _k6_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for k6 TestRun pods to start
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} wait \
+      --for=condition=PodScheduled pod -l app=k6 --timeout=120s || true
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for k6 TestRun completion
+  ansible.builtin.shell: |
+    # k6-operator marks the TestRun's "stage" as "finished" when done.
+    # Poll the TestRun's stage until done or timeout.
+    end=$(( $(date +%s) + {{ load_test_wait_timeout }} ))
+    while [ "$(date +%s)" -lt "$end" ]; do
+      stage=$(kubectl --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} get testrun \
+        -l app.kubernetes.io/instance={{ k6_release }} \
+        -o jsonpath='{.items[0].status.stage}' 2>/dev/null || echo unknown)
+      echo "TestRun stage: $stage"
+      [ "$stage" = "finished" ] && break
+      sleep 30
+    done
+    [ "$stage" = "finished" ]
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Capture k6 logs into results dir
+  ansible.builtin.shell: |
+    for pod in $(kubectl --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} get pod \
+                 -l app=k6 -o name); do
+      name=$(echo "$pod" | sed 's|pod/||')
+      kubectl --kubeconfig={{ kc_k6 }} -n {{ ns_k6_test }} logs "$name" \
+        > "{{ load_test_results_dir }}/${name}.log" 2>&1 || true
+    done
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Done
+  ansible.builtin.debug:
+    msg: "Load test results -> {{ load_test_results_dir }}"
