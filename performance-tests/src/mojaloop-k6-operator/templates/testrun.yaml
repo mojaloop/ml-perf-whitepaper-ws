@@ -9,17 +9,17 @@ spec:
     configMap:
       name: {{ .Release.Name }}-k6-script
       file: tests.js
-  arguments: --quiet
+  arguments: --quiet -o experimental-prometheus-rw
   runner:
     env:
       - name: TARGET_TXN_COUNT
         value: {{ .Values.k6.targetTxnCount | quote }}
       - name: TARGET_TPS
         value: {{ .Values.k6.targetTps | quote }}
-      - name: FSP_PAIRS_JSON
-        value: {{ .Values.k6.fspPairs | toJson | quote }}
-      - name: FSP_CONFIG
-        value: {{ .Values.k6.fspConfig | quote }}
+      - name: FSP_PAIRS_JSON_B64
+        value: {{ .Values.k6.fspPairs | toJson | b64enc | quote }}
+      - name: FSP_CONFIG_B64
+        value: {{ .Values.k6.fspConfig | fromJson | toJson | b64enc | quote }}
       - name: K6_SCRIPT_ABORT_ON_ERROR
         value: {{ .Values.k6.abortOnError | quote }}
       - name: TRANSFER_AMOUNT
@@ -28,6 +28,14 @@ spec:
         value: {{ .Values.k6.currency | quote }}
       - name: PARALLELISM
         value: {{ .Values.parallelism | quote }}
+      - name: K6_PROMETHEUS_RW_SERVER_URL
+        value: {{ .Values.prometheus.rwUrl }}
+      # - name: K6_PROMETHEUS_RW_TREND_STATS
+      #   value: {{ .Values.prometheus.rwTrendStats }}
+      - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+        value: {{ .Values.prometheus.rwTrendAsNativeHistogram | quote }}
+
+
     resources:
       limits:
         cpu: {{ .Values.resources.limits.cpu | quote }}

@@ -8,8 +8,12 @@ do
 
   # The switch(one of the node on which switch is running) IP
   SWITCH_IP=10.112.2.229
-  # Number of sdk-scheme-adapter replicas - adjust according to test requirements
-  REPLICAS=12
+  # Number of sdk-scheme-adapter replicas - fsp201/202 get 8, fsp203-208 get 4
+  if [[ ${i} -le 202 ]]; then
+    REPLICAS=8
+  else
+    REPLICAS=4
+  fi
   # kubeconfig files path
   KUBECONFIG_PATH=ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs
   export KUBECONFIG=${KUBECONFIG_PATH}/kubeconfig-fsp${i}.yaml
@@ -32,7 +36,10 @@ kubectl patch serviceaccount default \
     --version 15.10.0 \
     --values=ml-perf-whitepaper-ws/infrastructure/dfsp/values-fsp${i}.yaml \
     --create-namespace
-
+  # helm -n dfsps upgrade --install dfsp mojaloop/mojaloop-simulator \
+  #   --version 15.13.0 \
+  #   --values=ml-perf-whitepaper-ws/infrastructure/dfsp/values-fsp${i}.yaml \
+  #   --create-namespace
   # Patch hostAliases so scheme-adapter can reach switch services
   kubectl patch deployment dfsp-sim-fsp${i}-scheme-adapter -n dfsps \
     --type='json' \
@@ -50,6 +57,20 @@ kubectl patch serviceaccount default \
             ]
           }
         ]
+      }
+    ]"
+
+  # Patch REDIS_CACHE_TTL to 120 seconds (2 minutes)
+  kubectl patch deployment dfsp-sim-fsp${i}-scheme-adapter -n dfsps \
+    --type='json' \
+    -p="[
+      {
+        \"op\":\"add\",
+        \"path\":\"/spec/template/spec/containers/0/env/-\",
+        \"value\":{
+          \"name\":\"REDIS_CACHE_TTL\",
+          \"value\":\"120\"
+        }
       }
     ]"
 

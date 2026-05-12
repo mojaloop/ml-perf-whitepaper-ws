@@ -33,7 +33,6 @@ locals {
     Project     = local.project_config.name
     Environment = local.project_config.environment
     ManagedBy   = "Terraform"
-    CreatedAt   = timestamp()
   }
 
   # Parse VM configurations

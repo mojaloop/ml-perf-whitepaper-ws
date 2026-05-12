@@ -16,13 +16,14 @@ export HTTPS_PROXY=socks5://127.0.0.1:1080
 
 K6_NAMESPACE="k6-test"
 K6_OPERATOR_NAMESPACE="k6-operator"
-KUBECONFIG="ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml"
+KUBECONFIG_PATH="ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-k6.yaml"
 SSH_CONFIG_PATH="ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/ssh-config"
 
-echo "Using KUBECONFIG     : ${KUBECONFIG}"
+echo "Using KUBECONFIG_PATH     : ${KUBECONFIG_PATH}"
 echo "Using namespace      : ${K6_NAMESPACE}"
 echo "Using operator namespace      : ${K6_OPERATOR_NAMESPACE}"
 echo "Using SSH config path: ${SSH_CONFIG_PATH}"
+export KUBECONFIG="${KUBECONFIG_PATH}"
 
 # Basic checks
 command -v kubectl >/dev/null 2>&1 || { echo "ERROR: kubectl not found in PATH"; exit 1; }
@@ -43,25 +44,22 @@ kubectl get namespace "${K6_NAMESPACE}" >/dev/null 2>&1 || kubectl create namesp
 : "${DOCKERHUB_EMAIL:?ERROR: DOCKERHUB_EMAIL is not set}"
 
 # Create/update docker registry secret (idempotent apply)
-# kubectl -n "${K6_NAMESPACE}" create secret docker-registry dockerhub-secret \
-#   --docker-server="https://index.docker.io/v1/" \
-#   --docker-username="${DOCKERHUB_USERNAME}" \
-#   --docker-password="${DOCKERHUB_TOKEN}" \
-#   --docker-email="${DOCKERHUB_EMAIL}" \
-#   --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n "${K6_NAMESPACE}" create secret docker-registry dockerhub-secret \
+  --docker-server="https://index.docker.io/v1/" \
+  --docker-username="${DOCKERHUB_USERNAME}" \
+  --docker-password="${DOCKERHUB_TOKEN}" \
+  --docker-email="${DOCKERHUB_EMAIL}" \
+  --dry-run=client -o yaml | kubectl apply -f -
 
-# # Patch default serviceaccount to use the pull secret
-# kubectl -n "${K6_NAMESPACE}" patch serviceaccount default \
-#   -p '{"imagePullSecrets":[{"name":"dockerhub-secret"}]}' >/dev/null
+# Patch default serviceaccount to use the pull secret
+kubectl -n "${K6_NAMESPACE}" patch serviceaccount default \
+  -p '{"imagePullSecrets":[{"name":"dockerhub-secret"}]}' >/dev/null
 
-# # Install/upgrade k6 operator
-# echo "Installing k6-operator"
-# helm repo add grafana https://grafana.github.io/helm-charts >/dev/null 2>&1 || true
-# helm repo update >/dev/null
-
-# helm upgrade --install k6-operator grafana/k6-operator \
-#   --namespace "${K6_OPERATOR_NAMESPACE}" \
-#   --create-namespace
+# Install/upgrade k6 operator
+echo "Installing k6-operator"
+helm repo add grafana https://grafana.github.io/helm-charts >/dev/null 2>&1 || true
+helm repo update >/dev/null
+helm upgrade --install k6-operator grafana/k6-operator --namespace "${K6_OPERATOR_NAMESPACE}" --create-namespace --set namespace.create=false
 
 # -----------------------------------------------------------------------------
 # CoreDNS patching for DFSP simulator domains

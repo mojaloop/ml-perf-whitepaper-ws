@@ -1,0 +1,205 @@
+# Database values for Mojaloop Performance Testing
+# This file configures MySQL and Kafka with proper node placement
+
+## Global settings to allow bitnamilegacy images
+global:
+  security:
+    allowInsecureImages: true
+
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/kafka/values.yaml
+kafka:
+  enabled: true
+  fullnameOverride: "kafka"
+
+  extraConfig: |-
+    offsets.topic.replication.factor=1
+    default.replication.factor=1
+    transaction.state.log.replication.factor=1
+    log.retention.ms=1800000
+    log.retention.check.interval.ms=60000
+    log.segment.bytes=536870912      
+
+  controller:
+    resources:
+      requests:
+        cpu: "6"
+        memory: "22Gi"
+        ephemeral-storage: "20Gi"
+      limits:
+        cpu: "7"
+        memory: "25Gi"
+        ephemeral-storage: "150Gi"
+
+    overrideConfiguration: |
+      default.replication.factor=1
+      min.insync.replicas=1
+      offsets.topic.replication.factor=1
+      transaction.state.log.replication.factor=1
+      transaction.state.log.min.isr=1
+
+      auto.create.topics.enable=true
+      delete.topic.enable=true
+    
+      num.network.threads=12
+      num.io.threads=16
+      background.threads=4
+      queued.max.requests=2000
+
+      socket.send.buffer.bytes=4194304
+      socket.receive.buffer.bytes=4194304
+
+      log.dirs=/opt/kafka/data
+      log.segment.bytes=134217728
+      log.flush.interval.messages=9223372036854775807
+      log.flush.interval.ms=9223372036854775807
+      log.retention.ms=1800000
+      log.retention.bytes=536870912
+      log.retention.check.interval.ms=30000
+      log.cleanup.policy=delete
+      log.cleaner.enable=true
+
+      offsets.retention.minutes=5
+      offsets.retention.check.interval.ms=30000
+
+      group.initial.rebalance.delay.ms=0
+      compression.type=producer
+
+    extraEnvVars:
+      - name: KAFKA_HEAP_OPTS
+        value: "-Xms6g -Xmx6g"
+      - name: KAFKA_JVM_PERFORMANCE_OPTS
+        value: "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=45 -XX:+ExplicitGCInvokesConcurrent -XX:+ParallelRefProcEnabled -Djava.awt.headless=true"
+
+  provisioning:
+    enabled: true
+    waitForKafka: true
+    persistence:
+      enabled: false
+    topics:
+      - name: topic-transfer-prepare
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-transfer-position
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-transfer-position-batch
+        partitions: 8
+        replicationFactor: 1
+      - name: topic-transfer-fulfil
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-notification-event
+        partitions: 18
+        replicationFactor: 1
+      - name: topic-transfer-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-admin-transfer
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-quotes-post
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-quotes-put
+        partitions: 12
+        replicationFactor: 1
+      - name: topic-quotes-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-post
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-put
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulkquotes-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-prepare
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-fulfil
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-processing
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-bulk-get
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-post
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-put
+        partitions: 1
+        replicationFactor: 1
+      - name: topic-fx-quotes-get
+        partitions: 1
+        replicationFactor: 1
+
+## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/mysql/values.yaml
+mysql:
+  enabled: true
+
+  tls:
+    enabled: true
+
+  fullnameOverride: "mysqldb"
+
+  # MySQL metrics configuration
+  metrics:
+    # Resources for the metrics exporter
+    resources:
+      limits:
+        memory: 256Mi
+      requests:
+        memory: 128Mi
+        cpu: 100m
+
+  ## MySQL Primary parameters
+  primary:
+    persistence:
+      enabled: false
+      size: 50Gi
+    # OPTIMIZED RESOURCES - FULL NODE UTILIZATION
+    resources:
+      limits:
+        cpu: '7'              # Use all 16 CPUs
+        ephemeral-storage: 150Gi # Increased for temp tables
+        memory: 28Gi           # 56GB for MySQL, 8GB for OS
+      requests:
+        cpu: '4'              # Guaranteed all CPUs
+        ephemeral-storage: 50Gi
+        memory: 24Gi           # Guaranteed memory
+
+    extraFlags: |
+      --max_connections=1000
+      --skip-log-bin
+      --innodb_buffer_pool_size=16G
+      --innodb_buffer_pool_instances=16
+      --innodb_redo_log_capacity=2G
+      --innodb_log_buffer_size=256M
+      --innodb_flush_method=O_DIRECT
+      --innodb_io_capacity=3000
+      --innodb_io_capacity_max=6000
+      --innodb_read_io_threads=8
+      --innodb_write_io_threads=8
+      --innodb_doublewrite=0
+      --thread_cache_size=100
+      --table_open_cache=4000
+      --table_definition_cache=4000
+      --tmp_table_size=256M
+      --max_heap_table_size=256M
+      --sync_binlog=0
+      --innodb_flush_log_at_trx_commit=2
+      --performance_schema=OFF
+      --skip_name_resolve=ON
+    # For production/persistence: set innodb_flush_log_at_trx_commit=1 and sync_binlog=1
+    #   --slow_query_log=0
+    #   --performance_schema=OFF
+    #   --skip_name_resolve
+    #   --default_authentication_plugin=mysql_native_password    
+  
+
+proxy-cache-redis:
+  enabled: false

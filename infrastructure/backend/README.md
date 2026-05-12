@@ -93,6 +93,14 @@ helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend \
   -f ml-perf-whitepaper-ws/performance-tests/results/2000tps/config-override/backend.yaml
 ```
 
+#### **500 TPS Round 2**
+```bash
+helm -n mojaloop upgrade --install backend mojaloop/example-mojaloop-backend \
+  --version 17.1.0 \
+  -f ml-perf-whitepaper-ws/infrastructure/backend/values.yaml \
+  -f ml-perf-whitepaper-ws/performance-tests/results-round2/500tps/config-override/backend.yaml
+```
+
 ---
 
 ### MySQL Service Alias (Replication Mode Only)

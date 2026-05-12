@@ -1,22 +1,40 @@
+## Install monitoring stack from mojaloop helm chart
 
-**using the branch fix/grafana-promteheus-upgrade**
+Checkout mojaloop helm chart repo
 
-```bash
-helm repo add mojaloop http://mojaloop.io/helm/repo/
+```
+helm upgrade --install promfana ./monitoring/promfana \
+  --namespace monitoring \
+  --create-namespace -f ml-perf-whitepaper-ws/infrastructure/monitoring/values.yaml
+```
 
-kubectl create ns monitoring
+### Access Grafana
+```
+kubectl port-forward -n monitoring svc/promfana-grafana 3000:80
+```
+http://localhost:3000
 
-kubectl create secret docker-registry dockerhub-secret \
---docker-server=https://index.docker.io/v1/ \
---docker-username=${DOCKERHUB_USERNAME} \
---docker-password=${DOCKERHUB_TOKEN} \
---docker-email=${DOCKERHUB_EMAIL} \
--n monitoring
-kubectl patch serviceaccount default \
-    -n monitoring \
-    -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}'
+### Access Prometheus
+```
+kubectl port-forward -n monitoring svc/promfana-kps-prometheus 9090:9090
+```
+http://localhost:9090
 
+Then in Prometheus go to Status → Targets and see whether your Mojaloop scrape targets are up.
 
-helm -n monitoring upgrade --install promfana ./helm/monitoring/promfana --values=ml-perf-whitepaper-ws/infrastructure/monitoring/values.yaml
+### k6 and prometheus/grafana
 
+To calculate standard deviation in k6 tests we need to use prometheus/grafana.
+
+we enable the remote write receiver in prometheus by enable following in the `values.yaml`
+
+```
+  prometheus:
+    prometheusSpec:
+      enableRemoteWriteReceiver: true # Enable Remote Write Receiver
+```
+This will enable the remote write receiver URL
+
+```
+http://promfana-kps-prometheus.monitoring.svc:9090/api/v1/write
 ```

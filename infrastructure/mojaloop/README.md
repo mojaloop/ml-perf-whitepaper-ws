@@ -23,6 +23,10 @@ Override files are stored in:
 ```
 
 ### Default deployment
+```
+./ml-perf-whitepaper-ws/infrastructure/mojaloop/deploy.sh
+```
+
 ```bash
 helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
   --version 17.1.0 \
@@ -51,6 +55,11 @@ helm -n mojaloop upgrade --install moja mojaloop/mojaloop \
   --version 17.1.0 \
   -f ml-perf-whitepaper-ws/infrastructure/mojaloop/values.yaml \
   -f ml-perf-whitepaper-ws/performance-tests/results/2000tps/config-override/mojaloop-values.yaml
+```
+
+### 500 TPS Round 2
+```
+./ml-perf-whitepaper-ws/infrastructure/mojaloop/deploy.sh
 ```
 
 ---

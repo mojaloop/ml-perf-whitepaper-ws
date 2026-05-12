@@ -35,6 +35,7 @@ import crypto from "k6/crypto";
 import { vu } from 'k6/execution';
 import { randomString } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 import exec from 'k6/execution';
+import { b64decode } from 'k6/encoding';
 
 
 // Custom metrics
@@ -59,14 +60,25 @@ const abortOnError = __ENV.K6_SCRIPT_ABORT_ON_ERROR === 'true' || false;
 const ENV = {
   TRANSFER_AMOUNT: __ENV.TRANSFER_AMOUNT || '1',
   CURRENCY: __ENV.CURRENCY || 'XXX',
-  FSP_CONFIG: JSON.parse(__ENV.FSP_CONFIG || '[]'),
+  FSP_CONFIG: decodeB64JsonEnv('FSP_CONFIG_B64', {}),
 };
 
+function decodeB64JsonEnv(name, fallback) {
+  const raw = __ENV[name];
+  if (!raw || raw.trim() === '') return fallback;
 
+  try {
+    const decoded = b64decode(raw, 'std', 's');
+    return JSON.parse(decoded);
+  } catch (err) {
+    throw new Error(`Failed to decode/parse ${name}: ${err}. Raw value: ${raw}`);
+  }
+}
 // Simple duration calculation
 const testDuration = Math.ceil(TARGET_TXN_COUNT / TARGET_TPS);
 
 export const options = {
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     load_test: {
       executor: 'constant-arrival-rate',
@@ -80,14 +92,14 @@ export const options = {
     },
   },
   thresholds: {
-    'completed_transactions': [`count>=${TARGET_TXN_COUNT * 0.95}`],
-    'success_rate': ['rate>0.95'],
-    'http_req_duration': ['p(95)<5000'],
-    'e2e_time': ['p(95)<15000'],
-    'discovery_time': ['p(95)<3000'],
-    'quote_time': ['p(95)<3000'],
-    'transfer_time': ['p(95)<3000'],
-    'checks': ['rate>0.95'],
+    'completed_transactions': [`count>=${TARGET_TXN_COUNT * 0.99}`],
+    'success_rate': ['rate>0.99'],
+    'http_req_duration': ['p(99)<5000'],
+    'e2e_time': ['p(99)<15000'],
+    'discovery_time': ['p(99)<3000'],
+    'quote_time': ['p(99)<3000'],
+    'transfer_time': ['p(99)<3000'],
+    'checks': ['rate>0.99'],
   },
   noConnectionReuse: false,
   // discardResponseBodies: true,
@@ -101,6 +113,11 @@ function getUUIDS() {
   // return { uuid, ulid };
   return ulid;
 }
+// function getUUIDS() {
+//   const random = len => randomString(len, '0123456789abcdef');
+//   const t = Date.now().toString(16).padStart(12, '0');
+//   return `${t.substring(0,8)}-${t.substring(8,12)}-4${random(3)}-9${random(3)}-${random(12)}`;
+// }
 
 function requestId() {
   const random = len => randomString(len, '0123456789abcdef');
@@ -362,8 +379,8 @@ function executeDiscoveryPhase(sourceFsp, destFsp) {
 let FSP_PAIRS = []; 
 
 export default function() {
-  const FSP_CONFIG = JSON.parse(__ENV.FSP_CONFIG);
-  FSP_PAIRS = JSON.parse(__ENV.FSP_PAIRS_JSON).map(pair => ({
+  const FSP_CONFIG = decodeB64JsonEnv('FSP_CONFIG_B64', {});
+  FSP_PAIRS = decodeB64JsonEnv('FSP_PAIRS_JSON_B64', []).map(pair => ({
     source: FSP_CONFIG[pair.source],
     dest: FSP_CONFIG[pair.dest],
     weight: pair.weight,
@@ -374,19 +391,8 @@ export default function() {
 }
 
 export function handleSummary(data) {
-  const completed = (
-    data.metrics &&
-    data.metrics.completed_transactions &&
-    data.metrics.completed_transactions.values &&
-    data.metrics.completed_transactions.values.count
-  ) || 0;
-
-  const successRateValue = (
-    data.metrics &&
-    data.metrics.success_rate &&
-    data.metrics.success_rate.values &&
-    data.metrics.success_rate.values.rate
-  ) || 0;
+  const completed = data.metrics?.completed_transactions?.values?.count || 0;
+  const successRateValue = data.metrics?.success_rate?.values?.rate || 0;
 
   const actualTPS = completed / testDuration;
 
@@ -395,26 +401,18 @@ export function handleSummary(data) {
       target_transactions: TARGET_TXN_COUNT,
       target_tps: TARGET_TPS,
       duration: testDuration,
-      fsp_pairs: JSON.parse(__ENV.FSP_PAIRS_JSON),
+      fsp_pairs: decodeB64JsonEnv('FSP_PAIRS_JSON_B64', [])
     },
     results: {
       completed_transactions: completed,
       success_rate: successRateValue * 100,
       actual_tps: actualTPS,
-      e2e_time_p95: (
-        data.metrics &&
-        data.metrics.e2e_time &&
-        data.metrics.e2e_time.values &&
-        data.metrics.e2e_time.values['p(95)']
-      ) || 0,
-      http_req_duration_p95: (
-        data.metrics &&
-        data.metrics.http_req_duration &&
-        data.metrics.http_req_duration.values &&
-        data.metrics.http_req_duration.values['p(95)']
-      ) || 0,
+      e2e_time_p95: data.metrics?.e2e_time?.values?.['p(95)'] || 0,
+      e2e_time_p99: data.metrics?.e2e_time?.values?.['p(99)'] || 0,
+      http_req_duration_p95: data.metrics?.http_req_duration?.values?.['p(95)'] || 0,
+      http_req_duration_p99: data.metrics?.http_req_duration?.values?.['p(99)'] || 0,
     },
-    status: completed >= TARGET_TXN_COUNT * 0.95 ? 'PASSED' : 'FAILED',
+    status: completed >= TARGET_TXN_COUNT * 0.99 ? 'PASSED' : 'FAILED',
   };
 
   const k6Summary = textSummary(data, { indent: ' ', enableColors: false });
