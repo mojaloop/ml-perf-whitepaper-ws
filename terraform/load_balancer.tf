@@ -25,7 +25,10 @@ resource "aws_lb" "switch_nlb" {
 resource "aws_lb_target_group" "switch_tcp_80" {
   count = local.nlb_config != null && local.nlb_config.enabled ? 1 : 0
 
-  name        = "${local.project_config.name}-tcp-80"
+  # name_prefix + create_before_destroy lets target_port changes swap cleanly
+  # (AWS rejects deleting a TG that's still referenced by a listener).
+  # AWS caps name_prefix at 6 chars (32-char total with random suffix).
+  name_prefix = "tcp80-"
   port        = local.nlb_config.listeners[0].target_port
   protocol    = local.nlb_config.listeners[0].protocol
   vpc_id      = aws_vpc.main.id
@@ -42,6 +45,10 @@ resource "aws_lb_target_group" "switch_tcp_80" {
 
   deregistration_delay = 30 # Faster deregistration for NLB
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = merge(
     local.common_tags,
     {
@@ -54,7 +61,7 @@ resource "aws_lb_target_group" "switch_tcp_80" {
 resource "aws_lb_target_group" "switch_tcp_443" {
   count = local.nlb_config != null && local.nlb_config.enabled && length(local.nlb_config.listeners) > 1 ? 1 : 0
 
-  name        = "${local.project_config.name}-tcp-443"
+  name_prefix = "tcp443"
   port        = local.nlb_config.listeners[1].target_port
   protocol    = local.nlb_config.listeners[1].protocol
   vpc_id      = aws_vpc.main.id
@@ -70,6 +77,10 @@ resource "aws_lb_target_group" "switch_tcp_443" {
   }
 
   deregistration_delay = 30 # Faster deregistration for NLB
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   tags = merge(
     local.common_tags,
@@ -134,16 +145,38 @@ resource "aws_lb_target_group_attachment" "switch_tcp_443" {
   port             = local.nlb_config.listeners[1].target_port
 }
 
-# Security group rule to allow traffic from NLB
-# Note: NLB preserves source IPs, so we need to allow traffic from anywhere within the VPC
-resource "aws_security_group_rule" "internal_from_vpc_for_nlb" {
+# Look up the NLB's ENI(s) to expose the private IP — used by ansible
+# (DFSP CoreDNS hosts block + k6 CoreDNS hosts block) to resolve
+# account-lookup-service.local / quoting-service.local / ml-api-adapter.local
+# to the NLB instead of the first switch node.
+data "aws_network_interfaces" "switch_nlb" {
   count = local.nlb_config != null && local.nlb_config.enabled ? 1 : 0
 
+  filter {
+    name   = "description"
+    values = ["ELB net/${aws_lb.switch_nlb[0].name}/*"]
+  }
+}
+
+data "aws_network_interface" "switch_nlb" {
+  count = local.nlb_config != null && local.nlb_config.enabled ? 1 : 0
+  id    = tolist(data.aws_network_interfaces.switch_nlb[0].ids)[0]
+}
+
+# Security group rules to allow traffic from NLB.
+# Note: NLB preserves source IPs, so we allow traffic from anywhere within
+# the VPC (NLB health-check ENIs + the original client IP both fall here).
+# Ports are derived from the configured listener target_ports.
+resource "aws_security_group_rule" "internal_from_vpc_for_nlb" {
+  for_each = local.nlb_config != null && local.nlb_config.enabled ? {
+    for l in local.nlb_config.listeners : tostring(l.target_port) => l
+  } : {}
+
   type              = "ingress"
-  from_port         = 30000
-  to_port           = 32767
+  from_port         = each.value.target_port
+  to_port           = each.value.target_port
   protocol          = "tcp"
   cidr_blocks       = [local.network_config.vpc.cidr]
   security_group_id = aws_security_group.internal.id
-  description       = "NodePort range from NLB (preserves source IP)"
+  description       = "NLB target port ${each.value.target_port} (preserves source IP)"
 }

@@ -10,20 +10,18 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-# Resolve switch LB IP from the switch cluster if not pinned.
-- name: Discover switch LB IP (when not provided)
-  when: switch_lb_ip == ""
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} get node \
-      -l workload-class.mojaloop.io/CORE-API-ADAPTERS=true \
-      -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
-  register: _switch_lb
-  changed_when: false
-  environment: "{{ kubectl_env }}"
-
-- name: Set switch_lb_ip fact
-  ansible.builtin.set_fact:
-    switch_lb_ip: "{{ switch_lb_ip if switch_lb_ip else _switch_lb.stdout }}"
+# switch_lb_ip is wired through terraform → inventory.yaml (all.vars.switch_lb_ip).
+# Fail loud if it isn't set — a fallback to "first generic switch node" silently
+# bypasses the NLB and was the bug we fixed in May 2026.
+- name: Assert switch_lb_ip is set (inventory should carry NLB private IP)
+  ansible.builtin.assert:
+    that:
+      - switch_lb_ip is defined
+      - switch_lb_ip | length > 0
+    fail_msg: >-
+      switch_lb_ip is empty. It should be set in inventory.yaml from the
+      terraform output `nlb_private_ip`. Re-run `make terraform-apply` to
+      regenerate the inventory.
 
 - name: Per-DFSP loop
   ansible.builtin.include_tasks: per_fsp.yml

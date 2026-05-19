@@ -16,6 +16,11 @@ all:
     k8s_version: "1.28/stable"
     k8s_cluster_name: "mojaloop-perf"
 
+    # Switch load-balancer (private IP of the NLB ENI). Consumed by:
+    #   - ansible/roles/dfsp/                  → DFSP CoreDNS hosts block + scheme-adapter hostAliases
+    #   - ansible/playbooks/06-generate-hostaliases.yml → k6 CoreDNS hosts block
+    switch_lb_ip: "${nlb_private_ip}"
+
   children:
     bastion:
       hosts:

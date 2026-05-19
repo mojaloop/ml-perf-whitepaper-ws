@@ -15,10 +15,9 @@ dfsp_values_dir: "{{ common_dir }}/dfsp"
 # too aggressive under high load).
 dfsp_probe_period_seconds: 180
 
-# Switch ingress IP — used by the per-FSP hostAliases that resolve
-# account-lookup-service.local / quoting-service.local / ml-api-adapter.local.
-# Defaults to discovery; can be pinned via override.
-switch_lb_ip: ""
+# switch_lb_ip is provided by inventory.yaml (all.vars.switch_lb_ip), which
+# terraform populates from the NLB ENI private IP. No default here — main.yml
+# asserts it's set.
 
 # DFSP cert + Phase 1B passthrough resources.
 dfsp_tls_secret:        "{{ repo_root }}/certs/dfsp-tls-secret.yaml"

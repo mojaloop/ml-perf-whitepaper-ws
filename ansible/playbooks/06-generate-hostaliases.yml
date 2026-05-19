@@ -6,16 +6,22 @@
 #                                cluster's coredns ConfigMap so k6 pods can resolve
 #                                sim-fspNNN.local AND the switch services
 #
-# TODO(future): replace first-generic-node IP with the switch LB IP once an internal
-# LB private-IP output exists.
+# switch_ip is taken from inventory.yaml (all.vars.switch_lb_ip), which terraform
+# populates from the NLB ENI private IP.
 - name: Generate DNS-wiring artifacts (mojaloop hostaliases + k6 CoreDNS hosts)
   hosts: localhost
   gather_facts: no
   vars:
     artifacts_dir: "{{ playbook_dir }}/../../scenarios/{{ scenario | default('base', true) }}/artifacts"
-    # First generic switch worker (sw1-n1, sw1-n2, ...) — used as switch IP target today.
-    switch_ip: "{{ hostvars[(groups['switch'] | select('match', '^sw1-n[0-9]+$') | sort | first)]['private_ip'] }}"
+    switch_ip: "{{ switch_lb_ip }}"
   tasks:
+    - name: Assert switch_lb_ip is set
+      ansible.builtin.assert:
+        that:
+          - switch_lb_ip is defined
+          - switch_lb_ip | length > 0
+        fail_msg: "switch_lb_ip not in inventory — re-run `make terraform-apply`."
+
     - name: Render hostaliases.json (for mojaloop switch-side hostAliases patch)
       template:
         src: ../templates/hostaliases.json.j2

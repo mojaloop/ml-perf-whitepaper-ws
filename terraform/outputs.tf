@@ -92,6 +92,11 @@ output "nlb_arn" {
   value       = local.nlb_config != null && local.nlb_config.enabled ? aws_lb.switch_nlb[0].arn : null
 }
 
+output "nlb_private_ip" {
+  description = "Private IP of the NLB's ENI (used by ansible to wire DFSP CoreDNS to the LB)"
+  value       = local.nlb_config != null && local.nlb_config.enabled ? data.aws_network_interface.switch_nlb[0].private_ip : null
+}
+
 # SSH Connection Commands
 output "ssh_bastion_command" {
   description = "SSH command to connect to bastion"
@@ -122,9 +127,10 @@ output "ansible_inventory" {
         instance_id = instance.id
       }
     }
-    project_name = local.project_config.name
-    environment  = local.project_config.environment
-    region       = data.aws_region.current.name
+    project_name   = local.project_config.name
+    environment    = local.project_config.environment
+    region         = data.aws_region.current.name
+    nlb_private_ip = local.nlb_config != null && local.nlb_config.enabled ? data.aws_network_interface.switch_nlb[0].private_ip : ""
   })
 }
 
@@ -146,9 +152,10 @@ resource "local_file" "ansible_inventory" {
         instance_id = instance.id
       }
     }
-    project_name = local.project_config.name
-    environment  = local.project_config.environment
-    region       = data.aws_region.current.name
+    project_name   = local.project_config.name
+    environment    = local.project_config.environment
+    region         = data.aws_region.current.name
+    nlb_private_ip = local.nlb_config != null && local.nlb_config.enabled ? data.aws_network_interface.switch_nlb[0].private_ip : ""
   })
   filename = "${var.artifacts_dir}/inventory.yaml"
 
