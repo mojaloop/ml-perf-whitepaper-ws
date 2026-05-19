@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ttk-sims-onboarding
+  namespace: mojaloop
+spec:
+  ttlSecondsAfterFinished: 1800
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: cli
+          image: mojaloop/ml-testing-toolkit-client-lib:v1.13.0-infitx.4
+          command:
+            - sh
+            - -c
+            - |
+              set -eux
+              cd /collections
+              node /opt/app/src/client.js \
+                -u http://moja-ml-testing-toolkit-backend:5050 \
+                -e env.json \
+                -i fsp201.json,fsp202.json,fsp203.json,fsp204.json,fsp205.json,fsp206.json,fsp207.json,fsp208.json
+          volumeMounts:
+            - name: collection
+              mountPath: /collections
+      volumes:
+        - name: collection
+          configMap:
+            name: ttk-sims-onboarding-collection

@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ttk-cgs-specific
+  namespace: mojaloop
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: cli
+          image: mojaloop/ml-testing-toolkit-client-lib:v1.13.0-infitx.4
+          command:
+            - sh
+            - -c
+            - |
+              set -eux
+              cd /collections
+              # CSV of *.json except env.json (TTK env file) and master.json
+              # (folder ordering index — not a runnable collection).
+              INPUTS=$(ls *.json | grep -v -E '^(env|master)\.json$' | tr '\n' ',' | sed 's/,$//')
+              echo "Inputs: $INPUTS"
+              node /opt/app/src/client.js -u http://moja-ml-testing-toolkit-backend:5050 -e env.json -i "$INPUTS"
+          volumeMounts:
+            - name: collection
+              mountPath: /collections
+      volumes:
+        - name: collection
+          configMap:
+            name: ttk-cgs-specific-collection

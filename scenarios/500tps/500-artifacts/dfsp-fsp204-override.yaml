@@ -1,0 +1,10 @@
+simulators:
+  fsp204:
+    config:
+      schemeAdapter:
+        env:
+          INBOUND_MUTUAL_TLS_ENABLED: 'true'
+          OUTBOUND_MUTUAL_TLS_ENABLED: 'true'
+        image:
+          repository: kirgene/sdk-scheme-adapter
+          tag: jws-fix

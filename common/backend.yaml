@@ -6,7 +6,7 @@ global:
   security:
     allowInsecureImages: true
 
-## Reference: https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/kafka/values.yaml
+## Reference: https://github.com/bitnami/charts/blob/main/bitnami/kafka/values.yaml
 kafka:
   enabled: true
 
@@ -16,7 +16,7 @@ kafka:
   image:
     registry: docker.io
     repository: bitnamilegacy/kafka
-    tag: "3.8.1-debian-12-r0"
+    tag: 3.8.1
 
   listeners:
     client:
@@ -32,36 +32,25 @@ kafka:
     offsets.topic.replication.factor=1
     default.replication.factor=1
     transaction.state.log.replication.factor=1
+    log.retention.ms=1800000
+    log.retention.check.interval.ms=60000
+    log.segment.bytes=536870912
 
   # Kafka metrics configuration
   metrics:
-    kafka:
+    # JMX exporter configuration
+    jmx:
       enabled: true
-      # JMX exporter configuration
-      jmx:
-        enabled: true
-        config: |-
-          lowercaseOutputName: true
-          lowercaseOutputLabelNames: true
-          ssl: false
-          rules:
-          - pattern: kafka.controller<type=(.+), name=(.+)><>Value
-            name: kafka_controller_$1_$2
-          - pattern: kafka.server<type=(.+), name=(.+)PerSec\w*><>Count
-            name: kafka_server_$1_$2_total
-          - pattern: kafka.server<type=(.+), name=(.+)PerSec\w*, topic=(.+)><>Count
-            name: kafka_server_$1_$2_total
-            labels:
-              topic: "$3"
-        ports:
-          metrics: 5556
-
-      # Service annotations for Prometheus discovery
-      service:
-        annotations:
-          prometheus.io/scrape: "true"
-          prometheus.io/port: "5556"
-          prometheus.io/path: "/metrics"
+      image:
+        registry: docker.io
+        repository: bitnamilegacy/jmx-exporter
+        tag: 1.1.0
+    # ServiceMonitor for Prometheus discovery
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
 
   controller:
     replicaCount: 1
@@ -75,7 +64,7 @@ kafka:
 
     # Place Kafka controller on dedicated Kafka node
     nodeSelector:
-      workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+      workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
 
     # Tolerate the dedicated=kafka taint
     tolerations:
@@ -84,14 +73,8 @@ kafka:
         value: "kafka"
         effect: "NoSchedule"
 
-    # Pod annotations for metrics
-    podAnnotations:
-      prometheus.io/scrape: "true"
-      prometheus.io/port: "5556"
-      prometheus.io/path: "/metrics"
-
   broker:
-    replicaCount: 1
+    # replicaCount: 1
     persistence:
       enabled: false
       size: 50Gi
@@ -108,12 +91,6 @@ kafka:
         value: "kafka"
         effect: "NoSchedule"
 
-    # Pod annotations for metrics
-    podAnnotations:
-      prometheus.io/scrape: "true"
-      prometheus.io/port: "5556"
-      prometheus.io/path: "/metrics"
-
   ## ZooKeeper chart configuration
   ## https://github.com/bitnamilegacy/charts/blob/main/bitnamilegacy/zookeeper/values.yaml
   zookeeper:
@@ -122,68 +99,7 @@ kafka:
       enabled: false
 
   provisioning:
-    enabled: true
-    topics:
-      - name: topic-transfer-prepare
-        partitions: 12
-        replicationFactor: 1
-      - name: topic-transfer-position
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-transfer-position-batch
-        partitions: 12
-        replicationFactor: 1
-      - name: topic-transfer-fulfil
-        partitions: 12
-        replicationFactor: 1
-      - name: topic-notification-event
-        partitions: 24
-        replicationFactor: 1
-      - name: topic-transfer-get
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-admin-transfer
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-quotes-post
-        partitions: 12
-        replicationFactor: 1
-      - name: topic-quotes-put
-        partitions: 12
-        replicationFactor: 1
-      - name: topic-quotes-get
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-bulkquotes-post
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-bulkquotes-put
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-bulkquotes-get
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-bulk-prepare
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-bulk-fulfil
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-bulk-processing
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-bulk-get
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-fx-quotes-post
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-fx-quotes-put
-        partitions: 1
-        replicationFactor: 1
-      - name: topic-fx-quotes-get
-        partitions: 1
-        replicationFactor: 1
+    enabled: false
     persistence:
       enabled: false
 
@@ -197,10 +113,10 @@ mysql:
   image:
     registry: docker.io
     repository: bitnamilegacy/mysql
-    tag: "8.0.40-debian-12-r3"
+    tag: 8.0.40
 
   tls:
-    enabled: false
+    enabled: true
 
   fullnameOverride: "mysqldb"
 
@@ -223,15 +139,13 @@ mysql:
     image:
       registry: docker.io
       repository: bitnamilegacy/mysqld-exporter
-      tag: "0.15.1-debian-12-r9"
-    # Service configuration for metrics
-    service:
-      type: ClusterIP
-      port: 9104
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9104"
-        prometheus.io/path: "/metrics"
+      tag: 0.15.1
+    # Service Monitor configuration for metrics
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
     # Resources for the metrics exporter
     resources:
       limits:
@@ -246,11 +160,11 @@ mysql:
       enabled: false
       size: 50Gi
 
-    # Pod annotations for primary
-    podAnnotations:
-      prometheus.io/scrape: "true"
-      prometheus.io/port: "9104"
-      prometheus.io/path: "/metrics"
+    # # Pod annotations for primary
+    # podAnnotations:
+    #   prometheus.io/scrape: "true"
+    #   prometheus.io/port: "9104"
+    #   prometheus.io/path: "/metrics"
 
     # Place MySQL on dedicated MySQL nodes
     # Using affinity to allow placement on either ALS or Central Ledger nodes
@@ -298,6 +212,8 @@ mysql:
       - name: MSISDN_ORACLE_USER
         value: "oracle_msisdn"
 
+    extraFlags: |
+      --max_connections=1000
   ## Initialize databases
   initdbScripts:
     accountLookupInit.sh: |
@@ -390,7 +306,7 @@ cl-mongodb:
   image:
     registry: docker.io
     repository: bitnamilegacy/mongodb
-    tag: "7.0.15-debian-12-r0"
+    tag: 7.0.15
 
   auth:
     enabled: true
@@ -406,17 +322,23 @@ cl-mongodb:
   # MongoDB metrics configuration
   metrics:
     enabled: true
-    port: 9216
+    # port: 9216
     # Override metrics exporter image
     image:
       registry: docker.io
       repository: bitnamilegacy/mongodb-exporter
-      tag: "0.41.2-debian-12-r0"
-    service:
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9216"
-        prometheus.io/path: "/metrics"
+      tag: 0.41.2
+
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+    # service:
+    #   annotations:
+    #     prometheus.io/scrape: "true"
+    #     prometheus.io/port: "9216"
+    #     prometheus.io/path: "/metrics"
     resources:
       limits:
         memory: 128Mi
@@ -425,10 +347,10 @@ cl-mongodb:
         cpu: 50m
 
   # Pod annotations
-  podAnnotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "9216"
-    prometheus.io/path: "/metrics"
+  # podAnnotations:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "9216"
+  #   prometheus.io/path: "/metrics"
 
   persistence:
     enabled: false
@@ -442,7 +364,7 @@ ttk-mongodb:
   image:
     registry: docker.io
     repository: bitnamilegacy/mongodb
-    tag: "7.0.15-debian-12-r0"
+    tag: 7.0.15
 
   auth:
     enabled: true
@@ -458,17 +380,22 @@ ttk-mongodb:
   # MongoDB metrics configuration
   metrics:
     enabled: true
-    port: 9216
+    # port: 9216
     # Override metrics exporter image
     image:
       registry: docker.io
       repository: bitnamilegacy/mongodb-exporter
-      tag: "0.41.2-debian-12-r0"
-    service:
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9216"
-        prometheus.io/path: "/metrics"
+      tag: 0.41.2
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+    # service:
+    #   annotations:
+    #     prometheus.io/scrape: "true"
+    #     prometheus.io/port: "9216"
+    #     prometheus.io/path: "/metrics"
     resources:
       limits:
         memory: 128Mi
@@ -476,10 +403,10 @@ ttk-mongodb:
         memory: 64Mi
         cpu: 50m
 
-  podAnnotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "9216"
-    prometheus.io/path: "/metrics"
+  # podAnnotations:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "9216"
+  #   prometheus.io/path: "/metrics"
 
   persistence:
     enabled: false
@@ -494,7 +421,7 @@ ttksims-redis:
   image:
     registry: docker.io
     repository: bitnamilegacy/redis
-    tag: "7.4.1-debian-12-r0"
+    tag: 7.4.1
 
   auth:
     enabled: false
@@ -502,17 +429,22 @@ ttksims-redis:
   # Redis metrics configuration
   metrics:
     enabled: true
-    port: 9121
+    # port: 9121
     # Override metrics exporter image
     image:
       registry: docker.io
       repository: bitnamilegacy/redis-exporter
-      tag: "1.66.0-debian-12-r0"
-    service:
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9121"
-        prometheus.io/path: "/metrics"
+      tag: 1.66.0
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+    # service:
+    #   annotations:
+    #     prometheus.io/scrape: "true"
+    #     prometheus.io/port: "9121"
+    #     prometheus.io/path: "/metrics"
     resources:
       limits:
         memory: 128Mi
@@ -524,11 +456,11 @@ ttksims-redis:
     persistence:
       enabled: false
 
-    # Pod annotations
-    podAnnotations:
-      prometheus.io/scrape: "true"
-      prometheus.io/port: "9121"
-      prometheus.io/path: "/metrics"
+    # # Pod annotations
+    # podAnnotations:
+    #   prometheus.io/scrape: "true"
+    #   prometheus.io/port: "9121"
+    #   prometheus.io/path: "/metrics"
 
 ## Auth Service Redis with Metrics
 auth-svc-redis:
@@ -540,7 +472,7 @@ auth-svc-redis:
   image:
     registry: docker.io
     repository: bitnamilegacy/redis
-    tag: "7.4.1-debian-12-r0"
+    tag: 7.4.1
 
   auth:
     enabled: false
@@ -553,7 +485,7 @@ auth-svc-redis:
     image:
       registry: docker.io
       repository: bitnamilegacy/redis-exporter
-      tag: "1.66.0-debian-12-r0"
+      tag: 1.66.0
     service:
       annotations:
         prometheus.io/scrape: "true"
@@ -586,7 +518,7 @@ proxy-cache-redis:
   image:
     registry: docker.io
     repository: bitnamilegacy/redis-cluster
-    tag: "7.4.1-debian-12-r1"
+    tag: 7.4.1
 
   persistence:
     enabled: false
@@ -604,7 +536,7 @@ proxy-cache-redis:
     image:
       registry: docker.io
       repository: bitnamilegacy/redis-exporter
-      tag: "1.66.0-debian-12-r0"
+      tag: 1.66.0
     service:
       annotations:
         prometheus.io/scrape: "true"

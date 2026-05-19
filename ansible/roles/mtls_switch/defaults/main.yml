@@ -35,4 +35,4 @@ mtls_callback_deployments:
 # .200 collided with the example-mojaloop-backend mysqldb Service when
 # backend deployed first. .254 is in the high range, well clear of
 # auto-allocated IPs (which cluster < .100 in MicroK8s).
-egressgateway_pinned_ip: 10.152.183.254
+egressgateway_pinned_ip: 10.152.183.253
