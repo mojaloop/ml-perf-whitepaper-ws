@@ -17,6 +17,7 @@ egressgateway_values:  "{{ common_dir }}/istio-egressgateway.yaml"
 
 # Static manifests (always-applied content):
 mtls_switch_inbound:        "{{ repo_root }}/manifests/mtls/switch-inbound.yaml"
+mtls_switch_upstream_pool:  "{{ repo_root }}/manifests/mtls/switch-upstream-pool.yaml"
 mtls_switch_outbound:       "{{ repo_root }}/manifests/mtls/switch-outbound.yaml"
 mtls_egressgw_service:      "{{ repo_root }}/manifests/mtls/egressgateway-service.yaml"
 mtls_switch_tls_secret:     "{{ repo_root }}/certs/switch-tls-secret.yaml"

@@ -15,6 +15,27 @@
       wait_for_connection:
         timeout: 300
 
+    # High-TPS network tuning. Widens ephemeral port range and accept/syn
+    # queues so the gateway + sidecars + DFSP nginx don't run out of
+    # source ports or drop SYNs under sustained load. Persists across
+    # reboots via /etc/sysctl.d/.
+    - name: High-TPS network tuning — write /etc/sysctl.d/99-perf.conf
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/99-perf.conf
+        mode: '0644'
+        content: |
+          # Mojaloop perf-lab — high-TPS networking tuning.
+          # Managed by ansible/playbooks/01-install-microk8s.yml.
+          net.ipv4.ip_local_port_range = 1024 65535
+          net.core.somaxconn = 16384
+          net.ipv4.tcp_max_syn_backlog = 16384
+      register: sysctl_perf
+
+    - name: Reload sysctl if perf tuning changed
+      ansible.builtin.command: sysctl --system
+      when: sysctl_perf.changed
+      changed_when: false
+
     - name: Update apt cache
       apt:
         update_cache: yes
@@ -47,6 +68,26 @@
       when: microk8s_check.rc == 0
       register: microk8s_refresh
       changed_when: "'has no updates available' not in microk8s_refresh.stderr"
+
+    # Raise the per-container fd ceiling that snap-microk8s's containerd
+    # wrapper sets via `ulimit -n` in /var/snap/microk8s/.../args/containerd-env.
+    # Default 65536 was too low: at 500 TPS the istio-ingressgateway Envoy
+    # accumulated >65k fds (downstream DFSP TLS conns + xDS + upstream
+    # pool) and EMFILE-stormed. Bumped to 1048576; fs.nr_open on these
+    # AMIs is already 1048576 so the ulimit call won't be silently capped.
+    # Idempotent: regex matches any current digit value.
+    - name: Raise per-container fd ceiling (1048576) in containerd-env
+      ansible.builtin.replace:
+        path: /var/snap/microk8s/current/args/containerd-env
+        regexp: '^(\s*ulimit -n) \d+(.*)$'
+        replace: '\g<1> 1048576\g<2>'
+      register: containerd_ulimit
+
+    - name: Restart microk8s containerd if ulimit changed
+      ansible.builtin.systemd:
+        name: snap.microk8s.daemon-containerd
+        state: restarted
+      when: containerd_ulimit.changed
 
     - name: Add ubuntu user to microk8s group
       user:

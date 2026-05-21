@@ -397,37 +397,37 @@ vms:
           NodeNumber: "102"
 
       - name: fsp203
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "103"
 
       - name: fsp204
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "104"
 
       - name: fsp205
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "105"
 
       - name: fsp206
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "106"
 
       - name: fsp207
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "107"
 
       - name: fsp208
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         # root_volume:
         #   size: 128  # Override for larger disk
         #   type: gp3

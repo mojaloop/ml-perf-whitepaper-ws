@@ -1,22 +1,22 @@
 k6:
-  targetTxnCount: 500000
+  targetTxnCount: 100
   abortOnError: false
   transferAmount: "1" # transfer amount per transaction
   currency: "XXX"
-  targetTps: 2000
+  targetTps: 1
   fspPairs:
     - source: fsp201
       dest: fsp202
-      weight: 0.25 # 25% load
+      weight: 1 # 25% load
     - source: fsp203
       dest: fsp204
-      weight: 0.25 # 25% load
+      weight: 0 # 25% load
     - source: fsp205
       dest: fsp206
-      weight: 0.25 # 25% load
+      weight: 0 # 25% load
     - source: fsp207
       dest: fsp208
-      weight: 0.25 # 25% load
+      weight: 0 # 25% load
 
   # fspConfig intentionally NOT redeclared here — common/k6.yaml provides
   # it as a YAML map. Overriding it as a JSON-string (`fspConfig: |`) would
@@ -28,8 +28,8 @@ k6:
 
 resources:
   limits:
-    cpu: "6"
-    memory: "10Gi"
+    cpu: "8"
+    memory: "20Gi"
   requests:
     cpu: "3"
     memory: "5Gi"

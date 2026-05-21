@@ -105,6 +105,16 @@
   changed_when: "'created' in _legA.stdout or 'configured' in _legA.stdout"
   environment: "{{ kubectl_env }}"
 
+# Upstream connection-pool caps on the 3 switch services the gateway
+# routes to. Pairs with the per-container fd ceiling raised by
+# 01-install-microk8s.yml — see the manifest header for the full story.
+- name: Apply switch upstream connection-pool DestinationRules
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_switch_upstream_pool }}
+  register: _upstream_pool
+  changed_when: "'created' in _upstream_pool.stdout or 'configured' in _upstream_pool.stdout"
+  environment: "{{ kubectl_env }}"
+
 # ----------------------------------------------------------------------
 # Phase 3 — egress gateway + Leg B + CoreDNS hosts + hostAliases swap
 # ----------------------------------------------------------------------
