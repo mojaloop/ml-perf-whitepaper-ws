@@ -7,12 +7,12 @@ do
   echo ${i}
 
   # The switch(one of the node on which switch is running) IP
-  SWITCH_IP=10.112.2.229
+  SWITCH_IP=10.112.2.247
   # Number of sdk-scheme-adapter replicas - fsp201/202 get 8, fsp203-208 get 4
   if [[ ${i} -le 202 ]]; then
-    REPLICAS=8
+    REPLICAS=16
   else
-    REPLICAS=4
+    REPLICAS=12
   fi
   # kubeconfig files path
   KUBECONFIG_PATH=ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs
@@ -60,19 +60,20 @@ kubectl patch serviceaccount default \
       }
     ]"
 
-  # Patch REDIS_CACHE_TTL to 120 seconds (2 minutes)
-  kubectl patch deployment dfsp-sim-fsp${i}-scheme-adapter -n dfsps \
+  # Set/override env vars on the scheme-adapter main container only.
+  # --containers=scheme-adapter prevents kubectl from also applying these to the
+  # wait-for-cache initContainer (which just runs redis-cli ping and ignores them)
+  kubectl set env deployment/dfsp-sim-fsp${i}-scheme-adapter -n dfsps \
+    --containers=scheme-adapter \
+    REDIS_CACHE_TTL=120 \
+    ENABLE_TEST_FEATURES=false
+
+  # Patch Redis cache: enforce 200mb memory limit with LRU eviction (safety net for any
+  # keys that still lack a TTL), and disable RDB persistence (required because the
+  # container runs with readOnlyRootFilesystem=true)
+  kubectl patch deployment dfsp-sim-fsp${i}-cache -n dfsps \
     --type='json' \
-    -p="[
-      {
-        \"op\":\"add\",
-        \"path\":\"/spec/template/spec/containers/0/env/-\",
-        \"value\":{
-          \"name\":\"REDIS_CACHE_TTL\",
-          \"value\":\"120\"
-        }
-      }
-    ]"
+    -p='[{"op":"add","path":"/spec/template/spec/containers/0/args","value":["--maxmemory","200mb","--maxmemory-policy","allkeys-lru","--save",""]}]'
 
   # Patch liveness + readiness probe to periodSeconds = 180
   kubectl patch deployment dfsp-sim-fsp${i}-scheme-adapter -n dfsps \

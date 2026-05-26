@@ -89,6 +89,19 @@ build_dfsp_hosts_block() {
     out="${out}  ${ip} sim-fsp${i}.local\n"
   done
 
+  local mon_ip=""
+  mon_ip="$(awk '
+    $1=="Host" && $2=="sw1-monitoring" {inhost=1; next}
+    inhost && $1=="HostName" {print $2; exit}
+    inhost && $1=="Host" {exit}
+  ' "${SSH_CONFIG_PATH}")"
+
+  if [[ -z "${mon_ip}" ]]; then
+    echo "ERROR: Could not find HostName for Host sw1-monitoring in ${SSH_CONFIG_PATH}"
+    return 1
+  fi
+  out="${out}  ${mon_ip} promfana-prometheus.local\n"
+
   printf "%b" "${out}"
 }
 
@@ -111,8 +124,8 @@ echo "------------------------------------------------"
 
 
 # If already configured, skip
-if echo "${CURRENT_COREFILE}" | grep -q "sim-fsp201\.local"; then
-  echo "CoreDNS already contains sim-fsp*.local entries. Skipping CoreDNS patch."
+if echo "${CURRENT_COREFILE}" | grep -q "sim-fsp201\.local" && echo "${CURRENT_COREFILE}" | grep -q "promfana-prometheus\.local"; then
+  echo "CoreDNS already contains sim-fsp*.local and promfana-prometheus.local entries. Skipping CoreDNS patch."
 else
   # Optional: remove the leading "  " from DFSP_HOST_LINES for prettier indentation in CoreDNS
   DFSP_HOST_LINES_CLEAN="$(printf "%s" "${DFSP_HOST_LINES}" | sed 's/^[[:space:]]\{2\}//')"
@@ -183,4 +196,4 @@ fi
 
 echo ""
 echo "Done."
-echo "k6-operator installed in namespace '${K6_OPERATOR_NAMESPACE}'. CoreDNS configured for DFSP simulator domains."
+echo "k6-operator installed in namespace '${K6_OPERATOR_NAMESPACE}'. CoreDNS configured for DFSP simulator domains and promfana-prometheus.local."

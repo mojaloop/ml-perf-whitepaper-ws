@@ -1,0 +1,1768 @@
+➜ k get deploy -n mojaloop moja-account-lookup-service moja-centralledger-handler-transfer-fulfil moja-als-msisdn-oracle moja-centralledger-handler-transfer-prepare moja-centralledger-service moja-handler-pos-batch moja-ml-api-adapter-handler-notification moja-ml-api-adapter-service -o yaml
+apiVersion: v1
+items:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "4"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 31
+    labels:
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: account-lookup-service
+      app.kubernetes.io/version: 15.3.0
+      helm.sh/chart: account-lookup-service-15.3.0
+    name: moja-account-lookup-service
+    namespace: mojaloop
+    resourceVersion: "590335"
+    uid: c9e6fe42-7fac-4061-a95d-2bc244ac4be8
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 8
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: account-lookup-service
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          checksum/config: e8aeee6223beb8153960df511a0f06d9afdfd13550745b8e00548133b20d8065
+          checksum/secret-jws: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+          prometheus.io/port: "4002"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: account-lookup-service
+          app.kubernetes.io/version: 15.3.0
+          helm.sh/chart: account-lookup-service-15.3.0
+      spec:
+        containers:
+        - command:
+          - node
+          - src/index.js
+          - server
+          - --api
+          env:
+          - name: ALS_DATABASE__PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: LOG_LEVEL
+            value: error
+          - name: CSL_LOG_TRANSPORT
+            value: console
+          - name: EVENT_SDK_LOG_FILTER
+            value: log:info, log:warn, log:error
+          - name: EVENT_SDK_LOG_METADATA_ONLY
+            value: "false"
+          - name: EVENT_SDK_VENDOR_PREFIX
+            value: mojaloop
+          - name: EVENT_SDK_TRACESTATE_HEADER_ENABLED
+            value: "true"
+          - name: EVENT_SDK_ASYNC_OVERRIDE_EVENTS
+            value: log,trace
+          - name: EVENT_SDK_TRACEID_PER_VENDOR
+            value: "false"
+          image: mojaloop/account-lookup-service:v17.12.2
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 4002
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: account-lookup-service
+          ports:
+          - containerPort: 4002
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 4002
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/config
+            name: moja-account-lookup-service-config-volume
+        dnsPolicy: ClusterFirst
+        hostAliases:
+        - hostnames:
+          - sim-fsp201.local
+          ip: 10.112.2.181
+        - hostnames:
+          - sim-fsp202.local
+          ip: 10.112.2.206
+        - hostnames:
+          - sim-fsp203.local
+          ip: 10.112.2.62
+        - hostnames:
+          - sim-fsp204.local
+          ip: 10.112.2.104
+        - hostnames:
+          - sim-fsp205.local
+          ip: 10.112.2.216
+        - hostnames:
+          - sim-fsp206.local
+          ip: 10.112.2.220
+        - hostnames:
+          - sim-fsp207.local
+          ip: 10.112.2.109
+        - hostnames:
+          - sim-fsp208.local
+          ip: 10.112.2.84
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            until result=$(mysql -h ${DB_HOST} -P ${DB_PORT} -u ${DB_USER} --password=${DB_PASSWORD} ${DB_DATABASE} -ss -N -e 'select is_locked from migration_lock;') && eval 'echo is_locked=$result' && if [ -z $result ]; then false; fi && if [ $result -ne 0 ]; then false; fi;
+            do
+              echo --------------------;
+              echo Waiting for MySQL...;
+              sleep 2;
+            done;
+            echo ====================;
+            echo MySQL ok!;
+          env:
+          - name: DB_HOST
+            value: mysqldb
+          - name: DB_PORT
+            value: "3306"
+          - name: DB_USER
+            value: account_lookup
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: DB_DATABASE
+            value: account_lookup
+          image: mysql:9.0.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-mysql
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: account-lookup-service
+              pod-template-hash: ""
+          maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: account-lookup-service
+          maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            - key: knexfile.js
+              path: knexfile.js
+            name: moja-account-lookup-service-config
+          name: moja-account-lookup-service-config-volume
+  status:
+    availableReplicas: 8
+    conditions:
+    - lastTransitionTime: "2026-05-04T23:21:27Z"
+      lastUpdateTime: "2026-05-05T15:30:50Z"
+      message: ReplicaSet "moja-account-lookup-service-f94675d64" has successfully
+        progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    - lastTransitionTime: "2026-05-06T05:14:19Z"
+      lastUpdateTime: "2026-05-06T05:14:19Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 31
+    readyReplicas: 8
+    replicas: 8
+    updatedReplicas: 8
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "6"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 29
+    labels:
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: centralledger-handler-transfer-fulfil
+      app.kubernetes.io/version: 14.9.0
+      helm.sh/chart: centralledger-handler-transfer-fulfil-14.9.0
+    name: moja-centralledger-handler-transfer-fulfil
+    namespace: mojaloop
+    resourceVersion: "512696"
+    uid: f30a7a22-94a5-43cd-b1c6-de2ff2f361ea
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 12
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: centralledger-handler-transfer-fulfil
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          checksum/config: f3cec951ecec78a460ea00958aacbc19851122143343e4baa0c7e032d4e40717
+          checksum/secret: 387250100ea9d8dc9f3259360929d900a835af14a237b348165570846d14b951
+          kubectl.kubernetes.io/restartedAt: "2026-05-06T00:16:59.324Z"
+          prometheus.io/port: "3001"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: centralledger-handler-transfer-fulfil
+          app.kubernetes.io/version: 14.9.0
+          helm.sh/chart: centralledger-handler-transfer-fulfil-14.9.0
+      spec:
+        containers:
+        - command:
+          - node
+          - src/handlers/index.js
+          - handler
+          - --fulfil
+          env:
+          - name: CLEDG_DATABASE__PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: LOG_LEVEL
+            value: error
+          - name: LOG_FILTER
+            value: error, warn, info
+          - name: CSL_LOG_TRANSPORT
+            value: console
+          - name: EVENT_SDK_LOG_FILTER
+            value: log:info, log:warn, log:error
+          - name: EVENT_SDK_LOG_METADATA_ONLY
+            value: "false"
+          - name: EVENT_SDK_VENDOR_PREFIX
+            value: mojaloop
+          - name: EVENT_SDK_TRACESTATE_HEADER_ENABLED
+            value: "true"
+          - name: EVENT_SDK_ASYNC_OVERRIDE_EVENTS
+            value: log,trace
+          - name: EVENT_SDK_TRACEID_PER_VENDOR
+            value: "false"
+          image: mojaloop/central-ledger:v19.8.3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: centralledger-handler-transfer-fulfil
+          ports:
+          - containerPort: 3001
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/config
+            name: moja-centralledger-handler-transfer-fulfil-config-volume
+        dnsPolicy: ClusterFirst
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - until ./bin/kafka-broker-api-versions.sh --bootstrap-server ${KAFKA_HOST}:${KAFKA_PORT};
+            do echo --------------------; echo Waiting for Kafka...; sleep 2; done;
+            echo ====================; echo Kafka ok!;
+          env:
+          - name: KAFKA_HOST
+            value: kafka
+          - name: KAFKA_PORT
+            value: "9092"
+          image: solsson/kafka:2.8.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-kafka
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        - command:
+          - sh
+          - -c
+          - |
+            until result=$(mysql -h ${DB_HOST} -P ${DB_PORT} -u ${DB_USER} --password=${DB_PASSWORD} ${DB_DATABASE} -ss -N -e 'select is_locked from migration_lock;') && eval 'echo is_locked=$result' && if [ -z $result ]; then false; fi && if [ $result -ne 0 ]; then false; fi;
+            do
+              echo --------------------;
+              echo Waiting for MySQL...;
+              sleep 2;
+            done;
+            echo ====================;
+            echo MySQL ok!;
+          env:
+          - name: DB_HOST
+            value: mysqldb
+          - name: DB_PORT
+            value: "3306"
+          - name: DB_USER
+            value: central_ledger
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: DB_DATABASE
+            value: central_ledger
+          image: mysql:9.0.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-mysql
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: centralledger-handler-transfer-fulfil
+          maxSkew: 1
+          minDomains: 4
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            - key: knexfile.js
+              path: knexfile.js
+            name: moja-centralledger-handler-transfer-fulfil-config
+          name: moja-centralledger-handler-transfer-fulfil-config-volume
+  status:
+    availableReplicas: 12
+    conditions:
+    - lastTransitionTime: "2026-05-06T00:18:08Z"
+      lastUpdateTime: "2026-05-06T00:18:08Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2026-05-04T23:21:28Z"
+      lastUpdateTime: "2026-05-06T00:18:08Z"
+      message: ReplicaSet "moja-centralledger-handler-transfer-fulfil-68bf77b859"
+        has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 29
+    readyReplicas: 12
+    replicas: 12
+    updatedReplicas: 12
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 5
+    labels:
+      app.kubernetes.io/component: als-msisdn-oracle
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: als-msisdn-oracle
+      helm.sh/chart: als-msisdn-oracle-1.0.0
+    name: moja-als-msisdn-oracle
+    namespace: mojaloop
+    resourceVersion: "169736"
+    uid: 361093f6-e654-4a82-9b53-62a782f2be2d
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 8
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/component: als-msisdn-oracle
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: als-msisdn-oracle
+    strategy:
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/component: als-msisdn-oracle
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: als-msisdn-oracle
+          app.kubernetes.io/version: 1.0.0
+          helm.sh/chart: als-msisdn-oracle-1.0.0
+      spec:
+        containers:
+        - command:
+          - node
+          - ./dist/src/cli.js
+          env:
+          - name: ALS_MSISDN_ORACLE_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          image: mojaloop/als-msisdn-oracle-svc:v0.0.21
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: als-msisdn-oracle
+          ports:
+          - containerPort: 3000
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/dist/config/default.json
+            name: als-msisdn-oracle-config-volume
+            subPath: default.json
+        dnsPolicy: ClusterFirst
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            # Conditionally add SSL options if present
+            MYSQL_SSL_OPTIONS=""
+            if [ "${DB_SSL_ENABLED}" = "true" ]; then
+              MYSQL_SSL_OPTIONS="--ssl-mode=REQUIRED"
+              if [ "${DB_SSL_VERIFY}" = "true" ]; then
+                MYSQL_SSL_OPTIONS="${MYSQL_SSL_OPTIONS} --ssl-verify-server-cert"
+              fi
+              if [ -n "${DB_SSL_CA}" ]; then
+                echo "$DB_SSL_CA" > /tmp/ca.pem
+                MYSQL_SSL_OPTIONS="${MYSQL_SSL_OPTIONS} --ssl-ca=/tmp/ca.pem"
+              fi
+            fi
+            until result=$(mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" --password="${DB_PASSWORD}" $MYSQL_SSL_OPTIONS "${DB_DATABASE}" -ss -N -e "${DB_WAIT_QUERY:-select 1;}") && eval "echo query_result=\$result" && { [ -z "$result" ] && false || { [ -n "${DB_EXPECTED_RESULT}" ] && [ "$result" != "${DB_EXPECTED_RESULT}" ] && false || true; }; };
+            do
+              echo --------------------;
+              echo Waiting for MySQL...;
+              sleep 2;
+            done;
+            echo ====================;
+            echo MySQL ok!;
+          env:
+          - name: DB_HOST
+            value: mysqldb
+          - name: DB_PORT
+            value: "3306"
+          - name: DB_USER
+            value: oracle_msisdn
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: DB_SSL_ENABLED
+            value: "true"
+          - name: DB_SSL_VERIFY
+            value: "false"
+          - name: DB_DATABASE
+            value: oracle_msisdn
+          image: mysql:9.0.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-mysql
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        - command:
+          - sh
+          - -c
+          - npm run migrate
+          env:
+          - name: ALS_MSISDN_ORACLE_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: NODE_ENV
+            value: production
+          image: mojaloop/als-msisdn-oracle-svc:v0.0.21
+          imagePullPolicy: IfNotPresent
+          name: run-migration
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/dist/config/default.json
+            name: als-msisdn-oracle-config-volume
+            subPath: default.json
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: als-msisdn-oracle
+          maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: als-msisdn-oracle
+          maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            name: moja-als-msisdn-oracle-config
+          name: als-msisdn-oracle-config-volume
+  status:
+    availableReplicas: 8
+    conditions:
+    - lastTransitionTime: "2026-05-04T23:21:29Z"
+      lastUpdateTime: "2026-05-04T23:22:59Z"
+      message: ReplicaSet "moja-als-msisdn-oracle-75bb748cc5" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    - lastTransitionTime: "2026-05-05T04:53:40Z"
+      lastUpdateTime: "2026-05-05T04:53:40Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 5
+    readyReplicas: 8
+    replicas: 8
+    updatedReplicas: 8
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "6"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 29
+    labels:
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: centralledger-handler-transfer-prepare
+      app.kubernetes.io/version: 14.9.0
+      helm.sh/chart: centralledger-handler-transfer-prepare-14.9.0
+    name: moja-centralledger-handler-transfer-prepare
+    namespace: mojaloop
+    resourceVersion: "512494"
+    uid: 003ecc64-f49e-4c3d-adae-09cccdecda14
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 12
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: centralledger-handler-transfer-prepare
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          checksum/config: 3291541029ab8e1ee75932c5a5f8bcefabfbfb3d69330c15602751e466bb42ed
+          checksum/secret: cd597a6160716146077d6a60120e22a11152264716059a78910e8be5e9b4ff8f
+          kubectl.kubernetes.io/restartedAt: "2026-05-06T00:16:43.787Z"
+          prometheus.io/port: "3001"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: centralledger-handler-transfer-prepare
+          app.kubernetes.io/version: 14.9.0
+          helm.sh/chart: centralledger-handler-transfer-prepare-14.9.0
+      spec:
+        containers:
+        - command:
+          - node
+          - src/handlers/index.js
+          - handler
+          - --prepare
+          env:
+          - name: CLEDG_DATABASE__PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: LOG_LEVEL
+            value: error
+          - name: LOG_FILTER
+            value: error, warn, info
+          - name: CSL_LOG_TRANSPORT
+            value: console
+          - name: EVENT_SDK_LOG_FILTER
+            value: log:info, log:warn, log:error
+          - name: EVENT_SDK_LOG_METADATA_ONLY
+            value: "false"
+          - name: EVENT_SDK_VENDOR_PREFIX
+            value: mojaloop
+          - name: EVENT_SDK_TRACESTATE_HEADER_ENABLED
+            value: "true"
+          - name: EVENT_SDK_ASYNC_OVERRIDE_EVENTS
+            value: log,trace
+          - name: EVENT_SDK_TRACEID_PER_VENDOR
+            value: "false"
+          image: mojaloop/central-ledger:v19.8.3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: centralledger-handler-transfer-prepare
+          ports:
+          - containerPort: 3001
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/config
+            name: moja-centralledger-handler-transfer-prepare-config-volume
+        dnsPolicy: ClusterFirst
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - until ./bin/kafka-broker-api-versions.sh --bootstrap-server ${KAFKA_HOST}:${KAFKA_PORT};
+            do echo --------------------; echo Waiting for Kafka...; sleep 2; done;
+            echo ====================; echo Kafka ok!;
+          env:
+          - name: KAFKA_HOST
+            value: kafka
+          - name: KAFKA_PORT
+            value: "9092"
+          image: solsson/kafka:2.8.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-kafka
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        - command:
+          - sh
+          - -c
+          - |
+            until result=$(mysql -h ${DB_HOST} -P ${DB_PORT} -u ${DB_USER} --password=${DB_PASSWORD} ${DB_DATABASE} -ss -N -e 'select is_locked from migration_lock;') && eval 'echo is_locked=$result' && if [ -z $result ]; then false; fi && if [ $result -ne 0 ]; then false; fi;
+            do
+              echo --------------------;
+              echo Waiting for MySQL...;
+              sleep 2;
+            done;
+            echo ====================;
+            echo MySQL ok!;
+          env:
+          - name: DB_HOST
+            value: mysqldb
+          - name: DB_PORT
+            value: "3306"
+          - name: DB_USER
+            value: central_ledger
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: DB_DATABASE
+            value: central_ledger
+          image: mysql:9.0.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-mysql
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: centralledger-handler-transfer-prepare
+          maxSkew: 1
+          minDomains: 4
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            - key: knexfile.js
+              path: knexfile.js
+            name: moja-centralledger-handler-transfer-prepare-config
+          name: moja-centralledger-handler-transfer-prepare-config-volume
+  status:
+    availableReplicas: 12
+    conditions:
+    - lastTransitionTime: "2026-05-06T00:17:52Z"
+      lastUpdateTime: "2026-05-06T00:17:52Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2026-05-04T23:21:28Z"
+      lastUpdateTime: "2026-05-06T00:17:52Z"
+      message: ReplicaSet "moja-centralledger-handler-transfer-prepare-6fb5484859"
+        has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 29
+    readyReplicas: 12
+    replicas: 12
+    updatedReplicas: 12
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "9"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 22
+    labels:
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: centralledger-service
+      app.kubernetes.io/version: 14.9.0
+      helm.sh/chart: centralledger-service-14.9.0
+    name: moja-centralledger-service
+    namespace: mojaloop
+    resourceVersion: "362340"
+    uid: fe0683c2-f167-4504-9b5a-7f0fcc40d511
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 8
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: centralledger-service
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          checksum/config: 682bb02659345f31689d88b1146edd27dc1fd81df1d2a3f5b3579fa9da865691
+          checksum/secret: 60e8e801e46ef0dcbd19de3fa3306121935712b744a5a8436053a8a75ee8a300
+          kubectl.kubernetes.io/restartedAt: "2026-05-05T09:34:45-06:00"
+          prometheus.io/port: "3001"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: centralledger-service
+          app.kubernetes.io/version: 14.9.0
+          helm.sh/chart: centralledger-service-14.9.0
+      spec:
+        containers:
+        - command:
+          - node
+          - src/api/index.js
+          env:
+          - name: CLEDG_DATABASE__PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: LOG_LEVEL
+            value: error
+          - name: LOG_FILTER
+            value: error, warn, info
+          - name: CSL_LOG_TRANSPORT
+            value: console
+          - name: EVENT_SDK_LOG_FILTER
+            value: log:info, log:warn, log:error
+          - name: EVENT_SDK_LOG_METADATA_ONLY
+            value: "false"
+          - name: EVENT_SDK_VENDOR_PREFIX
+            value: mojaloop
+          - name: EVENT_SDK_TRACESTATE_HEADER_ENABLED
+            value: "true"
+          - name: EVENT_SDK_ASYNC_OVERRIDE_EVENTS
+            value: log,trace
+          - name: EVENT_SDK_TRACEID_PER_VENDOR
+            value: "false"
+          image: mojaloop/central-ledger:v19.8.3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: centralledger-service
+          ports:
+          - containerPort: 3001
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/config
+            name: moja-centralledger-service-config-volume
+        dnsPolicy: ClusterFirst
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            until mysql -h ${DB_HOST} -P ${DB_PORT} -u ${DB_USER} --password=${DB_PASSWORD}  ${DB_DATABASE} -e 'select version()' ;
+            do
+              echo --------------------;
+              echo Waiting for MySQL...;
+              sleep 2;
+            done;
+            echo ====================;
+            echo MySQL ok!;
+          env:
+          - name: DB_HOST
+            value: mysqldb
+          - name: DB_PORT
+            value: "3306"
+          - name: DB_USER
+            value: central_ledger
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: DB_DATABASE
+            value: central_ledger
+          image: mysql:9.0.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-mysql
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: centralledger-service
+          maxSkew: 1
+          minDomains: 4
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            - key: knexfile.js
+              path: knexfile.js
+            name: moja-centralledger-service-config
+          name: moja-centralledger-service-config-volume
+  status:
+    availableReplicas: 8
+    conditions:
+    - lastTransitionTime: "2026-05-04T23:21:28Z"
+      lastUpdateTime: "2026-05-05T15:50:24Z"
+      message: ReplicaSet "moja-centralledger-service-8f74cf6ff" has successfully
+        progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    - lastTransitionTime: "2026-05-05T15:52:02Z"
+      lastUpdateTime: "2026-05-05T15:52:02Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 22
+    readyReplicas: 8
+    replicas: 8
+    updatedReplicas: 8
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "6"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 29
+    labels:
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: handler-pos-batch
+      app.kubernetes.io/version: 15.5.3
+      helm.sh/chart: centralledger-handler-transfer-position-batch-15.5.3
+    name: moja-handler-pos-batch
+    namespace: mojaloop
+    resourceVersion: "512551"
+    uid: 5b20deed-592a-4978-86ea-dd5b9115204f
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 8
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: handler-pos-batch
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          checksum/config: 0a21b404d0e9ddb50a62a575ee96b423d312e8c87661ab0012a30363b1018512
+          checksum/secret: b289bf137407354857b9bbd2e99fd783545538073769d8f83d31e41ebb0fe8ec
+          kubectl.kubernetes.io/restartedAt: "2026-05-06T00:16:50.785Z"
+          prometheus.io/port: "3001"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: handler-pos-batch
+          app.kubernetes.io/version: 15.5.3
+          helm.sh/chart: centralledger-handler-transfer-position-batch-15.5.3
+      spec:
+        containers:
+        - command:
+          - node
+          - src/handlers/index.js
+          - handler
+          - --positionbatch
+          env:
+          - name: CLEDG_DATABASE__PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: LOG_LEVEL
+            value: error
+          - name: LOG_FILTER
+            value: error, warn, info
+          - name: CSL_LOG_TRANSPORT
+            value: console
+          - name: EVENT_SDK_LOG_FILTER
+            value: log:info, log:warn, log:error
+          - name: EVENT_SDK_LOG_METADATA_ONLY
+            value: "false"
+          - name: EVENT_SDK_VENDOR_PREFIX
+            value: mojaloop
+          - name: EVENT_SDK_TRACESTATE_HEADER_ENABLED
+            value: "true"
+          - name: EVENT_SDK_ASYNC_OVERRIDE_EVENTS
+            value: log,trace
+          - name: EVENT_SDK_TRACEID_PER_VENDOR
+            value: "false"
+          image: mojaloop/central-ledger:v19.8.3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: handler-pos-batch
+          ports:
+          - containerPort: 3001
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/config
+            name: moja-handler-pos-batch-config-volume
+        dnsPolicy: ClusterFirst
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - until ./bin/kafka-broker-api-versions.sh --bootstrap-server ${KAFKA_HOST}:${KAFKA_PORT};
+            do echo --------------------; echo Waiting for Kafka...; sleep 2; done;
+            echo ====================; echo Kafka ok!;
+          env:
+          - name: KAFKA_HOST
+            value: kafka
+          - name: KAFKA_PORT
+            value: "9092"
+          image: solsson/kafka:2.8.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-kafka
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        - command:
+          - sh
+          - -c
+          - |
+            until result=$(mysql -h ${DB_HOST} -P ${DB_PORT} -u ${DB_USER} --password=${DB_PASSWORD} ${DB_DATABASE} -ss -N -e 'select is_locked from migration_lock;') && eval 'echo is_locked=$result' && if [ -z $result ]; then false; fi && if [ $result -ne 0 ]; then false; fi;
+            do
+              echo --------------------;
+              echo Waiting for MySQL...;
+              sleep 2;
+            done;
+            echo ====================;
+            echo MySQL ok!;
+          env:
+          - name: DB_HOST
+            value: mysqldb
+          - name: DB_PORT
+            value: "3306"
+          - name: DB_USER
+            value: central_ledger
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mysql-password
+                name: mysqldb
+          - name: DB_DATABASE
+            value: central_ledger
+          image: mysql:9.0.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-mysql
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: handler-pos-batch
+          maxSkew: 1
+          minDomains: 4
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            - key: knexfile.js
+              path: knexfile.js
+            name: moja-handler-pos-batch-config
+          name: moja-handler-pos-batch-config-volume
+  status:
+    availableReplicas: 8
+    conditions:
+    - lastTransitionTime: "2026-05-06T00:17:59Z"
+      lastUpdateTime: "2026-05-06T00:17:59Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2026-05-04T23:21:29Z"
+      lastUpdateTime: "2026-05-06T00:17:59Z"
+      message: ReplicaSet "moja-handler-pos-batch-5ddd596ddb" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 29
+    readyReplicas: 8
+    replicas: 8
+    updatedReplicas: 8
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "12"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 39
+    labels:
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: ml-api-adapter-handler-notification
+      app.kubernetes.io/version: 14.3.0
+      helm.sh/chart: ml-api-adapter-handler-notification-14.3.0
+    name: moja-ml-api-adapter-handler-notification
+    namespace: mojaloop
+    resourceVersion: "565535"
+    uid: f022cd61-d8df-481f-9c45-1063c1e2ba7c
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 18
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: ml-api-adapter-handler-notification
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          checksum/config: a7980f2f344f6e7279859ad83e4756e15fef155a56792ffb38c29c29fa4416b8
+          checksum/secret-jws: 6004e5bc5674c0189c24a9e921816ddc2fa4c2c8bddd8ccaffcea823bbd837c9
+          kubectl.kubernetes.io/restartedAt: "2026-05-06T03:34:44.544Z"
+          prometheus.io/port: "3000"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: ml-api-adapter-handler-notification
+          app.kubernetes.io/version: 14.3.0
+          helm.sh/chart: ml-api-adapter-handler-notification-14.3.0
+      spec:
+        containers:
+        - command:
+          - node
+          - src/handlers/index.js
+          - handler
+          - --notification
+          env:
+          - name: LOG_LEVEL
+            value: error
+          - name: LOG_FILTER
+            value: error, warn, info
+          - name: CSL_LOG_TRANSPORT
+            value: console
+          - name: EVENT_SDK_LOG_FILTER
+            value: log:info, log:warn, log:error
+          - name: EVENT_SDK_LOG_METADATA_ONLY
+            value: "false"
+          - name: EVENT_SDK_VENDOR_PREFIX
+            value: mojaloop
+          - name: EVENT_SDK_TRACESTATE_HEADER_ENABLED
+            value: "true"
+          - name: EVENT_SDK_ASYNC_OVERRIDE_EVENTS
+            value: log,trace
+          - name: EVENT_SDK_TRACEID_PER_VENDOR
+            value: "false"
+          image: mojaloop/ml-api-adapter:v16.5.9
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: ml-api-adapter-handler-notification
+          ports:
+          - containerPort: 3000
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/config
+            name: moja-ml-api-adapter-handler-notification-config-volume
+          - mountPath: /opt/app/secrets
+            name: jws-signing-key
+        dnsPolicy: ClusterFirst
+        hostAliases:
+        - hostnames:
+          - sim-fsp201.local
+          ip: 10.112.2.181
+        - hostnames:
+          - sim-fsp202.local
+          ip: 10.112.2.206
+        - hostnames:
+          - sim-fsp203.local
+          ip: 10.112.2.62
+        - hostnames:
+          - sim-fsp204.local
+          ip: 10.112.2.104
+        - hostnames:
+          - sim-fsp205.local
+          ip: 10.112.2.216
+        - hostnames:
+          - sim-fsp206.local
+          ip: 10.112.2.220
+        - hostnames:
+          - sim-fsp207.local
+          ip: 10.112.2.109
+        - hostnames:
+          - sim-fsp208.local
+          ip: 10.112.2.84
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - until ./bin/kafka-broker-api-versions.sh --bootstrap-server ${KAFKA_HOST}:${KAFKA_PORT};
+            do echo --------------------; echo Waiting for Kafka...; sleep 2; done;
+            echo ====================; echo Kafka ok!;
+          env:
+          - name: KAFKA_HOST
+            value: kafka
+          - name: KAFKA_PORT
+            value: "9092"
+          image: solsson/kafka:2.8.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-kafka
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-api-adapter-handler-notification
+          maxSkew: 1
+          minDomains: 4
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+        volumes:
+        - name: jws-signing-key
+          secret:
+            defaultMode: 420
+            secretName: moja-ml-api-adapter-handler-notification-jws-signing-key
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            name: moja-ml-api-adapter-handler-notification-config
+          name: moja-ml-api-adapter-handler-notification-config-volume
+  status:
+    availableReplicas: 18
+    conditions:
+    - lastTransitionTime: "2026-05-06T03:37:05Z"
+      lastUpdateTime: "2026-05-06T03:37:05Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2026-05-04T23:21:30Z"
+      lastUpdateTime: "2026-05-06T03:37:05Z"
+      message: ReplicaSet "moja-ml-api-adapter-handler-notification-67cb685f" has
+        successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 39
+    readyReplicas: 18
+    replicas: 18
+    updatedReplicas: 18
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "6"
+      meta.helm.sh/release-name: moja
+      meta.helm.sh/release-namespace: mojaloop
+    creationTimestamp: "2026-05-04T23:21:27Z"
+    generation: 29
+    labels:
+      app.kubernetes.io/instance: moja
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: ml-api-adapter-service
+      app.kubernetes.io/version: 14.3.0
+      helm.sh/chart: ml-api-adapter-service-14.3.0
+    name: moja-ml-api-adapter-service
+    namespace: mojaloop
+    resourceVersion: "513207"
+    uid: 47577993-af13-43a0-aa5e-41767c1b7d8f
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 12
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app.kubernetes.io/instance: moja
+        app.kubernetes.io/name: ml-api-adapter-service
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          checksum/config: afbca548709e82730593ae0e785edd13a2030a66e2274e0509c80a59db2c7064
+          kubectl.kubernetes.io/restartedAt: "2026-05-06T00:16:35.937Z"
+          prometheus.io/port: "3000"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/instance: moja
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: ml-api-adapter-service
+          app.kubernetes.io/version: 14.3.0
+          helm.sh/chart: ml-api-adapter-service-14.3.0
+      spec:
+        containers:
+        - command:
+          - node
+          - src/api/index.js
+          env:
+          - name: LOG_LEVEL
+            value: error
+          - name: LOG_FILTER
+            value: error, warn, info
+          - name: CSL_LOG_TRANSPORT
+            value: console
+          - name: EVENT_SDK_LOG_FILTER
+            value: log:info, log:warn, log:error
+          - name: EVENT_SDK_LOG_METADATA_ONLY
+            value: "false"
+          - name: EVENT_SDK_VENDOR_PREFIX
+            value: mojaloop
+          - name: EVENT_SDK_TRACESTATE_HEADER_ENABLED
+            value: "true"
+          - name: EVENT_SDK_ASYNC_OVERRIDE_EVENTS
+            value: log,trace
+          - name: EVENT_SDK_TRACEID_PER_VENDOR
+            value: "false"
+          image: mojaloop/ml-api-adapter:v16.5.9
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: ml-api-adapter-service
+          ports:
+          - containerPort: 3000
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /opt/app/config
+            name: moja-ml-api-adapter-service-config-volume
+        dnsPolicy: ClusterFirst
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - until ./bin/kafka-broker-api-versions.sh --bootstrap-server ${KAFKA_HOST}:${KAFKA_PORT};
+            do echo --------------------; echo Waiting for Kafka...; sleep 2; done;
+            echo ====================; echo Kafka ok!;
+          env:
+          - name: KAFKA_HOST
+            value: kafka
+          - name: KAFKA_PORT
+            value: "9092"
+          image: solsson/kafka:2.8.1
+          imagePullPolicy: IfNotPresent
+          name: wait-for-kafka
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-api-adapter-service
+          maxSkew: 1
+          minDomains: 4
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: default.json
+              path: default.json
+            name: moja-ml-api-adapter-service-config
+          name: moja-ml-api-adapter-service-config-volume
+  status:
+    availableReplicas: 12
+    conditions:
+    - lastTransitionTime: "2026-05-06T00:18:53Z"
+      lastUpdateTime: "2026-05-06T00:18:53Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2026-05-04T23:21:29Z"
+      lastUpdateTime: "2026-05-06T00:18:53Z"
+      message: ReplicaSet "moja-ml-api-adapter-service-5fcd864444" has successfully
+        progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 29
+    readyReplicas: 12
+    replicas: 12
+    updatedReplicas: 12
+kind: List
+metadata:
+  resourceVersion: ""
+
+
+
+  ------- Friday 8th May 2026
+The best result
+
+
+➜ k get deploy -n mojaloop                                    
+NAME                                                READY   UP-TO-DATE   AVAILABLE   AGE
+cl-mongodb                                          1/1     1            1           20h
+moja-account-lookup-service                         8/8     8            8           20h
+moja-account-lookup-service-admin                   1/1     1            1           20h
+moja-als-msisdn-oracle                              8/8     8            8           20h
+moja-centralledger-handler-admin-transfer           1/1     1            1           20h
+moja-centralledger-handler-timeout                  0/0     0            0           20h
+moja-centralledger-handler-transfer-fulfil          12/12   12           12          20h
+moja-centralledger-handler-transfer-get             1/1     1            1           20h
+moja-centralledger-handler-transfer-prepare         12/12   12           12          20h
+moja-centralledger-service                          8/8     8            8           20h
+moja-centralsettlement-handler-deferredsettlement   1/1     1            1           20h
+moja-centralsettlement-handler-rules                1/1     1            1           20h
+moja-centralsettlement-service                      1/1     1            1           20h
+moja-handler-pos-batch                              8/8     8            8           20h
+moja-ml-api-adapter-handler-notification            16/16   16           16          20h
+moja-ml-api-adapter-service                         12/12   12           12          20h
+moja-ml-testing-toolkit-frontend                    1/1     1            1           20h
+moja-quoting-service                                12/12   12           12          20h
+moja-quoting-service-handler                        12/12   12           12          20h
+moja-transaction-requests-service                   1/1     1            1           20h
+ttk-mongodb                                         1/1     1            1           20h
+
+
+
+
+➜ k get pods -n mojaloop -o wide
+NAME                                                              READY   STATUS      RESTARTS        AGE    IP             NODE           NOMINATED NODE   READINESS GATES
+auth-svc-redis-master-0                                           2/2     Running     0               20h    10.1.149.47    sw1-n3         <none>           <none>
+cl-mongodb-cfb46cb95-t4wwz                                        2/2     Running     0               20h    10.1.169.163   sw1-n2         <none>           <none>
+kafka-controller-0                                                2/2     Running     0               20h    10.1.48.138    sw1-kafka-n1   <none>           <none>
+kafka-debug-ui                                                    1/1     Running     0               33h    10.1.178.172   sw1-n1         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-bbxmw                      1/1     Running     0               20h    10.1.83.205    sw1-n4         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-cw4x7                      1/1     Running     0               20h    10.1.178.142   sw1-n1         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-flwwd                      1/1     Running     0               20h    10.1.149.5     sw1-n3         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-fn7hg                      1/1     Running     0               20h    10.1.169.176   sw1-n2         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-hk5gn                      1/1     Running     0               20h    10.1.178.189   sw1-n1         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-kh4zt                      1/1     Running     0               20h    10.1.149.34    sw1-n3         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-mg45p                      1/1     Running     0               20h    10.1.83.230    sw1-n4         <none>           <none>
+moja-account-lookup-service-7d4b69f67f-mpd2w                      1/1     Running     0               20h    10.1.169.136   sw1-n2         <none>           <none>
+moja-account-lookup-service-admin-8fccbd4f-skxnj                  1/1     Running     0               20h    10.1.83.229    sw1-n4         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-6cbmj                           1/1     Running     0               20h    10.1.169.145   sw1-n2         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-kwg9g                           1/1     Running     0               20h    10.1.83.194    sw1-n4         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-lmtwc                           1/1     Running     0               20h    10.1.149.57    sw1-n3         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-n6kgj                           1/1     Running     0               20h    10.1.178.152   sw1-n1         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-pnlpx                           1/1     Running     0               20h    10.1.169.150   sw1-n2         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-q292d                           1/1     Running     0               20h    10.1.149.26    sw1-n3         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-v42rs                           1/1     Running     0               20h    10.1.178.190   sw1-n1         <none>           <none>
+moja-als-msisdn-oracle-7fd4489c64-vlzdz                           1/1     Running     0               20h    10.1.83.252    sw1-n4         <none>           <none>
+moja-centralledger-handler-admin-transfer-7d656944cb-4ltrm        1/1     Running     0               20h    10.1.149.32    sw1-n3         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-422d8       1/1     Running     0               3h3m   10.1.178.178   sw1-n1         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-7gf4t       1/1     Running     0               3h3m   10.1.83.195    sw1-n4         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-cznfz       1/1     Running     0               3h3m   10.1.178.162   sw1-n1         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-ffpqt       1/1     Running     0               3h3m   10.1.83.242    sw1-n4         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-kcs52       1/1     Running     0               3h3m   10.1.178.151   sw1-n1         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-l6cmm       1/1     Running     0               3h3m   10.1.83.251    sw1-n4         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-n9d6x       1/1     Running     0               3h3m   10.1.149.53    sw1-n3         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-swzhg       1/1     Running     0               3h3m   10.1.169.144   sw1-n2         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-w4bwz       1/1     Running     0               3h3m   10.1.149.11    sw1-n3         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-wkrvj       1/1     Running     0               3h3m   10.1.169.170   sw1-n2         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-wvmvk       1/1     Running     0               3h3m   10.1.169.146   sw1-n2         <none>           <none>
+moja-centralledger-handler-transfer-fulfil-7d948858cc-x59cx       1/1     Running     0               3h3m   10.1.149.46    sw1-n3         <none>           <none>
+moja-centralledger-handler-transfer-get-576c5dbd5-wbpz8           1/1     Running     0               20h    10.1.149.4     sw1-n3         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-65z7c      1/1     Running     0               3h3m   10.1.149.28    sw1-n3         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-7zhqj      1/1     Running     0               3h3m   10.1.149.40    sw1-n3         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-8qhm7      1/1     Running     0               3h3m   10.1.83.206    sw1-n4         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-9r7fl      1/1     Running     0               3h3m   10.1.178.160   sw1-n1         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-bqmd8      1/1     Running     0               3h3m   10.1.169.172   sw1-n2         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-cqjg4      1/1     Running     0               3h3m   10.1.83.218    sw1-n4         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-h5sgg      1/1     Running     0               3h3m   10.1.169.135   sw1-n2         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-jdnww      1/1     Running     0               3h3m   10.1.83.255    sw1-n4         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-kjqmn      1/1     Running     0               3h3m   10.1.178.153   sw1-n1         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-llfbx      1/1     Running     0               3h3m   10.1.178.165   sw1-n1         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-mhjqz      1/1     Running     0               3h3m   10.1.169.183   sw1-n2         <none>           <none>
+moja-centralledger-handler-transfer-prepare-86d69f7784-vtbf9      1/1     Running     0               3h3m   10.1.149.24    sw1-n3         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-28v8g                       1/1     Running     0               20h    10.1.149.61    sw1-n3         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-2tdl5                       1/1     Running     1 (4h51m ago)   20h    10.1.178.168   sw1-n1         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-7pzvt                       1/1     Running     1 (4h52m ago)   20h    10.1.83.253    sw1-n4         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-j6pm8                       1/1     Running     0               20h    10.1.178.145   sw1-n1         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-mzjtz                       1/1     Running     0               20h    10.1.169.160   sw1-n2         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-n6qpc                       1/1     Running     0               20h    10.1.169.139   sw1-n2         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-ntjsz                       1/1     Running     0               20h    10.1.149.49    sw1-n3         <none>           <none>
+moja-centralledger-service-6b5fbf88cb-p8967                       1/1     Running     0               20h    10.1.83.199    sw1-n4         <none>           <none>
+moja-centralledger-service-migration-h4v5q                        0/1     Completed   0               20h    10.1.149.24    sw1-n3         <none>           <none>
+moja-centralsettlement-handler-deferredsettlement-6467b4f5csdbb   1/1     Running     0               20h    10.1.169.131   sw1-n2         <none>           <none>
+moja-centralsettlement-handler-rules-7bb775b768-pf4hh             1/1     Running     0               20h    10.1.83.232    sw1-n4         <none>           <none>
+moja-centralsettlement-service-6779b4f446-tlzt7                   1/1     Running     0               20h    10.1.83.240    sw1-n4         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-46cqr                           1/1     Running     0               3h3m   10.1.169.134   sw1-n2         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-9226x                           1/1     Running     0               3h3m   10.1.83.200    sw1-n4         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-9zlpb                           1/1     Running     0               3h3m   10.1.83.219    sw1-n4         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-cg5bd                           1/1     Running     0               3h3m   10.1.149.27    sw1-n3         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-gkk75                           1/1     Running     0               3h3m   10.1.169.178   sw1-n2         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-jvxbz                           1/1     Running     0               3h3m   10.1.149.63    sw1-n3         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-knmrz                           1/1     Running     0               3h3m   10.1.178.148   sw1-n1         <none>           <none>
+moja-handler-pos-batch-57c749c8c8-nw6w4                           1/1     Running     0               3h3m   10.1.178.157   sw1-n1         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-6fzdb         1/1     Running     0               3h3m   10.1.149.56    sw1-n3         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-6xv26         1/1     Running     0               3h3m   10.1.169.157   sw1-n2         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-7g5c4         1/1     Running     0               3h3m   10.1.149.30    sw1-n3         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-7mk96         1/1     Running     0               3h3m   10.1.169.166   sw1-n2         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-8lsdt         1/1     Running     0               3h3m   10.1.83.246    sw1-n4         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-cw52t         1/1     Running     0               3h3m   10.1.169.130   sw1-n2         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-f4k5m         1/1     Running     0               3h3m   10.1.178.159   sw1-n1         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-g5n5f         1/1     Running     0               3h3m   10.1.83.202    sw1-n4         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-gbpwv         1/1     Running     0               3h3m   10.1.83.250    sw1-n4         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-kzvl5         1/1     Running     0               3h3m   10.1.149.45    sw1-n3         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-lc9p6         1/1     Running     0               3h3m   10.1.149.12    sw1-n3         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-lkmr4         1/1     Running     0               3h3m   10.1.178.173   sw1-n1         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-qjq4h         1/1     Running     0               3h3m   10.1.178.139   sw1-n1         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-s7mr4         1/1     Running     0               3h3m   10.1.83.223    sw1-n4         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-vmq7g         1/1     Running     0               3h3m   10.1.178.138   sw1-n1         <none>           <none>
+moja-ml-api-adapter-handler-notification-5d6579ff7f-zcpgm         1/1     Running     0               3h3m   10.1.169.173   sw1-n2         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-26wzs                      1/1     Running     0               3h3m   10.1.169.154   sw1-n2         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-2pft2                      1/1     Running     0               3h3m   10.1.83.237    sw1-n4         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-2rxv2                      1/1     Running     0               3h3m   10.1.83.198    sw1-n4         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-46ck4                      1/1     Running     0               3h3m   10.1.149.52    sw1-n3         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-bkw84                      1/1     Running     0               3h3m   10.1.178.181   sw1-n1         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-dg88b                      1/1     Running     0               3h3m   10.1.169.187   sw1-n2         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-fq557                      1/1     Running     0               3h3m   10.1.178.176   sw1-n1         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-kkst6                      1/1     Running     0               3h3m   10.1.178.134   sw1-n1         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-l74rb                      1/1     Running     0               3h3m   10.1.149.3     sw1-n3         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-ldcmz                      1/1     Running     0               3h3m   10.1.83.233    sw1-n4         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-qgkvg                      1/1     Running     0               3h3m   10.1.169.137   sw1-n2         <none>           <none>
+moja-ml-api-adapter-service-767dc97bc4-xb47t                      1/1     Running     0               3h3m   10.1.149.55    sw1-n3         <none>           <none>
+moja-ml-testing-toolkit-backend-0                                 1/1     Running     0               20h    10.1.178.179   sw1-n1         <none>           <none>
+moja-ml-testing-toolkit-frontend-74c9c495bb-vqqrv                 1/1     Running     0               20h    10.1.149.15    sw1-n3         <none>           <none>
+moja-quoting-service-7f755b9d59-2xmbc                             1/1     Running     0               3h3m   10.1.169.151   sw1-n2         <none>           <none>
+moja-quoting-service-7f755b9d59-4zzqw                             1/1     Running     0               3h3m   10.1.178.140   sw1-n1         <none>           <none>
+moja-quoting-service-7f755b9d59-5zgm8                             1/1     Running     0               3h3m   10.1.169.175   sw1-n2         <none>           <none>
+moja-quoting-service-7f755b9d59-68m8g                             1/1     Running     0               3h3m   10.1.169.191   sw1-n2         <none>           <none>
+moja-quoting-service-7f755b9d59-6zxmg                             1/1     Running     0               3h3m   10.1.83.197    sw1-n4         <none>           <none>
+moja-quoting-service-7f755b9d59-bm9mj                             1/1     Running     0               3h3m   10.1.178.171   sw1-n1         <none>           <none>
+moja-quoting-service-7f755b9d59-fbz8d                             1/1     Running     0               3h3m   10.1.149.6     sw1-n3         <none>           <none>
+moja-quoting-service-7f755b9d59-kvs7g                             1/1     Running     0               3h3m   10.1.178.180   sw1-n1         <none>           <none>
+moja-quoting-service-7f755b9d59-pt62d                             1/1     Running     0               3h3m   10.1.149.37    sw1-n3         <none>           <none>
+moja-quoting-service-7f755b9d59-rjg6s                             1/1     Running     0               3h3m   10.1.83.245    sw1-n4         <none>           <none>
+moja-quoting-service-7f755b9d59-vd2rm                             1/1     Running     0               3h3m   10.1.149.39    sw1-n3         <none>           <none>
+moja-quoting-service-7f755b9d59-xtbf4                             1/1     Running     0               3h3m   10.1.83.227    sw1-n4         <none>           <none>
+moja-quoting-service-handler-55f9995684-9cb82                     1/1     Running     0               3h3m   10.1.169.149   sw1-n2         <none>           <none>
+moja-quoting-service-handler-55f9995684-9nz45                     1/1     Running     0               3h3m   10.1.169.156   sw1-n2         <none>           <none>
+moja-quoting-service-handler-55f9995684-bhmt5                     1/1     Running     0               3h3m   10.1.169.148   sw1-n2         <none>           <none>
+moja-quoting-service-handler-55f9995684-bll2k                     1/1     Running     0               3h3m   10.1.149.58    sw1-n3         <none>           <none>
+moja-quoting-service-handler-55f9995684-cchn2                     1/1     Running     0               3h3m   10.1.83.220    sw1-n4         <none>           <none>
+moja-quoting-service-handler-55f9995684-dgwf4                     1/1     Running     0               3h3m   10.1.83.235    sw1-n4         <none>           <none>
+moja-quoting-service-handler-55f9995684-hh8cs                     1/1     Running     0               3h3m   10.1.149.31    sw1-n3         <none>           <none>
+moja-quoting-service-handler-55f9995684-kkcvp                     1/1     Running     0               3h3m   10.1.178.169   sw1-n1         <none>           <none>
+moja-quoting-service-handler-55f9995684-qpggq                     1/1     Running     0               3h3m   10.1.83.213    sw1-n4         <none>           <none>
+moja-quoting-service-handler-55f9995684-tws6j                     1/1     Running     0               3h3m   10.1.178.187   sw1-n1         <none>           <none>
+moja-quoting-service-handler-55f9995684-vx82w                     1/1     Running     0               3h3m   10.1.149.29    sw1-n3         <none>           <none>
+moja-quoting-service-handler-55f9995684-zxzxq                     1/1     Running     0               3h3m   10.1.178.144   sw1-n1         <none>           <none>
+moja-transaction-requests-service-84879c9856-mh9r9                1/1     Running     0               20h    10.1.83.201    sw1-n4         <none>           <none>
+mysqldb-0                                                         2/2     Running     0               20h    10.1.179.70    sw1-mysql-n1   <none>           <none>
+ttk-mongodb-844cfbfcf7-x6gwv                                      2/2     Running     0               20h    10.1.83.215    sw1-n4         <none>           <none>
+ttksims-redis-master-0                                            2/2     Running     0               20h    10.1.149.19    sw1-n3         <none>           <none>
+
+~ at ☸️  fsp201 
+➜ k get deploy -n dfsps                                                                                      
+NAME                             READY   UP-TO-DATE   AVAILABLE   AGE
+dfsp-sim-fsp201-backend          1/1     1            1           2d1h
+dfsp-sim-fsp201-cache            1/1     1            1           2d1h
+dfsp-sim-fsp201-scheme-adapter   8/8     8            8           2d1h
+
+➜ k get deploy -n dfsps                                                                                      
+NAME                             READY   UP-TO-DATE   AVAILABLE   AGE
+dfsp-sim-fsp203-backend          1/1     1            1           2d1h
+dfsp-sim-fsp203-cache            1/1     1            1           2d1h
+dfsp-sim-fsp203-scheme-adapter   4/4     4            4           2d1h

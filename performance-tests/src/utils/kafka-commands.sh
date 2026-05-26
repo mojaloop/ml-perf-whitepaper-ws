@@ -2,10 +2,10 @@
 
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-quotes-post --partitions 12 --bootstrap-server kafka:9092
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-quotes-put --partitions 12 --bootstrap-server kafka:9092
-env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-transfer-prepare --partitions 12 --bootstrap-server kafka:9092
-env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-transfer-fulfil --partitions 12 --bootstrap-server kafka:9092
+env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-transfer-prepare --partitions 16 --bootstrap-server kafka:9092
+env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-transfer-fulfil --partitions 16 --bootstrap-server kafka:9092
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-transfer-position-batch --partitions 8 --bootstrap-server kafka:9092
-env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-notification-event --partitions 16 --bootstrap-server kafka:9092
+env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-notification-event --partitions 24 --bootstrap-server kafka:9092
 
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-transfer-position --partitions 12 --bootstrap-server kafka:9092
 
@@ -17,6 +17,7 @@ env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --describe --topic topic-trans
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --describe --topic topic-transfer-prepare --bootstrap-server kafka:9092
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --describe --topic topic-transfer-fulfil --bootstrap-server kafka:9092
 
+env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --bootstrap-server kafka:9092 --delete --topic topic-transfer-position-batch
 
 ## Search for specific key in topic-notification-event
 kafka-console-consumer.sh \
@@ -57,6 +58,8 @@ env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --alter --topic topic-transfer
 
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic topic-notification-event
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic topic-notification-event
+env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic topic-transfer-fulfil
+env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic topic-transfer-prepare
 
 env -u JMX_PORT -u KAFKA_JMX_PORT kafka-topics.sh --bootstrap-server localhost:9092 \
   --create --topic topic-notification-event \

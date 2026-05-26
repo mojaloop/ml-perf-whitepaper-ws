@@ -3,54 +3,54 @@ k6:
   abortOnError: false
   transferAmount: "1" # transfer amount per transaction
   currency: "XXX"
-  targetTps: 500
+  targetTps: 1000
   fspPairs:
-    # fsp201 generates 70% total load
+    # fsp201 generates 40% total load
     - source: fsp201
       dest: fsp202
-      weight: 0.49
+      weight: 0.28
     - source: fsp201
       dest: fsp204
-      weight: 0.07
+      weight: 0.04
     - source: fsp201
       dest: fsp206
-      weight: 0.07
+      weight: 0.04
     - source: fsp201
       dest: fsp208
-      weight: 0.07
+      weight: 0.04
 
-    # fsp203 generates 10% total load, split equally
+    # fsp203 generates 20% total load, split equally
     - source: fsp203
       dest: fsp204
-      weight: 0.0333
+      weight: 0.0667
     - source: fsp203
       dest: fsp206
-      weight: 0.0333
+      weight: 0.0667
     - source: fsp203
       dest: fsp208
-      weight: 0.0333
+      weight: 0.0666
 
-    # fsp205 generates 10% total load, split equally
+    # fsp205 generates 20% total load, split equally
     - source: fsp205
       dest: fsp204
-      weight: 0.0333
+      weight: 0.0667
     - source: fsp205
       dest: fsp206
-      weight: 0.0333
+      weight: 0.0667
     - source: fsp205
       dest: fsp208
-      weight: 0.0333
+      weight: 0.0666
 
-    # fsp207 generates 10% total load, split equally
+    # fsp207 generates 20% total load, split equally
     - source: fsp207
       dest: fsp204
-      weight: 0.0333
+      weight: 0.0667
     - source: fsp207
       dest: fsp206
-      weight: 0.0333
+      weight: 0.0667
     - source: fsp207
       dest: fsp208
-      weight: 0.0333
+      weight: 0.0666
   # fspPairs:
   #   - source: fsp201
   #     dest: fsp202

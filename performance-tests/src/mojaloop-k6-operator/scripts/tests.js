@@ -50,9 +50,9 @@ const failures = new Counter('failed_transactions');
 
 
 // Test parameters from environment
-const TARGET_TXN_COUNT = parseInt(__ENV.TARGET_TXN_COUNT || '100');
+const TARGET_TXN_COUNT = Number(__ENV.TARGET_TXN_COUNT || '100');
 // TODO: for large scale tests uncomment below line and comment above line since the Math.ceil calculation gives weird results
-// const TARGET_TXN_COUNT = 1000000//parseInt(__ENV.TARGET_TXN_COUNT || '100');
+//  const TARGET_TXN_COUNT = 1000000//parseInt(__ENV.TARGET_TXN_COUNT || '100');
 
 const TARGET_TPS = parseInt(__ENV.TARGET_TPS || '10');
 const abortOnError = __ENV.K6_SCRIPT_ABORT_ON_ERROR === 'true' || false;
@@ -88,7 +88,7 @@ export const options = {
       // preAllocatedVUs: Math.max(Math.ceil(TARGET_TPS * 2), 100),
       preAllocatedVUs: 1000,
       // maxVUs: Math.max(Math.ceil(TARGET_TPS * 4), 200),
-      maxVUs: 6000,
+      maxVUs: 8000,
     },
   },
   thresholds: {

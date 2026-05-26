@@ -18,6 +18,7 @@ NODES=(
   fsp206
   fsp207
   fsp208
+  k6
 )
 
 _ssh_stats() {

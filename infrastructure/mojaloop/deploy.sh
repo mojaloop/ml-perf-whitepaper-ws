@@ -22,17 +22,34 @@ set -euo pipefail
 
 WS="./ml-perf-whitepaper-ws"
 NS="mojaloop"
-CMAPS="$WS/performance-tests/results-round2/500tps/configmaps"
-HOSTALIASES="$WS/infrastructure/mojaloop/hostaliases.json"
+CMAPS="$WS/performance-tests/results-round2/1000tps/configmaps"
+SSH_CONFIG="$WS/infrastructure/provisioning/artifacts/ssh-config"
 
-HA=$(jq -c '.spec.template.spec.hostAliases' "$HOSTALIASES")
+# Build hostAliases JSON array from ssh-config (fsp201-208 → sim-fspNNN.local)
+build_host_aliases() {
+  local ssh_cfg="$1"
+  [[ -f "$ssh_cfg" ]] || { echo "ERROR: ssh-config not found at $ssh_cfg" >&2; return 1; }
+  local entries="" ip=""
+  for i in {201..208}; do
+    ip="$(awk -v host="fsp${i}" '
+      $1=="Host" && $2==host { inhost=1; next }
+      inhost && $1=="HostName" { print $2; exit }
+      inhost && $1=="Host"     { exit }
+    ' "$ssh_cfg")"
+    [[ -n "$ip" ]] || { echo "ERROR: HostName for fsp${i} not found in $ssh_cfg" >&2; return 1; }
+    entries="${entries:+${entries},}{\"ip\":\"${ip}\",\"hostnames\":[\"sim-fsp${i}.local\"]}"
+  done
+  echo "[${entries}]"
+}
+
+HA=$(build_host_aliases "$SSH_CONFIG")
 
 # ─── 1. Helm install ─────────────────────────────────────────────────────────
 echo "==> [1/3] Helm upgrade/install mojaloop 17.1.0 ..."
 helm -n "$NS" upgrade --install moja mojaloop/mojaloop \
   --version 17.1.0 \
   -f "$WS/infrastructure/mojaloop/values-v17.1.0.yaml" \
-  -f "$WS/performance-tests/results-round2/500tps/config-override/mojaloop-values.yaml"
+  -f "$WS/performance-tests/results-round2/1000tps/config-override/mojaloop-values.yaml"
 
 # ─── 2. Patch configmaps ─────────────────────────────────────────────────────
 # No rollout triggered here — changes are picked up by the rollouts in step 3.
@@ -180,7 +197,7 @@ _patch_single moja-bulk-api-adapter
 # TTK backend statefulset: hostAliases only (single replica, no topology needed).
 echo "  statefulset/moja-ml-testing-toolkit-backend"
 kubectl patch statefulset moja-ml-testing-toolkit-backend -n "$NS" --type=strategic \
-  --patch "$(cat "$HOSTALIASES")"
+  --patch "$(jq -n --argjson ha "$HA" '{"spec":{"template":{"spec":{"hostAliases":$ha}}}}')"
 
 # ─── Wait for rollouts ────────────────────────────────────────────────────────
 echo ""
