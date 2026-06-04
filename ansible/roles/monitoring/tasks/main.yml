@@ -18,12 +18,24 @@
          | map('regex_replace', '^(.*)$', '-f \1')
          | join(' ') }}
 
-- name: Ensure mojaloop helm repo is present
-  ansible.builtin.shell: |
-    helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
-    helm repo update mojaloop
-  changed_when: false
-  environment: "{{ kubectl_env }}"
+- name: Clone mojaloop/helm repo (promfana chart not yet published)
+  ansible.builtin.git:
+    repo: "{{ monitoring_helm_repo_url }}"
+    dest: "{{ monitoring_helm_repo_local }}"
+    version: "{{ monitoring_helm_repo_branch }}"
+    depth: 1
+    force: false
+    update: true
+
+- name: Assert DockerHub credentials are set
+  ansible.builtin.assert:
+    that:
+      - dockerhub_username | length > 0
+      - dockerhub_token    | length > 0
+      - dockerhub_email    | length > 0
+    fail_msg: >-
+      DOCKERHUB_USERNAME / DOCKERHUB_TOKEN / DOCKERHUB_EMAIL are not set.
+      Fill them in at the root .env file and re-run.
 
 - name: Ensure monitoring namespace
   ansible.builtin.shell: |
@@ -53,13 +65,35 @@
   failed_when: false
   environment: "{{ kubectl_env }}"
 
+- name: Add prometheus-community helm repo (required for promfana deps)
+  ansible.builtin.shell: |
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+    helm repo update prometheus-community
+  changed_when: false
+
+- name: Build promfana chart dependencies
+  ansible.builtin.shell: |
+    helm dependency build {{ monitoring_chart }}
+  changed_when: false
+
 - name: Helm install promfana
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} upgrade --install \
       {{ monitoring_release }} {{ monitoring_chart }} \
-      {% if monitoring_version != "" %}--version {{ monitoring_version }}{% endif %} \
-      {{ _mon_vals_args }} \
-      --wait --timeout 10m
+      {{ _mon_vals_args }}
   register: _mon_helm
   changed_when: "'has been upgraded' in _mon_helm.stdout or 'has been deployed' in _mon_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for Prometheus to be ready
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      rollout status deployment \
+      $(kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+        get deployment -o name | grep -E 'grafana|operator' | tr '\n' ' ') \
+      --timeout=8m
+    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      wait pod -l app.kubernetes.io/name=prometheus \
+      --for=condition=Ready --timeout=8m
+  changed_when: false
   environment: "{{ kubectl_env }}"

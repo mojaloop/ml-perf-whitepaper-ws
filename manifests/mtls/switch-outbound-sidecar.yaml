@@ -1,0 +1,563 @@
+# ============================================================================
+# Switch outbound mTLS via Istio SIDECARS (Leg B) — replaces gateway mode
+# ============================================================================
+# Moves mTLS origination OFF the centralized istio-egressgateway and INTO each
+# calling pod's own Envoy sidecar. Eliminates the in-cluster double-hop
+# (switch pod -> egress GW pod -> DFSP) that drove ~6 cores of softirq.
+#
+# Path now:
+#   switch pod (notification/quoting-handler/ALS)
+#     -> http://sim-fspNNN.local/sim/fspNNN/inbound/...   (plain HTTP :80)
+#     -> hostAliases resolves sim-fspNNN.local -> DFSP node IP (NOT the egress GW)
+#     -> pod's OWN sidecar intercepts (includeOutboundIPRanges = DFSP /32s)
+#     -> VirtualService (gateways:[mesh]) rewrites /sim/fspNNN/inbound/ -> /
+#     -> DestinationRule originates MUTUAL TLS to :443 using FILE-MOUNTED certs
+#        (sidecar SDS does NOT load a DR credentialName secret — gateways do, sidecars
+#         don't; verified on istiod 1.24.1. So we mount switch-mtls-creds into the
+#         istio-proxy container and reference file paths instead.)
+#     -> DFSP nginx ssl-passthrough -> scheme-adapter (validates client cert)
+#
+# REQUIRES the switch-mtls-creds Secret mounted into the istio-proxy sidecar of the
+# 3 outbound deployments, via these pod-template annotations (see sidecar-runbook.md):
+#   sidecar.istio.io/userVolume:      [{"name":"mtls-certs","secret":{"secretName":"switch-mtls-creds"}}]
+#   sidecar.istio.io/userVolumeMount: [{"name":"mtls-certs","mountPath":"/etc/istio/mtls-certs","readOnly":true}]
+#
+# Apply: kubectl apply -f manifests/mtls/switch-outbound-sidecar.yaml
+# Rollback: kubectl apply -f manifests/mtls/switch-outbound.yaml
+# ============================================================================
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp201
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp201.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.169
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp202
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp202.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.84
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp203
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp203.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.171
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp204
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp204.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.193
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp205
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp205.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.225
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp206
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp206.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.201
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp207
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp207.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.55
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sim-fsp208
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp208.local]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }   # the port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }  # TLS-origination target
+  endpoints:
+    - address: 10.112.2.54
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp201
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp201.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp201/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp201.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp202
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp202.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp202/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp202.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp203
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp203.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp203/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp203.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp204
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp204.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp204/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp204.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp205
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp205.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp205/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp205.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp206
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp206.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp206/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp206.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp207
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp207.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp207/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp207.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sim-fsp208
+  namespace: mojaloop
+spec:
+  hosts: [sim-fsp208.local]
+  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  http:
+    - match:
+        - uri: { prefix: /sim/fsp208/inbound/ }
+      rewrite:
+        uri: /
+      timeout: 30s
+      route:
+        - destination:
+            host: sim-fsp208.local
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp201
+  namespace: mojaloop
+spec:
+  host: sim-fsp201.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp201.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp202
+  namespace: mojaloop
+spec:
+  host: sim-fsp202.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp202.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp203
+  namespace: mojaloop
+spec:
+  host: sim-fsp203.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp203.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp204
+  namespace: mojaloop
+spec:
+  host: sim-fsp204.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp204.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp205
+  namespace: mojaloop
+spec:
+  host: sim-fsp205.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp205.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp206
+  namespace: mojaloop
+spec:
+  host: sim-fsp206.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp206.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp207
+  namespace: mojaloop
+spec:
+  host: sim-fsp207.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp207.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sim-fsp208
+  namespace: mojaloop
+spec:
+  host: sim-fsp208.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        tls:
+          mode: MUTUAL
+          clientCertificate: /etc/istio/mtls-certs/tls.crt
+          privateKey: /etc/istio/mtls-certs/tls.key
+          caCertificates: /etc/istio/mtls-certs/ca.crt
+          sni: sim-fsp208.local

@@ -89,9 +89,9 @@
     "INTERNAL_TRANSFER_VALIDITY_SECONDS": "432000",
     "PAYEE_PARTICIPANT_CURRENCY_VALIDATION_ENABLED": true,
     "CACHE": {
-        "CACHE_ENABLED": false,
+        "CACHE_ENABLED": true,
         "MAX_BYTE_SIZE": 1e+07,
-        "EXPIRES_IN_MS": 1000
+        "EXPIRES_IN_MS": 300000
     },
     "PROXY_CACHE": 
   {
@@ -293,7 +293,9 @@
                         "socket.keepalive.enable": true,
                         "allow.auto.create.topics": true,
                         "partition.assignment.strategy": "",
-                        "enable.auto.commit": false
+                        "enable.auto.commit": false,
+                        "fetch.min.bytes": 1024,
+                        "fetch.wait.max.ms": 5
                       },
                       "topicConf": {
                         "auto.offset.reset": "earliest"
@@ -488,18 +490,17 @@
                             "event_cb": true,
                             "dr_cb": true,
                             "socket.keepalive.enable": true,
-                            "queue.buffering.max.messages": 10000000,
-                            "queue.buffering.max.ms": 10,
+                            "queue.buffering.max.messages": 1000000,
+                            "queue.buffering.max.kbytes": 1048576,
+                            "queue.buffering.max.ms": 0,
                             "batch.num.messages": 10000,
                             "message.send.max.retries": 3,
                             "retry.backoff.ms": 100,
                             "socket.timeout.ms": 30000,
-                            "message.timeout.ms": 30000,
-                            "linger.ms": 1,
+                            "message.timeout.ms": 60000,
                             "compression.codec": "lz4",
                             "compression.level": 4,
-                            "enable.idempotence": false,
-                            "request.required.acks": "1"
+                            "enable.idempotence": false
                         },
                         "topicConf": {
                             "request.required.acks": "1",

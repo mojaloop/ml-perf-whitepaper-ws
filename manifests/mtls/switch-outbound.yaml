@@ -5,7 +5,7 @@
 #
 # Architecture:
 #   1. Switch app pods (ALS, Quoting, ML-API-Adapter, TTK) carry hostAliases
-#      mapping sim-fspNNN.local -> 10.152.183.200 (the egress gateway's
+#      mapping sim-fspNNN.local -> 10.152.183.253 (the egress gateway's
 #      pinned ClusterIP). They send plain HTTP :80.
 #   2. The egress gateway pod (istio: egressgateway, in istio-system) is
 #      selected by the Gateway below. It receives the request and matches
@@ -27,11 +27,11 @@
 #   - P4 — switch-mtls-creds Secret exists in istio-system (read by the
 #     egress gateway pod for mTLS origination).
 #   - P6 — istio-egressgateway Helm release deployed with pinned ClusterIP
-#     10.152.183.200 (see 06-istio-egressgateway-values.yaml).
+#     10.152.183.253 (see 06-istio-egressgateway-values.yaml).
 #   - Switch CoreDNS hosts{} block must list real DFSP IPs so the gateway
 #     pod can resolve sim-fspNNN.local (see README.md Phase 3).
 #   - Switch app pods must have hostAliases mapping sim-fspNNN.local to
-#     10.152.183.200 (see hostaliases-mtls.json artifact).
+#     10.152.183.253 (see hostaliases-mtls.json artifact).
 # ============================================================================
 
 # ---- Gateway --------------------------------------------------------------
@@ -61,9 +61,16 @@ spec:
         - mojaloop/sim-fsp208.local
 ---
 # ---- ServiceEntry × 8 -----------------------------------------------------
-# Defines each sim-fspNNN.local as a MESH_EXTERNAL host on port 443. The
-# egress gateway pod resolves the hostname via CoreDNS at runtime, gets
-# the real DFSP IP, and connects.
+# Defines each sim-fspNNN.local as a MESH_EXTERNAL host on port 443.
+#
+# resolution: STATIC — hardcoded DFSP node IPs (from coredns-corefile-mtls.yaml).
+#   Eliminates periodic STRICT_DNS re-resolution (CoreDNS hosts{} TTL = 5s from
+#   the hosts plugin, capped by `cache 30`). With DNS, Envoy fires updateHosts()
+#   every ~5s per DFSP = 1600 cluster-update events over 1000s, which
+#   accumulated ~1.87 GB per egress pod. STATIC bypasses DNS entirely; the
+#   cluster has one fixed endpoint per DFSP, matching how the ingress gateway
+#   works (static K8s service ClusterIPs).
+#   Update IPs here whenever DFSP nodes are re-provisioned.
 #
 # No `istio.io/use-waypoint` label — we are not using ambient/waypoint here.
 apiVersion: networking.istio.io/v1beta1
@@ -74,9 +81,11 @@ metadata:
 spec:
   hosts: [sim-fsp201.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.169
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -86,9 +95,11 @@ metadata:
 spec:
   hosts: [sim-fsp202.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.84
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -98,9 +109,11 @@ metadata:
 spec:
   hosts: [sim-fsp203.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.171
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -110,9 +123,11 @@ metadata:
 spec:
   hosts: [sim-fsp204.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.193
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -122,9 +137,11 @@ metadata:
 spec:
   hosts: [sim-fsp205.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.225
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -134,9 +151,11 @@ metadata:
 spec:
   hosts: [sim-fsp206.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.201
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -146,9 +165,11 @@ metadata:
 spec:
   hosts: [sim-fsp207.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.55
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -158,15 +179,19 @@ metadata:
 spec:
   hosts: [sim-fsp208.local]
   location: MESH_EXTERNAL
-  resolution: DNS
+  resolution: STATIC
   ports:
     - { number: 443, name: https, protocol: HTTPS }
+  endpoints:
+    - address: 10.112.2.54
 ---
 # ---- VirtualService × 8 ---------------------------------------------------
 # Bound to istio-system/dfsp-egress (the Gateway above).
 # - Matches URI prefix /sim/fspNNN/inbound/, rewrites to /.
 # - Routes to the SE host on port 443. The DR (below) attaches MUTUAL TLS
 #   on this port.
+# - timeout: 30s matches k6 transfer timeout so Envoy fails fast instead of
+#   queueing past the client deadline.
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -180,6 +205,7 @@ spec:
         - uri: { prefix: /sim/fsp201/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp201.local
@@ -198,6 +224,7 @@ spec:
         - uri: { prefix: /sim/fsp202/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp202.local
@@ -216,6 +243,7 @@ spec:
         - uri: { prefix: /sim/fsp203/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp203.local
@@ -234,6 +262,7 @@ spec:
         - uri: { prefix: /sim/fsp204/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp204.local
@@ -252,6 +281,7 @@ spec:
         - uri: { prefix: /sim/fsp205/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp205.local
@@ -270,6 +300,7 @@ spec:
         - uri: { prefix: /sim/fsp206/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp206.local
@@ -288,6 +319,7 @@ spec:
         - uri: { prefix: /sim/fsp207/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp207.local
@@ -306,6 +338,7 @@ spec:
         - uri: { prefix: /sim/fsp208/inbound/ }
       rewrite:
         uri: /
+      timeout: 30s
       route:
         - destination:
             host: sim-fsp208.local
@@ -315,6 +348,29 @@ spec:
 # MUTUAL TLS origination on port 443. credentialName references a Secret in
 # the egress gateway's namespace (istio-system). SNI is the DFSP hostname so
 # the DFSP nginx ssl-passthrough Ingress can route on it.
+#
+# connectionPool — balanced sizing for 500 TPS mTLS workload:
+#   At 500 TPS with 4 pods (125 TPS/pod), fsp201 (70% load) receives ~350
+#   parties+quotes+transfers callbacks/sec = ~87/sec per egress pod. At 10s
+#   timeout and 87/sec, worst-case queue depth is ~870 → http1MaxPendingRequests
+#   set to 1000 (headroom above peak). Setting it too low (< 100) caused 503
+#   Overflow for ALS callbacks before they reached DFSPs, making things worse.
+#   maxConnections: 500 — sufficient for 87/sec per pod at ~300ms avg latency
+#   http1MaxPendingRequests: 1000 — headroom above 870 worst-case for fsp201
+#   http2MaxRequests: 500 — consistent with maxConnections ceiling
+#   maxRequestsPerConnection: 100 — recycle connections after 100 requests.
+#     Prevents unbounded Envoy per-connection stats accumulation (observed:
+#     211Mi → 1963Mi per egress pod over 1000s with 0; ingress stayed flat at
+#     221Mi with recycling). TLS session resumption costs ~1-2ms per handshake;
+#     at ~8 active connections/pod recycling every ~2s the overhead is <1%.
+#   idleTimeout: 35s — slightly above VS timeout; clears stale connections
+#   h2UpgradePolicy: DO_NOT_UPGRADE — SDK scheme-adapter does not negotiate H2 via ALPN in
+#   SSL-passthrough mode; leaving UPGRADE causes HTTP/2 binary frames to leak back to
+#   notification handler's HTTP/1.1 parser → HPE_INVALID_CONSTANT crash
+#
+# outlierDetection — circuit-breaker: ejects hosts that return 5xx gateway
+#   errors (Envoy 503 from upstream exhaustion) for baseEjectionTime, then
+#   retries. Prevents a wedged DFSP from absorbing its full weight indefinitely.
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
@@ -323,6 +379,25 @@ metadata:
 spec:
   host: sim-fsp201.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:
@@ -338,6 +413,25 @@ metadata:
 spec:
   host: sim-fsp202.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:
@@ -353,6 +447,25 @@ metadata:
 spec:
   host: sim-fsp203.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:
@@ -368,6 +481,25 @@ metadata:
 spec:
   host: sim-fsp204.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:
@@ -383,6 +515,25 @@ metadata:
 spec:
   host: sim-fsp205.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:
@@ -398,6 +549,25 @@ metadata:
 spec:
   host: sim-fsp206.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:
@@ -413,6 +583,25 @@ metadata:
 spec:
   host: sim-fsp207.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:
@@ -428,6 +617,25 @@ metadata:
 spec:
   host: sim-fsp208.local
   trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 600s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
     portLevelSettings:
       - port: { number: 443 }
         tls:

@@ -42,6 +42,7 @@
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_k6 }} -n {{ ns_k6_operator }} upgrade --install \
       {{ k6_operator_release }} {{ k6_chart_repo }} \
+      --version {{ k6_operator_version }} \
       --create-namespace --wait
   register: _k6op
   changed_when: "'has been upgraded' in _k6op.stdout or 'has been deployed' in _k6op.stdout"
@@ -57,7 +58,7 @@
   ansible.builtin.set_fact:
     dfsp_host_entries: >-
       {{ (_ha_blob.content | b64decode | from_json).spec.template.spec.hostAliases
-         | json_query('[*].{ip: ip, host: hostnames[0]}') }}
+         | list }}
 
 - name: Render k6 cluster CoreDNS Corefile
   ansible.builtin.template:

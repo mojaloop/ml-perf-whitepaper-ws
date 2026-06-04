@@ -144,3 +144,32 @@
       debug:
         msg: "Cluster nodes:\n{{ cluster_nodes_labels.stdout }}"
       run_once: true
+
+    # Native pod routing instead of VXLAN overlay. All switch nodes share one
+    # subnet (10.112.2.0/24), so CrossSubnet => zero encapsulation: pod traffic
+    # routes directly node-to-node. This removes the VXLAN decap -> netif_rx
+    # re-injection that drove a ~28x softnet "process storm" + softirq
+    # saturation under load (2026-06-04 investigation).
+    # PRECONDITION: EC2 source/dest check must be OFF (terraform
+    # instances.tf: source_dest_check = false) or cross-node pod packets get
+    # dropped by AWS. Rollback: set vxlanMode back to "Always".
+    - name: Calico — switch IPPool to native routing (vxlanMode CrossSubnet)
+      shell: |
+        microk8s kubectl patch ippool default-ipv4-ippool --type=merge \
+          -p '{"spec":{"vxlanMode":"CrossSubnet"}}'
+      delegate_to: "{{ primary_node }}"
+      run_once: true
+      register: calico_ippool_patch
+      changed_when: "'patched' in calico_ippool_patch.stdout"
+
+    - name: Verify + show IPPool encap mode
+      shell: microk8s kubectl get ippool default-ipv4-ippool -o jsonpath='{.spec.vxlanMode}'
+      delegate_to: "{{ primary_node }}"
+      run_once: true
+      register: calico_ippool_mode
+      changed_when: false
+
+    - name: Show IPPool encap mode
+      debug:
+        msg: "Calico default-ipv4-ippool vxlanMode = {{ calico_ippool_mode.stdout }}"
+      run_once: true

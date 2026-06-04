@@ -386,7 +386,7 @@ defaults:
       enabled: true
       image:
         repository: redis
-        tag: 5.0.4-alpine
+        tag: 6.2.4-alpine
         pullPolicy: IfNotPresent
       <<: *defaultProbes
       livenessProbe:
@@ -673,7 +673,7 @@ defaults:
           publicKey: ''
       image:
         repository: mojaloop/sdk-scheme-adapter
-        tag: v24.12.0
+        tag: v24.19.6
         pullPolicy: IfNotPresent
         command: '[ "yarn", "start:api-svc" ]'
       <<: *defaultProbes

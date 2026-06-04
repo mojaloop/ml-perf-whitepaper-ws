@@ -222,22 +222,22 @@ vms:
           Role: ml-sw-generic
           NodeNumber: "3"
 
-      # - name: sw1-n4
-      #   instance_type: m7i.xlarge # instance_type: c5n.2xlarge
-      #   k8s:
-      #     role: mixed
-      #     node_labels:
-      #       workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
-      #       workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
-      #       workload-class.mojaloop.io/CORE-HANDLERS: "true"
-      #       workload-class.mojaloop.io/ALS-ORACLES: "true"
-      #       workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
-      #       workload-class.mojaloop.io/QUOTING-SERVICE: "true"
-      #       workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
-      #       node-role: generic
-      #   tags:
-      #     Role: ml-sw-generic
-      #     NodeNumber: "4"
+      - name: sw1-n4
+        instance_type: m7i.2xlarge # instance_type: c5n.2xlarge
+        k8s:
+          role: mixed
+          node_labels:
+            workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+            workload-class.mojaloop.io/CENTRAL-LEDGER-SVC: "true"
+            workload-class.mojaloop.io/CORE-HANDLERS: "true"
+            workload-class.mojaloop.io/ALS-ORACLES: "true"
+            workload-class.mojaloop.io/ACCOUNT-LOOKUP-SERVICE: "true"
+            workload-class.mojaloop.io/QUOTING-SERVICE: "true"
+            workload-class.mojaloop.io/CENTRAL-SETTLEMENT: "true"
+            node-role: generic
+        tags:
+          Role: ml-sw-generic
+          NodeNumber: "4"
 
       # Dedicated Kafka node
       # - name: sw1-kafka-ctrl-1
@@ -265,7 +265,7 @@ vms:
       - name: sw1-kafka-n1
         instance_type: m7i.2xlarge #c5n.2xlarge
         root_volume:
-          size: 500
+          size: 200
           type: io2
           iops: 10000     # High IOPS for Kafka message throughput
           delete_on_termination: true
@@ -370,7 +370,7 @@ vms:
 
       # Dedicated Monitoring node
       - name: sw1-monitoring
-        instance_type: m7i.xlarge  # Balanced compute/memory for monitoring stack
+        instance_type: m6i.large  # Balanced compute/memory for monitoring stack
         root_volume:
           size: 256
           type: gp3
@@ -413,49 +413,49 @@ vms:
     # Individual DFSP configurations
     instances:
       - name: fsp201
-        instance_type: c7i.xlarge  # Can override default
+        instance_type: c7i.4xlarge  # Can override default
         tags:
           Role: ml-dfsp
           NodeNumber: "101"
 
       - name: fsp202
-        instance_type: c7i.xlarge
+        instance_type: c7i.4xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "102"
 
       - name: fsp203
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "103"
 
       - name: fsp204
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "104"
 
       - name: fsp205
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "105"
 
       - name: fsp206
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "106"
 
       - name: fsp207
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "107"
 
       - name: fsp208
-        instance_type: c7i.xlarge
+        instance_type: c7i.2xlarge
         # root_volume:
         #   size: 128  # Override for larger disk
         #   type: gp3
@@ -465,7 +465,7 @@ vms:
           NodeNumber: "108"
 
       - name: k6
-        instance_type: m7i.xlarge
+        instance_type: m7i.2xlarge
         tags:
           Role: ml-dfsp
           NodeNumber: "109"

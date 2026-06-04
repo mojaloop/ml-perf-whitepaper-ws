@@ -1,0 +1,35 @@
+---
+# Scrape Istio proxy telemetry into the switch-cluster promfana Prometheus.
+# Closes the blind spot found during the 500tps investigation: the gateway +
+# mojaloop sidecars emit per-leg request volume/latency as istio_requests_total
+# / istio_request_duration on the merged :15020 endpoint, but nothing scraped
+# it — so Leg-A (DFSP->switch) and Leg-B (switch->DFSP notification) costs were
+# invisible. The kps Prometheus selectors are {} (selects all monitors in all
+# namespaces), so a PodMonitor anywhere is picked up automatically.
+
+istio_telemetry_namespace: monitoring
+istio_telemetry_release_label: promfana   # cosmetic; selectors are {} so not required
+istio_telemetry_scrape_interval: "15s"
+
+# Bound central TSDB cardinality. istio_* gives per-(source,destination)
+# request rate, latency histogram, response codes, mTLS policy. The envoy_*
+# entries only materialise if the proxyStatsMatcher is widened (flag below);
+# kept here so they flow automatically once it is.
+istio_telemetry_keep_metrics_regex: >-
+  istio_requests_total|istio_request_duration_milliseconds_(bucket|count|sum)|istio_request_bytes_(bucket|count|sum)|istio_response_bytes_(bucket|count|sum)|istio_tcp_(sent|received)_bytes_total|istio_tcp_connections_(opened|closed)_total|envoy_cluster_upstream_cx_(total|active|connect_fail|destroy.*|http1_total|http2_total)|envoy_cluster_upstream_rq_(total|active|pending_overflow|retry)|envoy_cluster_ssl_(handshake|connection_error)|envoy_listener_downstream_cx_(total|active)|envoy_server_(uptime|memory_allocated|total_connections)
+
+# istiod control-plane scrape (pilot push time, xDS, rejects).
+istio_telemetry_scrape_istiod: true
+
+# --- optional: widen raw Envoy stats (cluster/listener/ssl) ---------------
+# istio_requests_total alone answers "per-leg volume/latency". For Leg-B
+# connection-reuse analysis (rq-per-connection, ssl handshakes to the DFSPs)
+# the raw envoy_cluster_* stats must be included via proxyStatsMatcher. That
+# is a pod-template annotation change => ROLLS the listed workloads. Off by
+# default so the PodMonitor (no rollout) can be applied safely on its own.
+istio_telemetry_widen_envoy_stats: false
+istio_telemetry_widen_targets:
+  - { ns: istio-system, deploy: istio-ingressgateway }
+  - { ns: mojaloop, deploy: moja-account-lookup-service }
+  - { ns: mojaloop, deploy: moja-quoting-service-handler }
+  - { ns: mojaloop, deploy: moja-ml-api-adapter-handler-notification }

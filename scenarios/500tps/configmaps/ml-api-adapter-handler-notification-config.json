@@ -22,7 +22,7 @@
     "ENDPOINT_SOURCE_URL": "http://moja-centralledger-service:80",
     "ENDPOINT_HEALTH_URL": "http://moja-centralledger-service:80/health",
     "ENDPOINT_CACHE_CONFIG": {
-        "expiresIn": 180000,
+        "expiresIn": 300000,
         "generateTimeout": 30000
     },
     "ENDPOINT_SECURITY":{
@@ -130,9 +130,9 @@
                     "config": {
                         "options": {
                             "mode": 2,
-                            "batchSize": 50,
+                            "batchSize": 100,
                             "pollFrequency": 10,
-                            "syncConcurrency": 50,
+                            "syncConcurrency": 20,
                             "syncSingleMessage": true,
                             "recursiveTimeout": 100,
                             "messageCharset": "utf8",
@@ -145,7 +145,13 @@
                             "group.id": "ml-group-notification-event",
                             "metadata.broker.list": "kafka:9092",
                             "socket.keepalive.enable": true,
-                            "allow.auto.create.topics": true
+                            "allow.auto.create.topics": true,
+                            "enable.auto.commit": false,
+                            "enable.auto.offset.store": false,
+                            "fetch.min.bytes": 1024,
+                            "fetch.wait.max.ms": 5,
+                            "queued.min.messages": 1000,
+                            "queued.max.messages.kbytes": 32768
                         },
                         "topicConf": {
                             "auto.offset.reset": "earliest"

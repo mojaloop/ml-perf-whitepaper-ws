@@ -28,6 +28,18 @@ spec:
       tls:
         mode: MUTUAL
         credentialName: switch-mtls-creds
+        # TLS hardening (server / Leg A inbound). 1.2 floor, 1.3 negotiated when
+        # the DFSP client supports it (not pinned 1.3-only — the DFSP TLS stack
+        # is unverified and a 1.3-only floor would break interop). cipherSuites
+        # is ECDSA + AES-GCM only (matches the P-256 cert, AES-NI accelerated),
+        # AES-128-GCM first; it governs the TLS 1.2 fallback (1.3 AEAD selection
+        # is fixed in BoringSSL). The Leg B client/origination side is pinned
+        # mesh-wide via meshConfig.tlsDefaults (common/istiod-values.yaml) —
+        # a DestinationRule's ClientTLSSettings has no cipherSuites field.
+        minProtocolVersion: TLSV1_2
+        cipherSuites:
+          - ECDHE-ECDSA-AES128-GCM-SHA256
+          - ECDHE-ECDSA-AES256-GCM-SHA384
       hosts:
         - account-lookup-service.local
         - quoting-service.local
@@ -44,7 +56,8 @@ spec:
   gateways:
     - switch-mtls-gateway
   http:
-    - route:
+    - timeout: 30s
+      route:
         - destination:
             host: moja-account-lookup-service.mojaloop.svc.cluster.local
             port:
@@ -61,7 +74,8 @@ spec:
   gateways:
     - switch-mtls-gateway
   http:
-    - route:
+    - timeout: 30s
+      route:
         - destination:
             host: moja-quoting-service.mojaloop.svc.cluster.local
             port:
@@ -78,7 +92,8 @@ spec:
   gateways:
     - switch-mtls-gateway
   http:
-    - route:
+    - timeout: 30s
+      route:
         - destination:
             host: moja-ml-api-adapter-service.mojaloop.svc.cluster.local
             port:

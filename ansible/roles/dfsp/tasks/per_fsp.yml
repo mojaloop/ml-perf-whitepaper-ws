@@ -53,6 +53,15 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
+- name: "fsp{{ fsp_idx }}: tune nginx ingress ConfigMap for high-TPS SSL passthrough"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress patch configmap nginx-load-balancer-microk8s-conf \
+      --type merge -p '{"data":{"worker-processes":"auto","worker-connections":"65536","keep-alive":"120","keepalive-requests":"10000"}}'
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout restart daemonset nginx-ingress-microk8s-controller
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout status daemonset nginx-ingress-microk8s-controller --timeout=120s
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
 - name: "fsp{{ fsp_idx }}: apply DFSP TLS secret"
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_fsp }} apply -f {{ dfsp_tls_secret }}
@@ -112,6 +121,16 @@
   changed_when: "'has been upgraded' in _dfsp_helm.stdout or 'has been deployed' in _dfsp_helm.stdout"
   environment: "{{ kubectl_env }}"
 
+# Scale only scheme-adapter — replicaCount in Helm values applies to all
+# components (backend+cache+adapter), so we scale imperatively instead.
+# Replica counts are dfsp_sdk_replicas_high/low in defaults/main.yml.
+- name: "fsp{{ fsp_idx }}: scale scheme-adapter replicas"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment {{ fsp_sdk_deploy }} \
+      --replicas={{ dfsp_sdk_replicas_high if fsp_idx | int <= 202 else dfsp_sdk_replicas_low }}
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
 # Defuse :80 -> :443 auto-redirect that fires once a TLS Ingress appears.
 - name: "fsp{{ fsp_idx }}: disable ssl-redirect on simulator Ingress"
   ansible.builtin.shell: |
@@ -159,6 +178,15 @@
     ]'
   changed_when: false
   failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: patch Redis cache args (maxmemory + no-persistence)"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} patch deployment dfsp-sim-{{ fsp_name }}-cache \
+      --type=strategic -p '{"spec":{"template":{"spec":{"containers":[
+        {"name":"cache","args":["--maxmemory","200mb","--maxmemory-policy","allkeys-lru","--save",""]}
+      ]}}}}'
+  changed_when: false
   environment: "{{ kubectl_env }}"
 
 - name: "fsp{{ fsp_idx }}: relax probe periodSeconds"

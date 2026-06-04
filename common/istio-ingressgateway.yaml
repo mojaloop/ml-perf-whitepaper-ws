@@ -1,7 +1,7 @@
 # Istio IngressGateway overrides for P3 of the mTLS rollout.
 #
 # Deploy shape:
-#   - DaemonSet on the generic switch worker nodes (sw1-n1/n2/n3).
+#   - DaemonSet on the generic switch worker nodes (sw1-n1/n2/n3/n4).
 #   - Port 443 exposure: hostPort on the container (bound on each node via
 #     kube-proxy NAT). This is NOT a chart value — set via a post-install
 #     DaemonSet patch. We don't use hostNetwork because Istio's sidecar
@@ -16,3 +16,14 @@ kind: DaemonSet
 
 nodeSelector:
   workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"
+
+# m7i.2xlarge nodes (8vCPU/32GB). Mojaloop services consume ~10 vCPU/node at
+# 500 TPS, leaving ~6 vCPU free. Each ingress pod handles ~125 TPS (NLB spreads
+# across 4 nodes), so 4 CPU limit is sufficient without starving app pods.
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: "4"
+    memory: 2Gi

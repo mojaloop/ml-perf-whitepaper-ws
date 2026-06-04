@@ -11,7 +11,7 @@ Each `make` stage is idempotent — re-run any failing stage in place.
 - AWS account; profile `<AWS_PROFILE>` in `~/.aws/credentials`
 - SSH key pair in AWS named `<SSH_KEY_NAME>`; private key at
   `~/.ssh/<SSH_KEY_NAME>.pem` (mode 0600)
-- Local: `terraform`, `ansible`, `kubectl`, `helm`, `make`, `ssh`
+- Local: `terraform`, `ansible`, `kubectl`, `helm`, `make`, `ssh`, `git`
 
 ## Setup once
 
@@ -29,11 +29,14 @@ make terraform-apply  SCENARIO=500tps      # ~10 min   AWS infra
 make tunnel           SCENARIO=500tps      # SOCKS5 via bastion. To stop: lsof -ti :1080 | xargs kill
 make k8s              SCENARIO=500tps      # ~15 min   MicroK8s + kubeconfigs
 
+make monitoring       SCENARIO=500tps      # ~5 min    Prometheus + Grafana (promfana)
 make backend          SCENARIO=500tps      # ~5 min    Kafka/MySQL/MongoDB/Redis
 make switch           SCENARIO=500tps      # ~3 min    Mojaloop core
 make mtls             SCENARIO=500tps      # ~2 min    Istio + egress gateway
 make dfsp             SCENARIO=500tps      # ~5 min    8 sims + mTLS Phase 1B
-make k6               SCENARIO=500tps      #          k6-operator + CoreDNS
+make dfsp-monitoring  SCENARIO=500tps      #           per-DFSP node/cAdvisor metrics → switch Prometheus
+make istio-telemetry  SCENARIO=500tps      #           scrape Istio proxy metrics (gateways + sidecars)
+make k6               SCENARIO=500tps      #           k6-operator + CoreDNS
 
 make onboard          SCENARIO=500tps      # ~1 min    TTK Jobs (see onboard.yaml below)
 make provision        SCENARIO=500tps      # ~1 min    1000 MSISDNs/FSP
@@ -42,8 +45,12 @@ make smoke            SCENARIO=500tps      # MUST PASS — single transfer COMPL
 make load             SCENARIO=500tps      # k6 TestRun; logs in scenarios/500tps/results/<UTC-stamp>/
 ```
 
-Compress steps 4–6 into one: `make deploy SCENARIO=500tps` runs
-`backend → switch → mtls → dfsp → k6 → onboard → provision → smoke`.
+Compress steps 4–7 into one: `make deploy SCENARIO=500tps` runs
+`monitoring → backend → switch → mtls → dfsp → dfsp-monitoring → istio-telemetry → k6 → onboard → provision → smoke`.
+
+> **Note:** `make monitoring` clones `https://github.com/mojaloop/helm` into
+> `scenarios/<scenario>/artifacts/mojaloop-helm/` at deploy time because the
+> `promfana` chart has not yet been published to the Mojaloop Helm repo.
 
 `make help` lists every target. `make terraform-destroy SCENARIO=500tps`
 tears it all down.
@@ -63,6 +70,15 @@ tears it all down.
 - [docs/mtls.md](docs/mtls.md) — cert chain + both mTLS legs
 - [docs/parameter-tuning.md](docs/parameter-tuning.md) — per-TPS sizing
 - [docs/cheatsheet.md](docs/cheatsheet.md) — ad-hoc ops
+
+### Performance investigation (2026-06)
+- [docs/2026-06-03-500tps-failure-investigation.md](docs/2026-06-03-500tps-failure-investigation.md) — sustained-500-TPS root-cause analysis (softirq/softnet re-injection)
+- [docs/2026-06-04-vxlan-to-native-routing.md](docs/2026-06-04-vxlan-to-native-routing.md) — VXLAN → native Calico routing runbook
+- [docs/2026-06-04-durable-fix-ebpf-ambient.md](docs/2026-06-04-durable-fix-ebpf-ambient.md) — durable fix plan: Cilium eBPF + Istio ambient
+
+> **Observability:** `make dfsp-monitoring` ships per-DFSP host/container metrics to the switch
+> Prometheus (remote_write); `make istio-telemetry` scrapes Istio proxy metrics (gateways + sidecars).
+> Both are included in `make deploy`.
 
 ## License
 

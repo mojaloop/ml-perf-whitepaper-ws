@@ -15,8 +15,9 @@ data:
         }
         hosts {
 {% for entry in dfsp_host_entries %}
-          {{ entry.ip }} {{ entry.host }}
+          {{ entry.ip }} {{ entry.hostnames[0] }}
 {% endfor %}
+          {{ hostvars['sw1-monitoring']['private_ip'] }} promfana-prometheus.local
           fallthrough
         }
         prometheus :9153

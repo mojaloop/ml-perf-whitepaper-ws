@@ -36,7 +36,7 @@ scenarios/ terraform/ tools/ ttk-collections/` + `Makefile` + `README.md`
    args + image entrypoint are still correct — fall back to
    `ansible.builtin.uri` loops (path B) if the image is broken.
 2. **JWS-fix image baked into scenario overrides (not common/) — REVISED 2026-05-01.**
-   `kirgene/sdk-scheme-adapter:jws-fix` and `kirgene/ml-api-adapter:jws-fix`
+   `mojaloop/sdk-scheme-adapter:v24.19.6` and `mojaloop/ml-api-adapter:v16.9.2`
    are pinned in `scenarios/500tps/overrides/{dfsp,mojaloop}.yaml`.
    The dfsp role layers the override onto each per-FSP helm install via
    `_fsp_override_arg`; the switch role picks up the mojaloop one

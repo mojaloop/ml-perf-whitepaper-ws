@@ -36,6 +36,20 @@
           FSP Cluster: {{ inventory_hostname }}
           Status: {{ node_status.stdout }}
 
+    - name: OS tuning — high-TPS DFSP workload
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        sysctl_set: true
+        state: present
+        reload: true
+      loop:
+        - { name: net.core.somaxconn,            value: '65535' }
+        - { name: net.ipv4.tcp_max_syn_backlog,  value: '65535' }
+        - { name: net.core.netdev_max_backlog,   value: '65535' }
+        - { name: fs.file-max,                   value: '1000000' }
+        - { name: net.ipv4.ip_local_port_range,  value: '1024 65535' }
+
     - name: Label FSP node
       shell: |
         microk8s kubectl label node {{ inventory_hostname }} node-role.kubernetes.io/control-plane=true --overwrite

@@ -2,6 +2,9 @@
 # This file defines all infrastructure resources for the Mojaloop performance testing environment
 
 # AWS Configuration
+# NOTE: profile + region are NOT here — they come from the root .env
+# (AWS_PROFILE + AWS_DEFAULT_REGION) and are picked up automatically by
+# the terraform AWS provider. See .env.example.
 aws:
   availability_zone: eu-west-2b
 
@@ -16,9 +19,13 @@ aws:
 
 # Project Configuration
 project:
-  name: p-202603061651
+  name: p-202602260904
   environment: perf-test
 
+# SSH Configuration
+# NOTE: SSH_KEY_NAME comes from the root .env. Both terraform (EC2
+# key_name + ssh_config emission) and ansible (ANSIBLE_PRIVATE_KEY_FILE)
+# derive from it via the Makefile. See .env.example.
 
 # Network Configuration
 network:
@@ -233,32 +240,32 @@ vms:
           NodeNumber: "4"
 
       # Dedicated Kafka node
-      - name: sw1-kafka-ctrl-1
-        instance_type: m7i.xlarge #c5n.2xlarge
-        root_volume:
-          size: 500
-          type: io2
-          iops: 10000     # High IOPS for Kafka message throughput
-          delete_on_termination: true
-        k8s:
-          role: worker    # Worker only, not a control plane node
-          node_labels:
-            node-role: kafka
-            # workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
-            workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
-          node_taints:
-            - key: dedicated
-              value: kafka
-              effect: NoSchedule
-        tags:
-          Role: ml-sw-kafka
-          Service: kafka
+      # - name: sw1-kafka-ctrl-1
+      #   instance_type: m7i.xlarge #c5n.2xlarge
+      #   root_volume:
+      #     size: 500
+      #     type: io2
+      #     iops: 10000     # High IOPS for Kafka message throughput
+      #     delete_on_termination: true
+      #   k8s:
+      #     role: worker    # Worker only, not a control plane node
+      #     node_labels:
+      #       node-role: kafka
+      #       # workload-class.mojaloop.io/KAFKA-DATA-PLANE: "true"
+      #       workload-class.mojaloop.io/KAFKA-CONTROL-PLANE: "true"
+      #     node_taints:
+      #       - key: dedicated
+      #         value: kafka
+      #         effect: NoSchedule
+      #   tags:
+      #     Role: ml-sw-kafka
+      #     Service: kafka
 
 
       - name: sw1-kafka-n1
-        instance_type: m7i.xlarge #c5n.2xlarge
+        instance_type: m7i.2xlarge #c5n.2xlarge
         root_volume:
-          size: 500
+          size: 200
           type: io2
           iops: 10000     # High IOPS for Kafka message throughput
           delete_on_termination: true
@@ -298,7 +305,7 @@ vms:
       #     Service: kafka
 
       # - name: sw1-kafka-n3
-      #   instance_type: m7i.4xlarge #c5n.2xlarge
+      #   instance_type: m7i.xlarge #c5n.2xlarge
       #   root_volume:
       #     size: 500
       #     type: io2
@@ -319,8 +326,8 @@ vms:
       #     Service: kafka
 
       # Dedicated MySQL node
-      - name: sw1-mysql
-        instance_type: m7i.xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
+      - name: sw1-mysql-n1
+        instance_type: m7i.2xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
         root_volume:
           size: 200
           type: io2
@@ -339,6 +346,27 @@ vms:
         tags:
           Role: ml-sw-mysql
           Service: mysql
+      
+      # - name: sw1-mysql-n2
+      #   instance_type: m7i.xlarge # r5.2xlarge  # Memory optimized for database: 64GB RAM
+      #   root_volume:
+      #     size: 200
+      #     type: io2
+      #     iops: 10000     # High IOPS for database operations
+      #     delete_on_termination: true
+      #   k8s:
+      #     role: worker    # Worker only, not a control plane node
+      #     node_labels:
+      #       node-role: mysql
+      #       workload-class.mojaloop.io/RDBMS-ALS-LIVE: "true"
+      #       workload-class.mojaloop.io/RDBMS-CENTRAL-LEDGER-LIVE: "true"
+      #     node_taints:
+      #       - key: dedicated
+      #         value: mysql
+      #         effect: NoSchedule
+      #   tags:
+      #     Role: ml-sw-mysql
+      #     Service: mysql
 
       # Dedicated Monitoring node
       - name: sw1-monitoring
@@ -366,7 +394,7 @@ vms:
   dfsps:
     # Default configuration for all DFSPs (can be overridden per DFSP)
     defaults:
-      instance_type: c7i.4xlarge  # Keep existing for DFSPs
+      instance_type: c7i.xlarge  # Keep existing for DFSPs
       root_volume:
         size: 128
         type: gp3
@@ -470,11 +498,14 @@ k8s:
       - metrics-server
 
 # Terraform Backend Configuration (for state management)
+# NOTE: Active backend is `local` (see terraform/main.tf). The s3 block
+# below is a template for future use — region/profile come from the
+# root .env (AWS_PROFILE + AWS_DEFAULT_REGION) when activated.
 terraform:
   backend:
     type: local
     s3:
-      bucket: "terraform-state-${project.name}"  # Will be interpolated
+      bucket: "terraform-state-${project.name}"
       key: "infrastructure/terraform.tfstate"
       encrypt: true
       dynamodb_table: "terraform-state-lock-${project.name}"

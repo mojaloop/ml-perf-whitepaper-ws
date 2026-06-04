@@ -97,7 +97,7 @@
   },
   "CACHE": {
     "ENUM_DATA_EXPIRES_IN_MS": 4.17e+06,
-    "PARTICIPANT_DATA_EXPIRES_IN_MS": 60000
+    "PARTICIPANT_DATA_EXPIRES_IN_MS": 600000
   },
   "PROXY_CACHE": 
   {
@@ -120,7 +120,7 @@
           "config":{
             "options":{
               "mode":2,
-              "batchSize":200,
+              "batchSize": 100,
               "pollFrequency":10,
               "recursiveTimeout":100,
               "messageCharset":"utf8",
@@ -133,7 +133,13 @@
               "group.id":"group-quotes-handler-post",
               "metadata.broker.list": "kafka:9092",
               "socket.keepalive.enable":true,
-              "allow.auto.create.topics":true
+              "allow.auto.create.topics":true,
+              "enable.auto.commit": false,
+              "enable.auto.offset.store": false,
+              "fetch.min.bytes": 1024,
+              "fetch.wait.max.ms": 5,
+              "queued.min.messages": 1000,
+              "queued.max.messages.kbytes": 1048576
             },
             "topicConf":{
               "auto.offset.reset":"earliest"
@@ -145,7 +151,7 @@
           "config":{
             "options":{
               "mode":2,
-              "batchSize":200,
+              "batchSize": 100,
               "pollFrequency":10,
               "recursiveTimeout":100,
               "messageCharset":"utf8",
@@ -157,8 +163,14 @@
               "client.id":"quotes-handler-put_c",
               "group.id":"group-quotes-handler-put",
               "metadata.broker.list": "kafka:9092",
-              "socket.keepalive.enable":true,
-              "allow.auto.create.topics":true
+              "socket.keepalive.enable": true,
+              "allow.auto.create.topics": true,
+              "enable.auto.commit": false,
+              "enable.auto.offset.store": false,
+              "fetch.min.bytes": 1024,
+              "fetch.wait.max.ms": 5,
+              "queued.min.messages": 1000,
+              "queued.max.messages.kbytes": 1048576
             },
             "topicConf":{
               "auto.offset.reset":"earliest"
@@ -360,7 +372,8 @@
               "event_cb":true,
               "dr_cb":true,
               "socket.keepalive.enable":true,
-              "queue.buffering.max.messages":10000000
+              "queue.buffering.max.messages":10000000,
+              "queue.buffering.max.ms": 0
             },
             "topicConf":{
               "request.required.acks":"all",
@@ -380,7 +393,8 @@
               "event_cb":true,
               "dr_cb":true,
               "socket.keepalive.enable":true,
-              "queue.buffering.max.messages":10000000
+              "queue.buffering.max.messages":10000000,
+              "queue.buffering.max.ms": 0
             },
             "topicConf":{
               "request.required.acks":"all",

@@ -37,37 +37,9 @@
   changed_when: "'created' in _np.stdout or 'configured' in _np.stdout"
   environment: "{{ kubectl_env }}"
 
-# ---- hostAliases (pre-mTLS step) ----
-# Patches the four DFSP-callback Deployments + TTK backend with the
-# DFSP node IPs. mtls_switch role overrides this for the mTLS callback
-# Deployments later (egress gateway IP).
-
-- name: Stat hostAliases JSON
-  ansible.builtin.stat:
-    path: "{{ mojaloop_hostaliases_json }}"
-  register: _ha_stat
-
-- name: Patch Deployments with hostAliases
-  when: _ha_stat.stat.exists
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
-      --type=strategic --patch "$(cat {{ mojaloop_hostaliases_json }})"
-  loop: "{{ mojaloop_hostalias_deployments }}"
-  register: _ha_dep
-  changed_when: "'patched' in _ha_dep.stdout"
-  environment: "{{ kubectl_env }}"
-
-- name: Patch StatefulSets with hostAliases
-  when: _ha_stat.stat.exists
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch statefulset {{ item }} \
-      --type=strategic --patch "$(cat {{ mojaloop_hostaliases_json }})"
-  loop: "{{ mojaloop_hostalias_statefulsets }}"
-  register: _ha_sts
-  changed_when: "'patched' in _ha_sts.stdout"
-  environment: "{{ kubectl_env }}"
-
 # ---- Per-scenario configmap overrides ----
+# Applied first so the single Recreate rollout (triggered by the topology patch
+# below) picks up both configmap content and topology constraints in one shot.
 
 - name: Stat scenario configmaps directory
   ansible.builtin.stat:
@@ -89,14 +61,115 @@
   changed_when: "'patched' in (_cm_patch.stdout | default(''))"
   environment: "{{ kubectl_env }}"
 
-- name: Restart core deployments after configmap changes
-  when: _cm_dir_stat.stat.exists
+# ---- Deployment topology patches ----
+# Each deployment gets exactly one patch that sets:
+#   strategy: Recreate  — kills all pods at once so the topology scheduler
+#                         starts from a clean slate (no skewed baseline)
+#   topologySpreadConstraints:
+#     hostname  DoNotSchedule + nodeTaintsPolicy:Honor
+#               Honor excludes tainted infra nodes (kafka, mysql) from the
+#               domain count so only the 4 generic switch nodes are eligible.
+#     zone      ScheduleAnyway (best-effort)
+#
+# Callback deployments also receive hostAliases (DFSP node IPs) in the same
+# patch so only one rollout is triggered per deployment. The mtls_switch role
+# (sidecar mode) re-applies these same real DFSP IPs and injects an istio-proxy
+# so each pod originates Leg B mTLS directly (no egress gateway).
+
+- name: Stat hostAliases JSON
+  ansible.builtin.stat:
+    path: "{{ mojaloop_hostaliases_json }}"
+  register: _ha_stat
+
+- name: Patch callback deployments — Recreate + topology + hostAliases
+  when: _ha_stat.stat.exists
   ansible.builtin.shell: |
-    replicas=$(kubectl --kubeconfig={{ kc_switch }} get deploy {{ item }} -n {{ ns_mojaloop }} -o jsonpath='{.spec.replicas}')
-    kubectl --kubeconfig={{ kc_switch }} scale deploy/{{ item }} -n {{ ns_mojaloop }} --replicas=0
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status deploy/{{ item }} --timeout=120s || true
-    kubectl --kubeconfig={{ kc_switch }} scale deploy/{{ item }} -n {{ ns_mojaloop }} --replicas=$replicas
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status deploy/{{ item }} --timeout=600s
+    ha=$(jq '.spec.template.spec.hostAliases' {{ mojaloop_hostaliases_json }})
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item.deploy }} \
+      --type=merge -p "$(jq -n --arg app '{{ item.app }}' --argjson ha "$ha" '{
+        spec: {
+          strategy: {type: "Recreate", rollingUpdate: null},
+          template: {spec: {
+            hostAliases: $ha,
+            topologySpreadConstraints: [
+              {maxSkew: 1, topologyKey: "kubernetes.io/hostname",
+               whenUnsatisfiable: "DoNotSchedule",
+               nodeAffinityPolicy: "Honor", nodeTaintsPolicy: "Honor",
+               labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}},
+              {maxSkew: 1, topologyKey: "topology.kubernetes.io/zone",
+               whenUnsatisfiable: "ScheduleAnyway",
+               labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}}
+            ]
+          }}
+        }
+      }')"
+  loop: "{{ mojaloop_callback_topology_deployments }}"
+  register: _callback_patch
+  changed_when: "'patched' in _callback_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Patch multi-replica deployments — Recreate + topology
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item.deploy }} \
+      --type=merge -p "$(jq -n --arg app '{{ item.app }}' '{
+        spec: {
+          strategy: {type: "Recreate", rollingUpdate: null},
+          template: {spec: {topologySpreadConstraints: [
+            {maxSkew: 1, topologyKey: "kubernetes.io/hostname",
+             whenUnsatisfiable: "DoNotSchedule",
+             nodeAffinityPolicy: "Honor", nodeTaintsPolicy: "Honor",
+             labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}},
+            {maxSkew: 1, topologyKey: "topology.kubernetes.io/zone",
+             whenUnsatisfiable: "ScheduleAnyway",
+             labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}}
+          ]}}
+        }
+      }')"
+  loop: "{{ mojaloop_topology_deployments }}"
+  register: _topo_patch
+  changed_when: "'patched' in _topo_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Patch singleton deployments — soft anti-affinity across switch nodes
+  ansible.builtin.shell: |
+    if kubectl --kubeconfig={{ kc_switch }} get deployment {{ item }} -n {{ ns_mojaloop }} &>/dev/null; then
+      kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
+        --type=merge -p '{"spec":{"template":{"spec":{"affinity":{"podAntiAffinity":{
+          "preferredDuringSchedulingIgnoredDuringExecution":[{
+            "weight":100,
+            "podAffinityTerm":{
+              "topologyKey":"kubernetes.io/hostname",
+              "labelSelector":{"matchExpressions":[{
+                "key":"app.kubernetes.io/instance",
+                "operator":"In",
+                "values":["moja"]
+              }]}
+            }
+          }]
+        }}}}}}'
+    fi
+  loop: "{{ mojaloop_singleton_deployments }}"
+  register: _singleton_patch
+  changed_when: "'patched' in _singleton_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Patch TTK StatefulSet with hostAliases
+  when: _ha_stat.stat.exists
+  ansible.builtin.shell: |
+    ha=$(jq '.spec.template.spec.hostAliases' {{ mojaloop_hostaliases_json }})
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch statefulset moja-ml-testing-toolkit-backend \
+      --type=strategic --patch "$(jq -n --argjson ha "$ha" \
+        '{"spec":{"template":{"spec":{"hostAliases":$ha}}}}')"
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# ---- Wait for rollouts ----
+# Recreate rollouts triggered by the topology patches above.
+
+- name: Wait for multi-replica deployment rollouts
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} \
+      rollout status deployment {{ item }} --timeout=600s
   loop: "{{ mojaloop_restart_deployments }}"
   changed_when: false
   environment: "{{ kubectl_env }}"

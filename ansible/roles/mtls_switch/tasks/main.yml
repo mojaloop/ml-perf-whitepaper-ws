@@ -10,9 +10,11 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-# ----------------------------------------------------------------------
-# Phase 1A — switch nginx :443 freed, Istio installed, Leg A applied
-# ----------------------------------------------------------------------
+# ======================================================================
+# Phase 1A — Leg A inbound: free nginx :443, install Istio, ingress GW,
+#            switch cert + inbound Gateway/VS + upstream connection pools.
+#            (Unchanged between gateway mode and sidecar mode.)
+# ======================================================================
 
 - name: Locate :443 port index on nginx ingress DaemonSet
   ansible.builtin.shell: |
@@ -45,21 +47,33 @@
 # under Helm 4 SSA when shared CRD/Webhook fields have been touched by
 # istiod (pilot-discovery becomes the field owner). Force helm to take
 # ownership back. Safe — these resources are managed by Istio charts only.
+# istio-base is CRDs + a ServiceAccount + a validating webhook — there is nothing
+# meaningful to `--wait` on, and the long SSA apply over the tunnel was what blew
+# the request deadline. Drop --wait, add an explicit --timeout, and retry the op.
 - name: Helm install istio-base
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
-      istio-base istio/base --create-namespace --version {{ istio_version }} --wait \
+      istio-base istio/base --create-namespace --version {{ istio_version }} \
+      --timeout {{ istio_helm_timeout }} \
       --force-conflicts --take-ownership
   register: _h_base
+  retries: "{{ istio_helm_retries }}"
+  delay: "{{ istio_helm_retry_delay }}"
+  until: _h_base.rc == 0
   changed_when: "'has been upgraded' in _h_base.stdout or 'has been deployed' in _h_base.stdout"
   environment: "{{ kubectl_env }}"
 
-- name: Helm install istiod
+- name: Helm install istiod (ECDSA workload certs + TLS-default hardening)
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
       istiod istio/istiod --version {{ istio_version }} --wait \
-      --force-conflicts --take-ownership
+      --timeout {{ istio_helm_timeout }} \
+      --force-conflicts --take-ownership \
+      -f {{ istiod_values }}
   register: _h_istiod
+  retries: "{{ istio_helm_retries }}"
+  delay: "{{ istio_helm_retry_delay }}"
+  until: _h_istiod.rc == 0
   changed_when: "'has been upgraded' in _h_istiod.stdout or 'has been deployed' in _h_istiod.stdout"
   environment: "{{ kubectl_env }}"
 
@@ -68,9 +82,13 @@
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
       istio-ingressgateway istio/gateway \
       --version {{ istio_version }} --wait --skip-schema-validation \
+      --timeout {{ istio_helm_timeout }} \
       --force-conflicts --take-ownership \
       -f {{ ingressgateway_values }}
   register: _h_ingw
+  retries: "{{ istio_helm_retries }}"
+  delay: "{{ istio_helm_retry_delay }}"
+  until: _h_ingw.rc == 0
   changed_when: "'has been upgraded' in _h_ingw.stdout or 'has been deployed' in _h_ingw.stdout"
   environment: "{{ kubectl_env }}"
 
@@ -115,37 +133,78 @@
   changed_when: "'created' in _upstream_pool.stdout or 'configured' in _upstream_pool.stdout"
   environment: "{{ kubectl_env }}"
 
-# ----------------------------------------------------------------------
-# Phase 3 — egress gateway + Leg B + CoreDNS hosts + hostAliases swap
-# ----------------------------------------------------------------------
+# ======================================================================
+# Phase 3 — Leg B outbound: SIDECAR mTLS origination (replaces egress GW)
+# ======================================================================
 
-- name: Install egress gateway
+# Guard: the sidecar patches below modify the switch egress deployments — they
+# must already exist (created by the switch role). Fail early and clearly if not,
+# rather than half-applying the cutover (and retiring the egress GW) against a
+# switch that was never deployed.
+- name: Check the switch egress deployments exist
   ansible.builtin.shell: |
-    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
-      istio-egressgateway istio/gateway \
-      --version {{ istio_version }} --wait --skip-schema-validation \
-      --force-conflicts --take-ownership \
-      -f {{ egressgateway_values }}
-  register: _h_eggw
-  changed_when: "'has been upgraded' in _h_eggw.stdout or 'has been deployed' in _h_eggw.stdout"
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployment \
+      {{ mtls_sidecar_deployments | map(attribute='name') | join(' ') }} -o name
+  register: _egress_deploys
+  changed_when: false
+  failed_when: false
   environment: "{{ kubectl_env }}"
 
-- name: Apply egress gateway Service (pinned ClusterIP)
+- name: Fail clearly if any egress deployment is missing (deploy the switch first)
+  ansible.builtin.fail:
+    msg: >-
+      Expected the switch egress deployments
+      ({{ mtls_sidecar_deployments | map(attribute='name') | join(', ') }})
+      in namespace {{ ns_mojaloop }}, but kubectl returned rc={{ _egress_deploys.rc }}.
+      Deploy the switch before running mTLS:  make switch SCENARIO={{ scenario }}
+  when: _egress_deploys.rc != 0
+
+# Per-pod sidecar injection in an UNLABELED namespace relies on the injector's
+# object-selector webhook honoring the sidecar.istio.io/inject pod label. Fail
+# early with a clear message if that mechanism is absent (see the runbook's
+# Fallback section).
+- name: Verify the injector honors the per-pod sidecar.istio.io/inject label
   ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_egressgw_service }}
-  register: _eg_svc
-  changed_when: "'created' in _eg_svc.stdout or 'configured' in _eg_svc.stdout"
+    kubectl --kubeconfig={{ kc_switch }} get mutatingwebhookconfiguration -o json \
+      | jq -e 'any(.items[].webhooks[]?;
+                   (.objectSelector // {}) | tostring | test("sidecar.istio.io/inject"))' >/dev/null
+  register: _inject_webhook
+  changed_when: false
+  failed_when: _inject_webhook.rc != 0
   environment: "{{ kubectl_env }}"
 
-- name: Apply Leg B Istio resources (Gateway/SE/VS/DR x8)
+# Sidecar SDS does not load a DestinationRule credentialName secret (gateways do,
+# sidecars don't), so the cert is FILE-MOUNTED into istio-proxy. The DR references
+# {{ mtls_certs_mount_path }} and the deployment patch mounts this secret there.
+- name: Copy the mTLS cert Secret into the mojaloop namespace
   ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_switch_outbound }}
-  register: _legB
-  changed_when: "'created' in _legB.stdout or 'configured' in _legB.stdout"
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} get secret {{ mtls_certs_secret_name }} -o json \
+      | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid,
+                .metadata.creationTimestamp, .metadata.ownerReferences,
+                .metadata.managedFields, .status)' \
+      | kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} apply -f -
+  register: _secret_copy
+  changed_when: "'created' in _secret_copy.stdout or 'configured' in _secret_copy.stdout"
   environment: "{{ kubectl_env }}"
 
-# CoreDNS patch — needs the switch CORE-API-ADAPTERS node IP plus the
-# 8 DFSP node IPs from the hostaliases.json emitted by playbook 06.
+# --- DFSP endpoint data (drives the rendered manifest + interception ranges) ---
+
+- name: Read DFSP hostAliases JSON (emitted by ansible playbook 06)
+  ansible.builtin.slurp:
+    src: "{{ mojaloop_hostaliases_json }}"
+  register: _hostaliases_blob
+
+- name: Build DFSP host-entry + IP-range facts
+  ansible.builtin.set_fact:
+    dfsp_host_entries: >-
+      {{ (_hostaliases_blob.content | b64decode | from_json).spec.template.spec.hostAliases | list }}
+
+- name: Compute DFSP /32 outbound-interception ranges
+  ansible.builtin.set_fact:
+    dfsp_ipranges: >-
+      {{ dfsp_host_entries | map(attribute='ip') | map('regex_replace', '$', '/32') | join(',') }}
+
+# --- Switch CoreDNS hosts{} block (switch services + DFSP names) ---
 
 - name: Read switch CORE-API-ADAPTERS node IP
   ansible.builtin.shell: |
@@ -155,19 +214,6 @@
   register: _switch_node_ip
   changed_when: false
   environment: "{{ kubectl_env }}"
-
-- name: Read DFSP hostAliases JSON (emitted by ansible playbook 06)
-  ansible.builtin.slurp:
-    src: "{{ scenario_artifacts_dir }}/hostaliases.json"
-  register: _hostaliases_blob
-
-- name: Build DFSP host entries list
-  ansible.builtin.set_fact:
-    dfsp_host_entries: >-
-      {{ (_hostaliases_blob.content | b64decode | from_json).spec.template.spec.hostAliases
-         | map('combine', {})
-         | list
-         | json_query('[*].{ip: ip, host: hostnames[0]}') }}
 
 - name: Set CoreDNS template facts
   ansible.builtin.set_fact:
@@ -194,26 +240,107 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-- name: Patch the four switch callback Deployments with mTLS hostAliases
+# --- Render + apply the sidecar Leg B Istio resources (SE/VS/DR x8) ---
+
+- name: Render sidecar Leg B manifest from live DFSP IPs
+  ansible.builtin.template:
+    src: switch-outbound-sidecar.yaml.j2
+    dest: "{{ mtls_sidecar_outbound_manifest }}"
+    mode: '0644'
+
+- name: Apply sidecar Leg B Istio resources
   ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
-      --type=strategic -p "$(cat {{ hostaliases_mtls_json }})"
-  loop: "{{ mtls_callback_deployments }}"
-  register: _ha_patch
-  changed_when: "'patched' in _ha_patch.stdout"
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_sidecar_outbound_manifest }}
+  register: _legB
+  changed_when: "'created' in _legB.stdout or 'configured' in _legB.stdout"
   environment: "{{ kubectl_env }}"
 
-- name: Wait for callback Deployment rollouts (parallel; kafka-consuming handlers are slow)
+# --- Inject sidecars + scope interception + mount certs + real-IP hostAliases ---
+# One JSON merge-patch per deployment (idempotent: arrays replaced wholesale,
+# objects merged). The patch:
+#   * labels   sidecar.istio.io/inject=true            -> injects istio-proxy
+#   * annot.   includeOutboundIPRanges=<DFSP /32s>      -> only DFSP egress intercepted
+#   * annot.   userVolume(+Mount)                       -> mounts the mTLS cert
+#   * annot.   proxy.istio.io/config holdApplication... -> app waits for proxy
+#   * annot.   includeInboundPorts="" (egress_only)     -> no inbound interception
+#   * spec.hostAliases = real DFSP node IPs             -> drops any egress-GW entry
+- name: Compose sidecar base annotations
+  ansible.builtin.set_fact:
+    _sidecar_base_annotations:
+      traffic.sidecar.istio.io/includeOutboundIPRanges: "{{ dfsp_ipranges }}"
+      sidecar.istio.io/userVolume: '[{"name":"mtls-certs","secret":{"secretName":"{{ mtls_certs_secret_name }}"}}]'
+      sidecar.istio.io/userVolumeMount: '[{"name":"mtls-certs","mountPath":"{{ mtls_certs_mount_path }}","readOnly":true}]'
+      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts":true}'
+
+- name: Build per-deployment sidecar patches
+  ansible.builtin.set_fact:
+    _sidecar_patches: >-
+      {{ _sidecar_patches | default([]) + [{
+        'name': item.name,
+        'patch': {
+          'spec': {'template': {
+            'metadata': {
+              'labels': {'sidecar.istio.io/inject': 'true'},
+              'annotations': (_sidecar_base_annotations | combine(
+                  {'traffic.sidecar.istio.io/includeInboundPorts': ''} if item.egress_only else {}))
+            },
+            'spec': {'hostAliases': dfsp_host_entries}
+          }}
+        }
+      }] }}
+  loop: "{{ mtls_sidecar_deployments }}"
+
+- name: Apply sidecar injection + hostAliases patch to egress deployments
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item.name }} \
+      --type=merge -p {{ item.patch | to_json | quote }}
+  loop: "{{ _sidecar_patches }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: _sidecar_patch
+  changed_when: "'patched' in _sidecar_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for egress Deployment rollouts (parallel; kafka-consuming handlers are slow)
   ansible.builtin.shell: |
     set -e
     pids=()
-    for d in {{ mtls_callback_deployments | join(' ') }}; do
+    for d in {{ mtls_sidecar_deployments | map(attribute='name') | join(' ') }}; do
       kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} \
-        rollout status deployment "$d" --timeout=1200s &
+        rollout status deployment "$d" --timeout={{ mtls_sidecar_rollout_timeout }} &
       pids+=($!)
     done
     rc=0
     for p in "${pids[@]}"; do wait "$p" || rc=$?; done
     exit $rc
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Verify each egress pod is 2/2 (app + istio-proxy) with certs mounted
+  ansible.builtin.shell: |
+    set -e
+    POD=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get pod \
+            -l app.kubernetes.io/name={{ item.name | regex_replace('^moja-', '') }} \
+            --field-selector=status.phase=Running \
+            -o jsonpath='{.items[0].metadata.name}')
+    READY=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get pod "$POD" \
+            -o jsonpath='{.status.containerStatuses[*].ready}')
+    echo "$READY" | grep -q "true true"
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} exec "$POD" -c istio-proxy -- \
+      ls {{ mtls_certs_mount_path }}/tls.crt {{ mtls_certs_mount_path }}/tls.key {{ mtls_certs_mount_path }}/ca.crt
+  loop: "{{ mtls_sidecar_deployments }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# --- Retire the egress gateway superseded by sidecar mode ---
+
+- name: Retire the egress gateway (sidecar mode supersedes it)
+  when: mtls_cleanup_egressgateway | bool
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} uninstall istio-egressgateway 2>/dev/null || true
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} delete service istio-egressgateway --ignore-not-found
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} delete gateway  dfsp-egress         --ignore-not-found
   changed_when: false
   environment: "{{ kubectl_env }}"

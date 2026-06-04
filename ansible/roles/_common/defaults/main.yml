@@ -37,7 +37,7 @@ chart_versions:
   mojaloop_backend: "17.1.0"
   mojaloop_simulator: "15.10.0"
   istio: "1.24.1"
-  k6_operator: latest
+  k6_operator: "4.4.1"   # grafana/k6-operator chart (app v1.4.0); pinned for reproducible recreate
 
 # Namespaces.
 ns_mojaloop: mojaloop

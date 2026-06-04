@@ -70,6 +70,14 @@ resource "aws_instance" "switch" {
   vpc_security_group_ids      = [aws_security_group.internal.id]
   associate_public_ip_address = false
 
+  # Disable the EC2 source/dest check so the node can forward packets whose
+  # src/dst is a pod IP (10.1.0.0/16) — i.e. Calico can route pod traffic
+  # DIRECTLY between same-subnet nodes (vxlanMode: CrossSubnet) instead of
+  # VXLAN-encapsulating it. The overlay's decap -> netif_rx re-injection was
+  # driving a ~28x softnet "process storm" and softirq saturation on the
+  # switch nodes (2026-06-04). Required BEFORE flipping Calico to CrossSubnet.
+  source_dest_check = false
+
   # Performance optimizations
   placement_group = local.placement_group_enabled ? aws_placement_group.cluster[0].id : null
   monitoring      = local.detailed_monitoring
@@ -175,6 +183,11 @@ resource "aws_instance" "dfsp" {
   subnet_id                   = aws_subnet.private.id
   vpc_security_group_ids      = [aws_security_group.internal.id]
   associate_public_ip_address = false
+
+  # Match the switch nodes (see comment above). DFSP clusters are single-node
+  # so they never VXLAN-encapsulate pod traffic, but keeping source/dest check
+  # off here is harmless and keeps the fleet uniform / native-routing-ready.
+  source_dest_check = false
 
   # Performance optimizations
   placement_group = local.placement_group_enabled ? aws_placement_group.cluster[0].id : null

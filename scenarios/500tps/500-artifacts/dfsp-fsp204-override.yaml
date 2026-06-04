@@ -6,5 +6,5 @@ simulators:
           INBOUND_MUTUAL_TLS_ENABLED: 'true'
           OUTBOUND_MUTUAL_TLS_ENABLED: 'true'
         image:
-          repository: kirgene/sdk-scheme-adapter
-          tag: jws-fix
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.6

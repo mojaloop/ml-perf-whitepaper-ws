@@ -54,7 +54,7 @@ deploy role (`ansible/roles/dfsp/`) loops 201..208 and:
 2. Enables nginx `--enable-ssl-passthrough`.
 3. Applies the shared TLS Secret (`certs/dfsp-tls-secret.yaml`).
 4. Helm-installs the simulator with `common/dfsp/values-fsp{N}.yaml`.
-5. Overrides the SDK image to `kirgene/sdk-scheme-adapter:jws-fix`
+5. Overrides the SDK image to `mojaloop/sdk-scheme-adapter:v24.19.6`
    (TODO: drop when upstream ships the JWS fix).
 6. Patches the SDK volumes to mount `mtls-shared-creds`.
 7. Applies the per-DFSP passthrough Ingress (`:443` → SDK `:4000`).

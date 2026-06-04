@@ -1,0 +1,35 @@
+---
+# Per-DFSP metrics shipping. Each fsp201..fsp208 cluster is isolated on its
+# own pod-network (10.244.0.0/16) but shares the VPC `internal` security
+# group with the switch nodes (source:self allows all node-to-node traffic).
+# We exploit that: a lightweight Prometheus in *agent mode* scrapes local
+# host + container metrics and remote_writes them OUT to the central
+# promfana Prometheus on the switch monitoring node (NodePort 30090, which
+# already has enableRemoteWriteReceiver: true). No pod-network peering, no
+# SG change, no central scrape-target list to maintain.
+
+dfsp_mon_namespace: dfsp-monitoring
+
+# quay.io mirrors — avoids Docker Hub anonymous pull limits, so no
+# imagePullSecret is needed on the fsp clusters.
+dfsp_mon_node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
+dfsp_mon_agent_image: quay.io/prometheus/prometheus:v2.54.1
+
+# Central remote-write receiver = the switch monitoring node's Prometheus
+# NodePort. private_ip comes from the terraform-generated inventory.yaml
+# (same hostvars lookup the k6 CoreDNS template uses).
+dfsp_mon_monitoring_node_ip: "{{ hostvars['sw1-monitoring']['private_ip'] }}"
+dfsp_mon_remote_write_url: "http://{{ dfsp_mon_monitoring_node_ip }}:30090/api/v1/write"
+
+dfsp_mon_scrape_interval: "15s"
+
+# Ship only the series the perf probe needs — keeps the central TSDB
+# cardinality bounded across 8 extra clusters. host softirq is carried by
+# node_cpu_seconds_total{mode="softirq"} + node_softnet_stat_*; container
+# CPU by container_cpu_usage_seconds_total; sdk-scheme-adapter app metrics
+# (if/when its /metrics is enabled) by moja_*/nodejs_*.
+dfsp_mon_keep_metrics_regex: >-
+  node_cpu_seconds_total|node_softnet_stat.*|node_load.*|node_memory_(MemTotal|MemAvailable)_bytes|node_network_(receive|transmit)_(bytes|packets|drop)_total|node_nf_conntrack_entries.*|container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_network_(receive|transmit)_(bytes|packets)_total|nodejs_eventloop_lag.*|nodejs_.*|moja_.*|up
+
+# Namespace whose pods we scrape for app metrics (sdk-scheme-adapter + sim).
+dfsp_mon_app_namespace: "{{ ns_dfsps }}"

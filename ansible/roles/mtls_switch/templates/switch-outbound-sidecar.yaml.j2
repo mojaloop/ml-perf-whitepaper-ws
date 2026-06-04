@@ -1,0 +1,101 @@
+# ============================================================================
+# RENDERED by the ansible mtls_switch role — DO NOT EDIT BY HAND.
+# Source template: roles/mtls_switch/templates/switch-outbound-sidecar.yaml.j2
+# DFSP endpoint IPs come from {{ mojaloop_hostaliases_json }} (emitted by
+# playbook 06 each run) so this file is always in sync with the live nodes.
+# ============================================================================
+# Switch outbound mTLS via Istio SIDECARS (Leg B) — replaces egress-gateway mode.
+#
+# mTLS origination moves OFF the centralized istio-egressgateway and INTO each
+# calling pod's own Envoy sidecar, eliminating the in-cluster double-hop
+# (switch pod -> egress GW pod -> DFSP) that drove ~6 cores of softirq.
+#
+# Path:
+#   switch pod (notification / quoting-handler / ALS)
+#     -> http://sim-fspNNN.local/sim/fspNNN/inbound/...   (plain HTTP :80)
+#     -> hostAliases resolves sim-fspNNN.local -> DFSP node IP (real, not egress GW)
+#     -> pod's OWN sidecar intercepts (includeOutboundIPRanges = DFSP /32s)
+#     -> VirtualService (gateways:[mesh]) rewrites /sim/fspNNN/inbound/ -> /
+#     -> DestinationRule originates MUTUAL TLS to :443 using FILE-MOUNTED certs
+#        ({{ mtls_certs_mount_path }}/{tls.crt,tls.key,ca.crt}). Sidecar SDS does
+#        NOT load a DestinationRule credentialName secret (gateways do, sidecars
+#        don't), so the secret is mounted into the istio-proxy via the
+#        sidecar.istio.io/userVolume(+Mount) annotations the role applies.
+#     -> DFSP nginx ssl-passthrough -> scheme-adapter (validates client cert)
+# ============================================================================
+{% for entry in dfsp_host_entries %}
+{% set host  = entry.hostnames[0] %}
+{% set short = host | regex_replace('\.local$', '') %}
+{% set fsp   = short | regex_replace('^sim-', '') %}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_mojaloop }}
+spec:
+  hosts: [{{ host }}]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }    # port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }   # TLS-origination target
+  endpoints:
+    - address: {{ entry.ip }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_mojaloop }}
+spec:
+  hosts: [{{ host }}]
+  gateways: [mesh]            # sidecar-local routing (was [istio-system/dfsp-egress])
+  http:
+    - match:
+        - uri: { prefix: /sim/{{ fsp }}/inbound/ }
+      rewrite:
+        uri: /
+      timeout: {{ mtls_sidecar_route_timeout }}
+      route:
+        - destination:
+            host: {{ host }}
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_mojaloop }}
+spec:
+  host: {{ host }}
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: {{ mtls_sidecar_max_connections }}
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: {{ mtls_sidecar_http2_max_requests }}
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        # NB: TLS version + cipher suites are NOT set here — ClientTLSSettings
+        # has no cipherSuites/minProtocolVersion field. The Leg B client floor
+        # (TLS 1.2 min, ECDSA AES-GCM, X25519/P-256) is enforced mesh-wide via
+        # meshConfig.tlsDefaults in common/istiod-values.yaml.
+        tls:
+          mode: MUTUAL
+          clientCertificate: {{ mtls_certs_mount_path }}/tls.crt
+          privateKey: {{ mtls_certs_mount_path }}/tls.key
+          caCertificates: {{ mtls_certs_mount_path }}/ca.crt
+          sni: {{ host }}
+{% endfor %}

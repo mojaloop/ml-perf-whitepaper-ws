@@ -69,7 +69,7 @@ export ANSIBLE_SSH_ARGS := -o ControlMaster=auto -o ControlPersist=30m -o Server
 
 .PHONY: help tunnel \
         terraform-init terraform-plan terraform-apply terraform-destroy \
-        k8s backend monitoring switch mtls dfsp k6 onboard provision smoke load \
+        k8s backend monitoring switch mtls dfsp dfsp-monitoring istio-telemetry k6 onboard provision smoke load \
         deploy clean
 
 # ===========================================================================
@@ -129,11 +129,17 @@ monitoring: ## Deploy promfana stack (prometheus + grafana + alertmanager)
 switch: ## Deploy mojaloop switch + per-scenario configmap patches
 	$(ANS) playbooks/switch.yml
 
-mtls: ## Switch-side mTLS (Istio install + Leg A inbound + Leg B egress gateway)
+mtls: ## Switch-side mTLS (Istio install + Leg A inbound + Leg B sidecar mTLS)
 	$(ANS) playbooks/mtls-switch.yml
 
 dfsp: ## Deploy 8 DFSP simulators with mTLS Phase 1B + scaling
 	$(ANS) playbooks/dfsp.yml
+
+dfsp-monitoring: ## Per-DFSP prometheus-agent + node-exporter; remote_write to switch Prometheus
+	$(ANS) playbooks/dfsp-monitoring.yml
+
+istio-telemetry: ## Scrape Istio proxy metrics (gateways + sidecars) into promfana Prometheus
+	$(ANS) playbooks/istio-telemetry.yml
 
 k6: ## Set up k6 cluster (operator + dockerhub secret + CoreDNS)
 	$(ANS) playbooks/k6.yml
@@ -157,7 +163,7 @@ load: ## Run k6 TestRun for the active scenario
 # ===========================================================================
 # Composite — full app deploy after k8s is up
 # ===========================================================================
-deploy: backend switch mtls dfsp k6 onboard provision smoke ## Backend -> switch -> mtls -> dfsp -> k6 -> onboard -> provision -> smoke
+deploy: monitoring backend switch mtls dfsp dfsp-monitoring istio-telemetry k6 onboard provision smoke ## Monitoring -> backend -> switch -> mtls -> dfsp -> dfsp-monitoring -> istio-telemetry -> k6 -> onboard -> provision -> smoke
 
 # ===========================================================================
 # Cleanup
