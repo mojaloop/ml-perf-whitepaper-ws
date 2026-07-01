@@ -1,0 +1,50 @@
+# ============================================================================
+# OPTIONAL — Phase D: supply-chain over-outbound egress lockdown.
+# Default-deny egress for the {{ cilium_egress_namespace }} namespace; allow only
+# cluster-internal traffic, kube-dns, and the DFSP sim hosts on :443.
+#
+# Enforced in the eBPF datapath (kernel), independent of Envoy/sidecar
+# interception — so it also covers un-meshed pods and any sidecar-bypass path.
+# toFQDNs is DNS-aware: only the IPs a pod resolves for an ALLOWED name are
+# programmed into its allow-set; a lookup for an unlisted name is dropped.
+#
+# !! AUDIT BEFORE ENABLING !! A compromised-dep exfil is blocked here, but so is
+# any legitimate egress you forget to list. Kafka/MySQL/Mongo/Redis are
+# in-cluster (covered by the cluster/host entities). External image pulls and
+# AWS API calls (if any pod makes them) must be added or routed via VPC
+# endpoints / a NAT allowlist.
+# ============================================================================
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: mojaloop-egress-lockdown
+  namespace: {{ cilium_egress_namespace }}
+spec:
+  endpointSelector: {}        # all pods in the namespace
+  egress:
+    # 1. DNS to kube-dns (and observe answers so toFQDNs can learn IPs).
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s:k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - { port: "53", protocol: ANY }
+          rules:
+            dns:
+              - matchPattern: "*"
+    # 2. All in-cluster traffic (services, Kafka, MySQL, Mongo, Redis, peers).
+    - toEntities:
+        - cluster
+        - host
+        - remote-node
+    # 3. The DFSP sim hosts on :443 (Leg B mTLS callbacks) — DNS-aware allowlist.
+    - toFQDNs:
+{% for fqdn in cilium_egress_allowed_fqdns %}
+        - matchName: "{{ fqdn }}"
+{% endfor %}
+      toPorts:
+        - ports:
+            - { port: "443", protocol: TCP }
+    # Everything else (arbitrary internet egress) => DENIED by default, because
+    # the presence of any egress rule makes this endpoint default-deny egress.

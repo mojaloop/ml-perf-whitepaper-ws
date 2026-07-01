@@ -190,7 +190,7 @@ account-lookup-service:
     image:
       registry: docker.io
       repository: mojaloop/account-lookup-service
-      tag: v17.12.2
+      tag: v17.16.1
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
       ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
@@ -517,7 +517,7 @@ account-lookup-service:
     image:
       registry: docker.io
       repository: mojaloop/account-lookup-service
-      tag: v17.12.2
+      tag: v17.16.1
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
       ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
@@ -848,7 +848,7 @@ account-lookup-service:
     image:
       registry: docker.io
       repository: mojaloop/account-lookup-service
-      tag: v17.12.2
+      tag: v17.16.1
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
       ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
@@ -1943,7 +1943,7 @@ ml-api-adapter:
     image:
       registry: docker.io
       repository: mojaloop/ml-api-adapter
-      tag: v16.5.9
+      tag: v16.10.1
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
       ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
@@ -2213,7 +2213,7 @@ ml-api-adapter:
     image:
       registry: docker.io
       repository: mojaloop/ml-api-adapter
-      tag: v16.5.9
+      tag: v16.10.1
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
       ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images

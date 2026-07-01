@@ -52,6 +52,34 @@
           - net-tools
         state: present
 
+    # Pin the HWE kernel the passing 500 TPS runs used (6.17.0-1013-aws). A clean
+    # AMI boots GA 6.8, which shows ~10% higher softirq under load. Done BEFORE the
+    # MicroK8s install so the (parallel) reboot is safe — no cluster exists yet to
+    # lose quorum. Gated by config.k8s.app_node_kernel (empty/unset = skip); applied
+    # to the switch nodes only (FSP/k6 nodes don't need it).
+    - name: Pin app-node HWE kernel (reproduce the passing perf env)
+      when:
+        - (config.k8s.app_node_kernel | default('')) | length > 0
+        - inventory_hostname in groups['switch']
+      block:
+        - name: "Install pinned kernel {{ config.k8s.app_node_kernel }}"
+          apt:
+            name:
+              - "linux-image-{{ config.k8s.app_node_kernel }}"
+              - "linux-modules-{{ config.k8s.app_node_kernel }}"
+              - "linux-modules-extra-{{ config.k8s.app_node_kernel }}"
+            state: present
+            update_cache: yes
+
+        - name: Make the newest (pinned) kernel the default GRUB entry
+          ansible.builtin.command: update-grub
+          changed_when: false
+
+        - name: Reboot into the pinned kernel (only if not already running it)
+          ansible.builtin.reboot:
+            reboot_timeout: 600
+          when: ansible_kernel != config.k8s.app_node_kernel
+
     - name: Check if MicroK8s is already installed
       shell: snap list microk8s 2>/dev/null | grep -q microk8s
       register: microk8s_check

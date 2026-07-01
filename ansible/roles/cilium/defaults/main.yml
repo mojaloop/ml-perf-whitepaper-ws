@@ -1,0 +1,186 @@
+---
+# ============================================================================
+# Cilium eBPF CNI — Phase A of the durable sustained-500-TPS fix.
+# (docs/2026-06-04-durable-fix-ebpf-ambient.md)
+#
+# Replaces MicroK8s' default Calico(VXLAN/iptables) dataplane with Cilium in
+# eBPF native-routing mode. This removes the softnet RE-INJECTION storm
+# (softnet_processed/wire_PPS ~12x -> ~1x) that saturated switch-node softirq
+# under sustained load. See docs/2026-06-03-500tps-failure-investigation.md.
+#
+# Phase B (Istio ambient) is NOT installed here, but this role sets the
+# Cilium<->Istio integration flags NOW (cilium_ambient_ready) so ambient can be
+# enabled later WITHOUT reinstalling or reconfiguring Cilium.
+# ============================================================================
+
+# --- pinned versions --------------------------------------------------------
+# Cilium 1.17.x supports Kubernetes 1.32 (the MicroK8s channel in common/aws.yaml,
+# k8s.microk8s_version: 1.32/stable). Bump in lockstep with the k8s channel.
+cilium_version: "1.17.1"
+cilium_helm_repo: "https://helm.cilium.io"
+cilium_namespace: kube-system
+cilium_release_name: cilium
+
+# --- cluster identity -------------------------------------------------------
+cilium_cluster_name: "{{ config.k8s.switch_cluster_name | default('mojaloop-switch') }}"
+
+# --- IPAM / pod network -----------------------------------------------------
+# On the CNI swap Cilium (cluster-pool IPAM) carves pod CIDRs fresh. Because we
+# run on an EMPTY cluster (right after `make k8s`, before any workload), there
+# are no pod IPs to conflict with.
+#
+# Set EXPLICITLY to the live MicroK8s pod CIDR (verified 2026-06-10 on this
+# cluster: IPPool .spec.cidr, kube-proxy --cluster-cidr, and CALICO_IPV4POOL_CIDR
+# all = 10.1.0.0/16; actual pod IPs were 10.1.x.x). We keep continuity and let
+# Cilium own the same block. NOTE: common/aws.yaml k8s.networking.pod_network_cidr
+# (10.244.0.0/16) is aspirational and NOT what MicroK8s' Calico actually used —
+# do not derive from it. Clear of service CIDR 10.96.0.0/12 and node subnet
+# 10.112.2.0/24.
+cilium_pod_cidr: "10.1.0.0/16"
+cilium_pod_cidr_mask_size: 24
+
+# Native-routing CIDR: the range within which pod traffic is routed directly
+# (no masquerade, no encap). All switch nodes share one L2 subnet
+# (private-subnet 10.112.2.0/24) so autoDirectNodeRoutes can install direct
+# node routes and there is zero overlay. Defaults to the pod CIDR.
+cilium_native_routing_cidr: "{{ cilium_pod_cidr }}"
+
+# --- kube-proxy replacement -------------------------------------------------
+# DEFAULT false (SAFE): Cilium runs its eBPF native-routing dataplane and
+# coexists with MicroK8s' embedded kube-proxy. This ALONE removes the dominant
+# Calico-iptables/veth re-injection that caused the softirq ceiling — i.e. you
+# get the perf fix without touching kube-proxy.
+#
+# Set "true" ONLY after disabling MicroK8s' embedded kube-proxy (it is baked
+# into kubelite — see cilium_disable_microk8s_kube_proxy below). kube-proxy-free
+# removes the residual KUBE-SVC service-LB iptables chains (the last few %).
+# VALIDATE on a fresh cluster first — getting this wrong is how the earlier
+# eBPF attempt bricked the cluster (memory: project_calico_ebpf_migration_state).
+cilium_kube_proxy_replacement: "false"
+
+# When kube-proxy-free, Cilium must reach the API server directly. MicroK8s API
+# is on the node at :16443. Defaults to the primary node's IP (set in tasks).
+cilium_k8s_service_host: ""        # set in tasks from the primary node IP
+cilium_k8s_service_port: "16443"
+
+# --- hostPort / nodePort (REQUIRED: the switch ingress is hostPort) ----------
+# The istio-ingressgateway (Leg A mTLS :443) and nginx (:80) run as DaemonSets
+# on hostPort, fronted by the NLB. With kubeProxyReplacement=false Cilium leaves
+# enable-host-port=false and Calico's portmap is gone, so node:443 -> gateway pod
+# stops forwarding and ALL inbound FSPIOP black-holes (SDK 30s timeouts). Enable
+# Cilium's eBPF hostPort; it needs the nodePort datapath, so enable that too.
+# This is the documented "selective features without full kube-proxy replacement"
+# mode — kube-proxy keeps doing ClusterIP, Cilium handles host/nodePort.
+cilium_host_port_enabled: true
+cilium_node_port_enabled: true
+
+# --- eBPF datapath fast-path features (gated on kube-proxy replacement) -------
+# BPF masquerade + eBPF host-routing + eBPF hostPort all need Cilium's eBPF
+# service layer (enable-node-port). That layer is on whenever EITHER full
+# kubeProxyReplacement is true OR nodePort is individually enabled (our case:
+# we need it for the switch's hostPort ingress). So gate the whole eBPF fast
+# path on "kpr OR nodePort": with it on, masquerade=BPF + host-routing=eBPF, and
+# hostPort can program. With it fully off, fall back to iptables masquerade +
+# legacy host routing. (The original "BPF masquerade requires NodePort" fatal
+# was this dependency: enabling nodePort satisfies it.)
+cilium_bpf_masquerade: "{{ 'true' if (cilium_kube_proxy_replacement | string | lower == 'true' or cilium_node_port_enabled | bool) else 'false' }}"
+cilium_bpf_host_legacy_routing: "{{ 'false' if (cilium_kube_proxy_replacement | string | lower == 'true' or cilium_node_port_enabled | bool) else 'true' }}"
+
+# Attempt to disable MicroK8s' embedded kube-proxy. OFF by default — left as an
+# explicit, validate-first operation because the disable path is MicroK8s-version
+# specific. Only meaningful when cilium_kube_proxy_replacement == "true".
+cilium_disable_microk8s_kube_proxy: false
+
+# --- L7 / DNS proxy (enables toFQDNs egress policy = supply-chain control) ---
+# Cilium's L7 proxy hosts the DNS proxy that backs `toFQDNs` egress rules — the
+# kernel-enforced outbound allowlist that stops a compromised dependency from
+# phoning home (the supply-chain-over-outbound control we discussed). Cheap to
+# leave on; required if cilium_egress_lockdown is ever enabled.
+cilium_l7_proxy: true
+
+# --- Hubble (egress/flow visibility; denied-egress = high-fidelity alert) ----
+cilium_hubble_enabled: true
+
+# --- Istio ambient readiness (Phase B provision) ----------------------------
+# TRUE by default: set the Cilium<->Istio integration flags now so enabling
+# ambient later is non-disruptive (no Cilium reinstall/restart):
+#   * cni.exclusive=false        -> lets istio-cni CHAIN after Cilium so the
+#                                    ztunnel/sidecar redirect can be installed.
+#   * socketLB.hostNamespaceOnly -> Cilium socket-LB only in the host netns, so
+#                                    it does not swallow ztunnel's in-pod redirect.
+# These are harmless with plain sidecar Istio too, so they are safe to set today.
+cilium_ambient_ready: true
+
+# --- socketLB (eBPF socket-level service LB) ---------------------------------
+# Enable socket-level LB so pod->ClusterIP connections are eBPF-redirected to a
+# backend pod-IP at connect() time, bypassing kube-proxy iptables + the host
+# netif_rx backlog — the east-west re-injection source identified in the
+# 2026-06-11 run (softnet/wire climbed to ~12x on ClusterIP traffic; see
+# docs/2026-06-11-cilium-500tps-result.md). socketLB works WITHOUT full
+# kube-proxy replacement (it acts at connect() before iptables), so no kubelite
+# surgery / brick risk.
+# RE-ENABLED 2026-06-11 (corrected): the 12-17% failures I previously blamed on
+# socketLB were actually FSPIOP JWS validation (3105/5100) — present before AND
+# after socketLB. So socketLB's effect on the softirq CREEP was never cleanly
+# measured. With JWS now fixed, re-enable it: socketLB rewrites pod->ClusterIP at
+# connect() in eBPF so packets go pod-IP->pod-IP on native routing, bypassing the
+# kube-proxy host-stack netif_rx backlog — the exact re-injection that creeps
+# (softnet_processed grows ~12x at flat wire PPS). Works at kpr=false.
+# Success metric: softnet_processed/wire_PPS stays ~FLAT over a full run.
+# See docs/2026-06-11-softirq-reliable-fix-plan.md + project_softirq_reliable_fix_plan memory.
+cilium_socketlb_enabled: true
+# false => pod-side socketLB ON (we want pod->ClusterIP on the eBPF fast path).
+cilium_socketlb_hostns_only: false
+
+# --- install behaviour ------------------------------------------------------
+# Remove the MicroK8s Calico dataplane before installing Cilium. Backs up the
+# CNI manifest first. Disable ONLY if Calico was already removed.
+cilium_replace_calico: true
+cilium_calico_manifest: /var/snap/microk8s/current/args/cni-network/cni.yaml
+cilium_values_remote_path: /var/snap/microk8s/common/cilium-values.yaml
+
+# MicroK8s CNI paths. MicroK8s' containerd reads CNI config + binaries from under
+# /var/snap/microk8s, NOT the upstream defaults (/etc/cni/net.d, /opt/cni/bin) the
+# Cilium chart writes to. Without these overrides Cilium's conflist/binary land
+# where containerd never looks, so non-hostNetwork pods hang in ContainerCreating
+# while the (hostNetwork) Cilium agents run fine. Confirmed on MicroK8s 1.32/snap.
+cilium_cni_conf_path: /var/snap/microk8s/current/args/cni-network
+cilium_cni_bin_path: /var/snap/microk8s/current/opt/cni/bin
+# Stale CNI conflists left in the conf dir by the removed Calico (cleaned in tasks).
+cilium_stale_cni_confs:
+  - "{{ cilium_cni_conf_path }}/10-calico.conflist"
+  - "{{ cilium_cni_conf_path }}/05-cilium.conflist.old"
+
+# Cilium agent run/socket dir. MicroK8s' confined containerd invokes the
+# cilium-cni plugin in a mount namespace where /var/run/cilium resolves to
+# /var/snap/microk8s/current/var/run/cilium. The agent must write its
+# cilium.sock to that same location or every non-hostNetwork pod fails sandbox
+# setup with "unable to connect to Cilium agent ... cilium.sock: no such file".
+# Using the `current` symlink so it follows snap refreshes after an agent roll.
+cilium_run_path: /var/snap/microk8s/current/var/run/cilium
+
+cilium_operator_replicas: 1
+cilium_helm_timeout: 10m
+
+# Per-node rollout wait for the cilium agent DaemonSet.
+cilium_rollout_timeout: 300s
+
+# ============================================================================
+# OPTIONAL — Phase D egress lockdown (supply-chain over outbound).
+# Default OFF. This is a CiliumNetworkPolicy default-deny egress for the
+# mojaloop namespace that allows only: cluster-internal traffic, kube-dns, and
+# the 8 DFSP sim hosts on :443. AUDIT your full egress inventory (image pulls,
+# AWS APIs, Kafka/MySQL are in-cluster) BEFORE enabling, or you will block
+# legitimate traffic. Provided as a ready-to-tune starting point.
+# ============================================================================
+cilium_egress_lockdown: false
+cilium_egress_namespace: "{{ ns_mojaloop | default('mojaloop') }}"
+cilium_egress_allowed_fqdns:
+  - "sim-fsp201.local"
+  - "sim-fsp202.local"
+  - "sim-fsp203.local"
+  - "sim-fsp204.local"
+  - "sim-fsp205.local"
+  - "sim-fsp206.local"
+  - "sim-fsp207.local"
+  - "sim-fsp208.local"

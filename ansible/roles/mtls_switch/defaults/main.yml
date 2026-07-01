@@ -35,6 +35,10 @@ mtls_switch_inbound:        "{{ repo_root }}/manifests/mtls/switch-inbound.yaml"
 mtls_switch_upstream_pool:  "{{ repo_root }}/manifests/mtls/switch-upstream-pool.yaml"
 mtls_switch_tls_secret:     "{{ repo_root }}/certs/switch-tls-secret.yaml"
 
+# NodePort Service exposing nginx :80 (Cilium has no hostPort). Paired with the
+# istio-ingressgateway NodePort (30443) in common/istio-ingressgateway.yaml.
+mtls_nginx_nodeport:        "{{ repo_root }}/manifests/mtls/nginx-nodeport.yaml"
+
 # DFSP node IPs / hostAliases emitted fresh each run by playbook 06.
 # Used to (a) render the sidecar Leg B manifest with the live endpoint IPs and
 # (b) re-point the egress deployments' hostAliases at the real DFSP nodes.
@@ -55,6 +59,9 @@ mtls_sidecar_outbound_manifest: "{{ scenario_artifacts_dir }}/switch-outbound-si
 mtls_sidecar_route_timeout:      30s
 mtls_sidecar_max_connections:    500
 mtls_sidecar_http2_max_requests: 500
+# Per-pod Envoy sidecar memory limit. Default 1Gi OOMKills under sustained load
+# (Envoy per-connection stats grow unbounded); 2Gi is safe on the 32GB app nodes.
+mtls_sidecar_proxy_memory_limit: "2Gi"
 
 # Egress deployments that originate Leg B mTLS via their own injected sidecar.
 #  egress_only: true  -> pure Kafka-consumer handler (no ingress traffic). Disable

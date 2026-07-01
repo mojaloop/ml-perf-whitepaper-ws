@@ -2,17 +2,38 @@
 #
 # Deploy shape:
 #   - DaemonSet on the generic switch worker nodes (sw1-n1/n2/n3/n4).
-#   - Port 443 exposure: hostPort on the container (bound on each node via
-#     kube-proxy NAT). This is NOT a chart value — set via a post-install
-#     DaemonSet patch. We don't use hostNetwork because Istio's sidecar
-#     injector skips pods with hostNetwork=true ("policy check"), leaving
-#     `image: auto` un-mutated.
+#   - Port 443 exposure: NodePort 30443 via the chart Service (below). The NLB
+#     forwards :443 -> node:30443 -> Envoy :443. We switched from hostPort to
+#     NodePort because the Cilium eBPF CNI (kubeProxyReplacement=false) does not
+#     program hostPort, so node:443 stopped forwarding to the gateway pod and
+#     all inbound FSPIOP black-holed. Cilium DOES implement NodePort, so a
+#     NodePort Service is the reliable exposure.
 #
 # Security: chart defaults are used — the pod-level sysctl
 # `net.ipv4.ip_unprivileged_port_start=0` already lets the non-root container
 # (uid 1337) bind to :443.
 
 kind: DaemonSet
+
+# NodePort exposure for the NLB. Port 443 (mTLS Leg A) is pinned to nodePort
+# 30443 so the NLB target group can forward to it. status-port/http2 get
+# auto-assigned nodePorts (unused by the NLB).
+service:
+  type: NodePort
+  ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+      nodePort: 30443
 
 nodeSelector:
   workload-class.mojaloop.io/CORE-API-ADAPTERS: "true"

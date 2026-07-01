@@ -1,5 +1,7 @@
 # Durable fix for sustained 500 TPS — eBPF dataplane + node-level mTLS (handoff for the new branch)
 
+> **UPDATE 2026-06-10 — Phase A is BUILT** on branch `feat/500-mtls-ambient` (`ansible/roles/cilium` + `make cilium`). The operational reality — the 5 MicroK8s↔Cilium integration gotchas, the finding that hostPort needs full kube-proxy replacement, and the resulting NodePort-ingress pivot — is in **[docs/2026-06-10-cilium-microk8s-runbook.md](2026-06-10-cilium-microk8s-runbook.md)**. The text below is the original *strategy*; the runbook supersedes the operational details. Phase B (ambient) still pending; the Cilium install is already ambient-ready.
+
 **Status:** plan / next approach. The `feat/restructure` branch contains the *diagnosis* and the *partial* fixes (below). The permanent fix is a dataplane re-platform, to be attempted on a **fresh branch**.
 
 **Goal (the real one):** sustain **500 TPS, 1M+ transfers, 24×7** with e2e p99 < 1s — not a 16-minute green run.

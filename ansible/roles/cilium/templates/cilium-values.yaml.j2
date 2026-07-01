@@ -1,0 +1,95 @@
+# ============================================================================
+# Cilium Helm values — rendered by ansible/roles/cilium.
+# Phase A: eBPF native-routing dataplane (the durable softirq fix).
+# DO NOT edit on the node — re-render via `make cilium SCENARIO=<s>`.
+# ============================================================================
+cluster:
+  name: {{ cilium_cluster_name }}
+  id: 1
+
+# --- IPAM: cluster-pool (Cilium owns pod CIDR allocation post-swap) ---------
+ipam:
+  mode: cluster-pool
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - {{ cilium_pod_cidr }}
+    clusterPoolIPv4MaskSize: {{ cilium_pod_cidr_mask_size }}
+
+# --- Native routing: no overlay. All switch nodes share L2 subnet
+#     10.112.2.0/24, so direct node routes => zero encapsulation. This is what
+#     removes the VXLAN-decap -> netif_rx re-injection. -------------------------
+routingMode: native
+ipv4NativeRoutingCIDR: {{ cilium_native_routing_cidr }}
+autoDirectNodeRoutes: true
+endpointRoutes:
+  enabled: true
+
+# --- eBPF datapath. masquerade + eBPF host-routing are the fast-path options;
+#     they require Cilium NodePort (kubeProxyReplacement=true). When coexisting
+#     with kube-proxy (replacement=false) they fall back to iptables masquerade
+#     + legacy host routing — the dominant win (no VXLAN, no Calico chains) is
+#     unaffected. Values are gated in defaults (cilium_bpf_*). ---------------
+bpf:
+  masquerade: {{ cilium_bpf_masquerade }}
+  hostLegacyRouting: {{ cilium_bpf_host_legacy_routing }}
+
+# --- kube-proxy replacement -------------------------------------------------
+kubeProxyReplacement: {{ cilium_kube_proxy_replacement }}
+
+# hostPort + nodePort handled by Cilium eBPF even with kube-proxy still doing
+# ClusterIP. REQUIRED — the switch ingress (istio GW :443, nginx :80) is hostPort.
+nodePort:
+  enabled: {{ cilium_node_port_enabled | string | lower }}
+hostPort:
+  enabled: {{ cilium_host_port_enabled | string | lower }}
+{% if cilium_kube_proxy_replacement | string | lower == 'true' %}
+# kube-proxy-free: Cilium needs a direct path to the API server.
+k8sServiceHost: {{ cilium_k8s_service_host }}
+k8sServicePort: {{ cilium_k8s_service_port }}
+# Skip conntrack iptables rules entirely (no kube-proxy to coexist with).
+installNoConntrackIptablesRules: true
+{% endif %}
+
+# --- L7 / DNS proxy: backs toFQDNs egress policy (supply-chain control) ------
+l7Proxy: {{ cilium_l7_proxy | string | lower }}
+
+# --- Hubble: flow + egress visibility (denied egress = compromise signal) ----
+hubble:
+  enabled: {{ cilium_hubble_enabled | string | lower }}
+  relay:
+    enabled: {{ cilium_hubble_enabled | string | lower }}
+
+# ============================================================================
+# Istio ambient readiness (Phase B provision) — set now, enabled later.
+# ============================================================================
+cni:
+  # false => Cilium does not claim exclusive ownership of the CNI config dir, so
+  # istio-cni can chain after it (required for ztunnel/sidecar redirect).
+  exclusive: {{ 'false' if cilium_ambient_ready else 'true' }}
+  # MicroK8s containerd reads CNI conf + binaries from under /var/snap/microk8s,
+  # not the upstream defaults. Point Cilium at the MicroK8s paths or pods hang in
+  # ContainerCreating (containerd never finds the cilium conflist).
+  confPath: {{ cilium_cni_conf_path }}
+  binPath: {{ cilium_cni_bin_path }}
+socketLB:
+  # eBPF socket-level LB: rewrites pod->ClusterIP at connect() to a backend
+  # pod-IP so data packets ride the native-routed eBPF fast path instead of
+  # kube-proxy iptables + the host netif_rx backlog (the east-west re-injection
+  # source). Works without full kube-proxy replacement.
+  enabled: {{ cilium_socketlb_enabled | string | lower }}
+  hostNamespaceOnly: {{ cilium_socketlb_hostns_only | string | lower }}
+
+# Agent run/socket dir — must match where MicroK8s' confined containerd resolves
+# /var/run/cilium, else cilium-cni can't reach the agent socket (pods stuck in
+# sandbox creation). See cilium_run_path in defaults.
+daemon:
+  runPath: {{ cilium_run_path }}
+
+operator:
+  replicas: {{ cilium_operator_replicas }}
+
+# Conservative agent resources for the m7i.2xlarge switch nodes.
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi

@@ -271,7 +271,6 @@ centralledger:
 
   centralledger-handler-timeout:
     enabled: true
-    replicaCount: 0
     resources: {}
     config:
       # Log config

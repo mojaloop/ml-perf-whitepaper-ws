@@ -92,27 +92,16 @@
   changed_when: "'has been upgraded' in _h_ingw.stdout or 'has been deployed' in _h_ingw.stdout"
   environment: "{{ kubectl_env }}"
 
-- name: Check if :443 hostPort exists on istio-ingressgateway DS
+# Port 443 exposure is now a NodePort (30443) defined in the istio-ingressgateway
+# chart values (common/istio-ingressgateway.yaml service block) — NOT a hostPort
+# patch. Cilium eBPF (kubeProxyReplacement=false) does not program hostPort but
+# does implement NodePort, so the NLB forwards :443 -> node:30443 -> Envoy :443.
+# nginx :80 is exposed the same way via an additive NodePort Service (30080).
+- name: Expose nginx ingress on NodePort 30080 (Cilium has no hostPort)
   ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} get daemonset istio-ingressgateway \
-      -o jsonpath='{.spec.template.spec.containers[0].ports[*].name}' \
-      | grep -qw https
-  register: _ingw_443
-  changed_when: false
-  failed_when: false
-  environment: "{{ kubectl_env }}"
-
-- name: Patch istio-ingressgateway with :443 host/container port
-  when: _ingw_443.rc != 0
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} patch daemonset \
-      istio-ingressgateway --type=json -p='[
-        {"op":"add","path":"/spec/template/spec/containers/0/ports/-",
-         "value":{"containerPort":443,"hostPort":443,"name":"https","protocol":"TCP"}}
-      ]'
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} rollout status \
-      daemonset istio-ingressgateway --timeout=180s
-  changed_when: true
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_nginx_nodeport }}
+  register: _nginx_np
+  changed_when: "'created' in _nginx_np.stdout or 'configured' in _nginx_np.stdout"
   environment: "{{ kubectl_env }}"
 
 - name: Apply switch TLS secret + Leg A inbound resources
@@ -271,6 +260,9 @@
       sidecar.istio.io/userVolume: '[{"name":"mtls-certs","secret":{"secretName":"{{ mtls_certs_secret_name }}"}}]'
       sidecar.istio.io/userVolumeMount: '[{"name":"mtls-certs","mountPath":"{{ mtls_certs_mount_path }}","readOnly":true}]'
       proxy.istio.io/config: '{"holdApplicationUntilProxyStarts":true}'
+      # Envoy per-pod stats grow unbounded under load; the default 1Gi sidecar limit
+      # OOMKilled the ALS istio-proxy 16x mid-run (06-12). 2Gi holds it on 32GB nodes.
+      sidecar.istio.io/proxyMemoryLimit: "{{ mtls_sidecar_proxy_memory_limit }}"
 
 - name: Build per-deployment sidecar patches
   ansible.builtin.set_fact:

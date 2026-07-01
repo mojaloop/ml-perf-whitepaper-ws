@@ -15,15 +15,16 @@ kafka:
     offsets.topic.replication.factor=1
     default.replication.factor=1
     transaction.state.log.replication.factor=1
-    log.retention.ms=1800000
-    log.retention.check.interval.ms=60000
-    log.segment.bytes=536870912      
+    log.retention.ms=300000
+    log.retention.check.interval.ms=30000
+    log.segment.bytes=16777216
+    log.segment.ms=60000
 
   controller:
     resources:
       requests:
         cpu: "2"
-        memory: "5Gi"
+        memory: "4Gi"
         ephemeral-storage: "20Gi"
       limits:
         cpu: "3"
@@ -49,11 +50,16 @@ kafka:
       socket.receive.buffer.bytes=4194304
 
       log.dirs=/opt/kafka/data
-      log.segment.bytes=134217728
+      # 16MB segments (was 128MB): ~150 partitions x active-segment => plateau ~3-5GB
+      # instead of ~14GB. Combined with segment.ms=60000 + retention.ms=5min so retention
+      # trims closed segments continuously. Real eviction cause was the 2Gi ephemeral limit
+      # (jmx sidecar preset) exposed by removing the explicit limit, now set to 30Gi above.
+      log.segment.bytes=16777216
+      log.segment.ms=60000
       log.flush.interval.messages=9223372036854775807
       log.flush.interval.ms=9223372036854775807
-      log.retention.ms=1800000
-      log.retention.bytes=536870912
+      log.retention.ms=300000
+      log.retention.bytes=134217728
       log.retention.check.interval.ms=30000
       log.cleanup.policy=delete
       log.cleaner.enable=true
@@ -164,13 +170,13 @@ mysql:
     # OPTIMIZED RESOURCES - m7i.2xlarge (8 vCPU / 32 GB)
     resources:
       limits:
-        cpu: '3'              # 7 of 8 vCPUs (leave 1 for OS/system)
+        cpu: '3'              # 3 of 4 vCPUs on m7i.xlarge (leave 1 for OS/system); peak 2.13c @500TPS RF=1 (06-30)
         ephemeral-storage: 150Gi
-        memory: 14Gi          # 28Gi of 32GB node (leave 4GB for OS)
+        memory: 12Gi          # was 14Gi — m7i.xlarge is 16GiB node; real use ~10-12GiB (buffer pool 8G+redo 2G), leaves ~3GiB OS
       requests:
         cpu: '2'              # Guaranteed CPUs
         ephemeral-storage: 50Gi
-        memory: 10Gi          # Guaranteed memory
+        memory: 9Gi           # Guaranteed memory (node mem peak 11.8GiB incl OS @500TPS)
 
 
     extraFlags: |

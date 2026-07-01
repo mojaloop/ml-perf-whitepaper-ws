@@ -524,7 +524,7 @@ load_balancers:
     scheme: internal   # Internal-only, accessible via bastion
     target_type: instance
     health_check:
-      port: 80
+      port: 30080         # nginx NodePort (Cilium has no hostPort) — TCP probe
       protocol: TCP
       interval: 30
       healthy_threshold: 2
@@ -532,10 +532,10 @@ load_balancers:
     listeners:
       - port: 80
         protocol: TCP
-        target_port: 80     # nginx-ingress DS hostPort
+        target_port: 30080  # nginx-ingress NodePort (manifests/mtls/nginx-nodeport.yaml)
       - port: 443
         protocol: TCP
-        target_port: 443    # istio-ingressgateway DS hostPort (Leg A mTLS)
+        target_port: 30443  # istio-ingressgateway NodePort (common/istio-ingressgateway.yaml) — Leg A mTLS
     target_nodes: switch_generic  # Only generic switch nodes (not Kafka/MySQL)
     tags:
       Purpose: "Mojaloop TCP load balancing"

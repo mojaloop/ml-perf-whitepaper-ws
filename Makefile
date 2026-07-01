@@ -69,7 +69,7 @@ export ANSIBLE_SSH_ARGS := -o ControlMaster=auto -o ControlPersist=30m -o Server
 
 .PHONY: help tunnel \
         terraform-init terraform-plan terraform-apply terraform-destroy \
-        k8s backend monitoring switch mtls dfsp dfsp-monitoring istio-telemetry k6 onboard provision smoke load \
+        k8s cilium backend monitoring switch mtls dfsp dfsp-monitoring istio-telemetry k6 onboard provision smoke load \
         deploy clean
 
 # ===========================================================================
@@ -116,6 +116,13 @@ terraform-destroy: _tf-workspace ## Destroy AWS infra for the active scenario
 # ===========================================================================
 k8s: ## Install MicroK8s, form clusters, generate kubeconfigs + hostaliases
 	$(ANS) playbooks/deploy-k8s.yml
+
+# Phase A of the durable 500-TPS fix. Swaps Calico -> Cilium eBPF (native
+# routing) on the switch cluster. RUN IMMEDIATELY AFTER `make k8s`, BEFORE any
+# app stage — the cluster must still be empty. Provisions for (but does not
+# enable) Istio ambient.
+cilium: ## Swap switch cluster CNI to Cilium eBPF (run right after `make k8s`)
+	$(ANS) playbooks/cilium-cni.yml
 
 # ===========================================================================
 # 7-13. App-layer deployment (one role per stage)

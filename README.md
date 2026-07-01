@@ -28,6 +28,7 @@ make terraform-init
 make terraform-apply  SCENARIO=500tps      # ~10 min   AWS infra
 make tunnel           SCENARIO=500tps      # SOCKS5 via bastion. To stop: lsof -ti :1080 | xargs kill
 make k8s              SCENARIO=500tps      # ~15 min   MicroK8s + kubeconfigs
+make cilium           SCENARIO=500tps      # ~3 min    swap Calico → Cilium eBPF (run on the EMPTY cluster, before app stages)
 
 make monitoring       SCENARIO=500tps      # ~5 min    Prometheus + Grafana (promfana)
 make backend          SCENARIO=500tps      # ~5 min    Kafka/MySQL/MongoDB/Redis
@@ -71,10 +72,6 @@ tears it all down.
 - [docs/parameter-tuning.md](docs/parameter-tuning.md) — per-TPS sizing
 - [docs/cheatsheet.md](docs/cheatsheet.md) — ad-hoc ops
 
-### Performance investigation (2026-06)
-- [docs/2026-06-03-500tps-failure-investigation.md](docs/2026-06-03-500tps-failure-investigation.md) — sustained-500-TPS root-cause analysis (softirq/softnet re-injection)
-- [docs/2026-06-04-vxlan-to-native-routing.md](docs/2026-06-04-vxlan-to-native-routing.md) — VXLAN → native Calico routing runbook
-- [docs/2026-06-04-durable-fix-ebpf-ambient.md](docs/2026-06-04-durable-fix-ebpf-ambient.md) — durable fix plan: Cilium eBPF + Istio ambient
 
 > **Observability:** `make dfsp-monitoring` ships per-DFSP host/container metrics to the switch
 > Prometheus (remote_write); `make istio-telemetry` scrapes Istio proxy metrics (gateways + sidecars).
