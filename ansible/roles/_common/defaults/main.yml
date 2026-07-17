@@ -3,15 +3,18 @@
 # Loaded by including the _common role (`- import_role: name=_common`)
 # at the start of any consumer role's tasks/main.yml.
 
-# Scenario selection — overrides under scenarios/<scenario>/overrides/
-# fall through to common/* when missing.
+# Scenario selection — per-scenario overrides fall through to common/*
+# when missing. scenario_path (repo-relative dir) locates the scenario's
+# files; the Makefile passes it resolved from the SCENARIO name, and the
+# default here covers direct ansible-playbook runs.
 scenario: "{{ lookup('env', 'SCENARIO') | default('base', true) }}"
+scenario_path: "scenarios/{{ scenario }}"
 
 # Repo paths (resolved relative to the playbook). Playbooks live in
 # ansible/playbooks/ so we go up two levels.
 repo_root: "{{ playbook_dir }}/../.."
 common_dir: "{{ repo_root }}/common"
-scenario_dir: "{{ repo_root }}/scenarios/{{ scenario }}"
+scenario_dir: "{{ repo_root }}/{{ scenario_path }}"
 scenario_overrides_dir: "{{ scenario_dir }}/overrides"
 scenario_artifacts_dir: "{{ scenario_dir }}/artifacts"
 scenario_results_dir: "{{ scenario_dir }}/results"
@@ -31,13 +34,21 @@ https_proxy: "socks5://127.0.0.1:1080"
 kubectl_env:
   HTTPS_PROXY: "{{ https_proxy }}"
 
-# Chart versions — pinned. Override per-role if needed.
-chart_versions:
+# Chart versions — pinned defaults. Override per-scenario in the scenario's
+# versions.yml (key: scenario_chart_versions); _common merges it on top of
+# these. Consume the merged result as chart_versions.* everywhere.
+chart_versions_default:
   mojaloop: "17.1.0"
   mojaloop_backend: "17.1.0"
   mojaloop_simulator: "15.10.0"
   istio: "1.24.1"
   k6_operator: "4.4.1"   # grafana/k6-operator chart (app v1.4.0); pinned for reproducible recreate
+
+# Per-scenario overrides, loaded from versions.yml by _common tasks. Empty = use defaults.
+scenario_chart_versions: {}
+
+# Effective, merged chart versions consumed by switch/backend/dfsp/etc.
+chart_versions: "{{ chart_versions_default | combine(scenario_chart_versions, recursive=true) }}"
 
 # Namespaces.
 ns_mojaloop: mojaloop

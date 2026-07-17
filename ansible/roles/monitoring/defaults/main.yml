@@ -16,3 +16,21 @@ monitoring_values_files:
   - "{{ scenario_overrides_dir }}/monitoring.yaml"
 
 monitoring_namespace: monitoring
+
+# Dashboards checked into this role (files/dashboards/), applied as a
+# standalone ConfigMap (see tasks/main.yml) rather than into the cloned
+# chart, so they land in their own Grafana folder alongside the chart's
+# own dashboards rather than replacing them.
+monitoring_custom_dashboards:
+  - capacity-saturation.json
+  - mtls-mesh-overhead.json
+  - service-mesh-hop-latency.json
+  - k6-transaction-latency.json
+  - central-ledger-transfer-legs.json
+  - account-lookup-service-v2.json
+  - quoting-service-v2.json
+  - ml-api-adapter-v2.json
+  - mysql-overview-v2.json
+
+monitoring_custom_dashboards_configmap: whitepaper-dashboards
+monitoring_custom_dashboards_folder: "Whitepaper"

@@ -11,6 +11,10 @@ simulators:
     config:
       schemeAdapter:
         env:
+          # Enlarge V8 young-gen so info-level log objects die young instead of
+          # promoting to old-space; removes the ~1s major-GC event-loop freezes
+          # that drive the discovery/transfer tail (switch fixed the same way).
+          NODE_OPTIONS: "--max-semi-space-size=64"
           DFSP_ID: "fsp203"
           # Point to Mojaloop services in mojaloop namespace
           ALS_ENDPOINT: "account-lookup-service.local"
@@ -33,16 +37,9 @@ simulators:
           CACHE_SHOULD_EXPIRE: true
           CACHE_EXPIRY_SECONDS: 3600
 
-          # mTLS toggles — flipped by Phase 2 / Phase 3 of infrastructure/mtls/README.md
-          OUTBOUND_MUTUAL_TLS_ENABLED: false
-          INBOUND_MUTUAL_TLS_ENABLED: false
 
-          # mTLS toggles — flipped by Phase 2 / Phase 3 of infrastructure/mtls/README.md
-          OUTBOUND_MUTUAL_TLS_ENABLED: true
-          INBOUND_MUTUAL_TLS_ENABLED: false
 
         secrets:
-          tlsSecretName: mtls-shared-creds
           jws:
             privateKey: |-
               -----BEGIN PRIVATE KEY-----
@@ -99,6 +96,8 @@ simulators:
               failureThreshold: 3              
       backend:
         env:
+          # young-gen tuning: same rationale as schemeAdapter (info-log GC tail)
+          NODE_OPTIONS: "--max-semi-space-size=64"
           DFSP_ID: "fsp203"
 
 
@@ -407,8 +406,6 @@ defaults:
           # In order to enable TLS with your supplied credentials, you will need to:
           # 1. set all three of the `cert`, `key`, `cacert` fields appropriately for each of
           # `inbound` and `outbound` as per your preference.
-          # 2. optionally specify `schemeAdapter.env.INBOUND_MUTUAL_TLS_ENABLED: true`
-          # 3. optionally specify `schemeAdapter.env.OUTBOUND_MUTUAL_TLS_ENABLED: true`
           # It probably makes sense to set your CA cert in defaults. Note that the default is that
           # the CA, cert and key will be generated for you by this chart. To use this functionality
           # you only need specify the config documented in steps (2, 3, 4) a few lines up.
@@ -710,9 +707,6 @@ defaults:
 
         # Enable mutual TLS authentication. Useful when not running in a secure
         # environment, i.e. when you're running it locally against your own implementation.
-        INBOUND_MUTUAL_TLS_ENABLED: false
-        OUTBOUND_MUTUAL_TLS_ENABLED: false
-        TEST_MUTUAL_TLS_ENABLED: false
 
         # Enable JWS verification and signing
         VALIDATE_INBOUND_JWS: false
@@ -876,7 +870,6 @@ defaults:
 
         # Enable mutual TLS authentication. Useful when the simulator is not running in a managed
         # environment, i.e. when you're running it locally against your own implementation.
-        MUTUAL_TLS_ENABLED: false
 
         # Enable server-only TLS; i.e. serve on HTTPS instead of HTTP.
         HTTPS_ENABLED: false
@@ -929,8 +922,6 @@ defaults:
           # In order to enable TLS with your supplied credentials, you will need to:
           # 1. set all three of the `cert`, `key`, `cacert` fields appropriately for each of
           # `inbound` and `outbound` as per your preference.
-          # 2. optionally specify `schemeAdapter.env.INBOUND_MUTUAL_TLS_ENABLED: true`
-          # 3. optionally specify `schemeAdapter.env.OUTBOUND_MUTUAL_TLS_ENABLED: true`
           # It probably makes sense to set your CA cert in defaults. Note that the default is that
           # the CA, cert and key will be generated for you by this chart. To use this functionality
           # you only need specify the config documented in steps (2, 3, 4) a few lines up.

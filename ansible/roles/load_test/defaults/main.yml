@@ -1,7 +1,7 @@
 ---
 # Drives the k6 TestRun via the local charts/k6/ Helm chart.
-# Common k6 config in common/k6.yaml; per-scenario tuning in
-# scenarios/<scenario>/overrides/k6.yaml.
+# Common k6 config in common/k6.yaml; per-scenario tuning in the scenario's
+# own overrides/k6.yaml.
 
 k6_chart_path: "{{ repo_root }}/charts/k6"
 k6_release: k6-test-mojaloop

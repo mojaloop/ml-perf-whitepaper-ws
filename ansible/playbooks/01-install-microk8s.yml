@@ -5,7 +5,7 @@
   gather_facts: yes
   vars:
     config_file: >-
-      {{ (playbook_dir ~ '/../../scenarios/' ~ scenario ~ '/overrides/aws.yaml')
+      {{ (playbook_dir ~ '/../../' ~ (scenario_path | default('scenarios/' ~ scenario)) ~ '/overrides/aws.yaml')
          if (scenario | default('', true) | length > 0)
          else (playbook_dir ~ '/../../common/aws.yaml') }}
     config: "{{ lookup('file', config_file) | from_yaml }}"
@@ -52,12 +52,11 @@
           - net-tools
         state: present
 
-    # Pin the HWE kernel the passing 500 TPS runs used (6.17.0-1013-aws). A clean
-    # AMI boots GA 6.8, which shows ~10% higher softirq under load. Done BEFORE the
-    # MicroK8s install so the (parallel) reboot is safe — no cluster exists yet to
-    # lose quorum. Gated by config.k8s.app_node_kernel (empty/unset = skip); applied
-    # to the switch nodes only (FSP/k6 nodes don't need it).
-    - name: Pin app-node HWE kernel (reproduce the passing perf env)
+    # Pin an HWE kernel with lower softirq overhead under load than the AMI's
+    # GA kernel. Done before the MicroK8s install so the (parallel) reboot is
+    # safe — no cluster exists yet to lose quorum. Gated by
+    # config.k8s.app_node_kernel (empty/unset = skip); switch nodes only.
+    - name: Pin app-node HWE kernel
       when:
         - (config.k8s.app_node_kernel | default('')) | length > 0
         - inventory_hostname in groups['switch']
@@ -101,11 +100,11 @@
 
     # Raise the per-container fd ceiling that snap-microk8s's containerd
     # wrapper sets via `ulimit -n` in /var/snap/microk8s/.../args/containerd-env.
-    # Default 65536 was too low: at 500 TPS the istio-ingressgateway Envoy
-    # accumulated >65k fds (downstream DFSP TLS conns + xDS + upstream
-    # pool) and EMFILE-stormed. Bumped to 1048576; fs.nr_open on these
-    # AMIs is already 1048576 so the ulimit call won't be silently capped.
-    # Idempotent: regex matches any current digit value.
+    # The default is too low for the istio-ingressgateway Envoy under
+    # sustained load (downstream DFSP TLS conns + xDS + upstream pool can
+    # exceed it, causing EMFILE storms). fs.nr_open on these AMIs already
+    # allows 1048576, so the ulimit call won't be silently capped. Idempotent:
+    # regex matches any current digit value.
     - name: Raise per-container fd ceiling (1048576) in containerd-env
       ansible.builtin.replace:
         path: /var/snap/microk8s/current/args/containerd-env

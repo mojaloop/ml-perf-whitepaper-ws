@@ -69,7 +69,7 @@
             "currency": "{$inputs.currency}",
             "limit": {
               "type": "NET_DEBIT_CAP",
-              "value": 1000000
+              "value": 100000000
             },
             "initialPosition": 0
           },
@@ -374,7 +374,7 @@
             "currency": "{$inputs.currency2}",
             "limit": {
               "type": "NET_DEBIT_CAP",
-              "value": 1000000
+              "value": 100000000
             },
             "initialPosition": 0
           },
@@ -461,7 +461,7 @@
             "currency": "{$inputs.cgscurrency}",
             "limit": {
               "type": "NET_DEBIT_CAP",
-              "value": 1000000
+              "value": 100000000
             },
             "initialPosition": 0
           },

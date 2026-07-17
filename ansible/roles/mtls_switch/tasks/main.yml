@@ -10,11 +10,8 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-# ======================================================================
-# Phase 1A — Leg A inbound: free nginx :443, install Istio, ingress GW,
-#            switch cert + inbound Gateway/VS + upstream connection pools.
-#            (Unchanged between gateway mode and sidecar mode.)
-# ======================================================================
+# --- Leg A inbound: free nginx :443, install Istio, ingress GW, switch cert
+# + inbound Gateway/VS + upstream connection pools ---
 
 - name: Locate :443 port index on nginx ingress DaemonSet
   ansible.builtin.shell: |
@@ -43,13 +40,10 @@
   changed_when: "'created' in _gw_crds.stdout or 'configured' in _gw_crds.stdout"
   environment: "{{ kubectl_env }}"
 
-# --force-conflicts --take-ownership: re-runs of istio chart upgrades fail
-# under Helm 4 SSA when shared CRD/Webhook fields have been touched by
-# istiod (pilot-discovery becomes the field owner). Force helm to take
-# ownership back. Safe — these resources are managed by Istio charts only.
-# istio-base is CRDs + a ServiceAccount + a validating webhook — there is nothing
-# meaningful to `--wait` on, and the long SSA apply over the tunnel was what blew
-# the request deadline. Drop --wait, add an explicit --timeout, and retry the op.
+# --force-conflicts --take-ownership: re-runs fail under Helm's SSA once
+# istiod has taken ownership of shared CRD/Webhook fields. No --wait: this
+# chart is just CRDs + a ServiceAccount + a webhook, nothing to wait on, and
+# waiting over the tunnel risks the request deadline instead.
 - name: Helm install istio-base
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
@@ -63,13 +57,26 @@
   changed_when: "'has been upgraded' in _h_base.stdout or 'has been deployed' in _h_base.stdout"
   environment: "{{ kubectl_env }}"
 
+# If the namespace runs an ambient dataplane, istiod must keep the ambient
+# profile: without it, sidecars are unaware that destination pods sit behind
+# ztunnel, connect plaintext, and get reset under STRICT — the sidecar
+# rollout below then never becomes healthy.
+- name: Detect ambient dataplane (istiod profile selection)
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} get namespace {{ ns_mojaloop }} \
+      -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}' 2>/dev/null || true
+  register: _ns_dataplane_istiod
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
 - name: Helm install istiod (ECDSA workload certs + TLS-default hardening)
   ansible.builtin.shell: |
     helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
       istiod istio/istiod --version {{ istio_version }} --wait \
       --timeout {{ istio_helm_timeout }} \
       --force-conflicts --take-ownership \
-      -f {{ istiod_values }}
+      -f {{ istiod_values }} \
+      {{ '-f ' ~ istiod_ambient_overlay if _ns_dataplane_istiod.stdout == 'ambient' else '' }}
   register: _h_istiod
   retries: "{{ istio_helm_retries }}"
   delay: "{{ istio_helm_retry_delay }}"
@@ -96,14 +103,6 @@
 # chart values (common/istio-ingressgateway.yaml service block) — NOT a hostPort
 # patch. Cilium eBPF (kubeProxyReplacement=false) does not program hostPort but
 # does implement NodePort, so the NLB forwards :443 -> node:30443 -> Envoy :443.
-# nginx :80 is exposed the same way via an additive NodePort Service (30080).
-- name: Expose nginx ingress on NodePort 30080 (Cilium has no hostPort)
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_nginx_nodeport }}
-  register: _nginx_np
-  changed_when: "'created' in _nginx_np.stdout or 'configured' in _nginx_np.stdout"
-  environment: "{{ kubectl_env }}"
-
 - name: Apply switch TLS secret + Leg A inbound resources
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_switch }} apply -f {{ mtls_switch_tls_secret }}
@@ -122,14 +121,10 @@
   changed_when: "'created' in _upstream_pool.stdout or 'configured' in _upstream_pool.stdout"
   environment: "{{ kubectl_env }}"
 
-# ======================================================================
-# Phase 3 — Leg B outbound: SIDECAR mTLS origination (replaces egress GW)
-# ======================================================================
+# --- Leg B outbound: sidecar mTLS origination (supersedes the egress GW) ---
 
-# Guard: the sidecar patches below modify the switch egress deployments — they
-# must already exist (created by the switch role). Fail early and clearly if not,
-# rather than half-applying the cutover (and retiring the egress GW) against a
-# switch that was never deployed.
+# The patches below modify the switch egress deployments — fail early and
+# clearly if they don't exist yet, rather than half-applying the cutover.
 - name: Check the switch egress deployments exist
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployment \
@@ -253,16 +248,34 @@
 #   * annot.   proxy.istio.io/config holdApplication... -> app waits for proxy
 #   * annot.   includeInboundPorts="" (egress_only)     -> no inbound interception
 #   * spec.hostAliases = real DFSP node IPs             -> drops any egress-GW entry
+# When the namespace runs an ambient dataplane with STRICT peer
+# authentication, DFSP-scoped interception would deliver these pods' internal
+# app calls plaintext to mesh-enrolled peers, which reject them — the rollout
+# below then never becomes healthy. Detect ambient and widen interception to
+# all outbound (datastore ports excluded) so this role converges in either
+# mesh mode and in any order relative to the ambient playbook.
+- name: Detect ambient dataplane on the namespace
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} get namespace {{ ns_mojaloop }} \
+      -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}'
+  register: _ns_dataplane
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
 - name: Compose sidecar base annotations
   ansible.builtin.set_fact:
-    _sidecar_base_annotations:
-      traffic.sidecar.istio.io/includeOutboundIPRanges: "{{ dfsp_ipranges }}"
-      sidecar.istio.io/userVolume: '[{"name":"mtls-certs","secret":{"secretName":"{{ mtls_certs_secret_name }}"}}]'
-      sidecar.istio.io/userVolumeMount: '[{"name":"mtls-certs","mountPath":"{{ mtls_certs_mount_path }}","readOnly":true}]'
-      proxy.istio.io/config: '{"holdApplicationUntilProxyStarts":true}'
-      # Envoy per-pod stats grow unbounded under load; the default 1Gi sidecar limit
-      # OOMKilled the ALS istio-proxy 16x mid-run (06-12). 2Gi holds it on 32GB nodes.
-      sidecar.istio.io/proxyMemoryLimit: "{{ mtls_sidecar_proxy_memory_limit }}"
+    _sidecar_base_annotations: >-
+      {{ {
+        'sidecar.istio.io/userVolume': '[{"name":"mtls-certs","secret":{"secretName":"' ~ mtls_certs_secret_name ~ '"}}]',
+        'sidecar.istio.io/userVolumeMount': '[{"name":"mtls-certs","mountPath":"' ~ mtls_certs_mount_path ~ '","readOnly":true}]',
+        'proxy.istio.io/config': '{"holdApplicationUntilProxyStarts":true}',
+        'sidecar.istio.io/proxyMemoryLimit': mtls_sidecar_proxy_memory_limit
+      } | combine(
+        {'traffic.sidecar.istio.io/includeOutboundIPRanges': '*',
+         'traffic.sidecar.istio.io/excludeOutboundPorts': mtls_sidecar_ambient_exclude_ports}
+        if _ns_dataplane.stdout == 'ambient' else
+        {'traffic.sidecar.istio.io/includeOutboundIPRanges': dfsp_ipranges}
+      ) }}
 
 - name: Build per-deployment sidecar patches
   ansible.builtin.set_fact:

@@ -12,6 +12,13 @@ resource "aws_lb" "switch_nlb" {
   enable_deletion_protection       = false
   enable_cross_zone_load_balancing = false # Keep false for best performance in single AZ
 
+  # A subnet replacement (e.g. AZ change) must replace the NLB too: an in-place
+  # subnet move deadlocks — the old subnet cannot delete while the NLB's ENI is
+  # in it, and the new subnet cannot be created while the old one holds the CIDR.
+  lifecycle {
+    replace_triggered_by = [aws_subnet.private.id]
+  }
+
   tags = merge(
     local.common_tags,
     local.nlb_config.tags,

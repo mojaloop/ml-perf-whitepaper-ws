@@ -1,0 +1,32 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure mojaloop helm repo is present
+  ansible.builtin.shell: |
+    helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
+    helm repo update mojaloop
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# overrides/dfsp.yaml's scenario-wide replica counts — same file the dfsp
+# role reads, loaded again here since this runs as a separate playbook.
+- name: Stat scenario dfsp.yaml override
+  ansible.builtin.stat:
+    path: "{{ scenario_overrides_dir }}/dfsp.yaml"
+  register: _scenario_dfsp_stat
+
+- name: Load scenario replica counts from dfsp.yaml
+  when: _scenario_dfsp_stat.stat.exists
+  vars:
+    _dfsp_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
+  ansible.builtin.set_fact:
+    dfsp_sdk_replicas_default: "{{ _dfsp_override.dfsp_sdk_replicas_default | default(dfsp_sdk_replicas_default) }}"
+    dfsp_sdk_replicas: "{{ _dfsp_override.dfsp_sdk_replicas | default(dfsp_sdk_replicas) }}"
+
+- name: Per-DFSP mTLS loop
+  ansible.builtin.include_tasks: per_fsp.yml
+  loop: "{{ dfsp_indices }}"
+  loop_control:
+    loop_var: fsp_idx

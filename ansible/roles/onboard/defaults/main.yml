@@ -1,5 +1,5 @@
 ---
-# Onboarding via TTK collections — driven by scenarios/<scenario>/onboard.yaml.
+# Onboarding via TTK collections — driven by the scenario's onboard.yaml.
 #
 # The manifest lists Jobs (in run order) and, per Job, the exact list of
 # collection JSONs to feed the TTK CLI. The role iterates the manifest,

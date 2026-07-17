@@ -1,6 +1,5 @@
 # Per-DFSP passthrough Ingress for :443 -> SDK scheme-adapter :4000.
-# Substitute `fspNNN` per cluster (e.g. `sed "s/fspNNN/fsp${i}/g" …`).
-# See infrastructure/mtls/README.md (Phase 1B).
+# `fspNNN` is substituted per cluster by the mtls_dfsp role (per_fsp.yml).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

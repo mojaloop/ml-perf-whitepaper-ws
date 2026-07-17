@@ -1,0 +1,40 @@
+# Istio ambient mesh — pod-pod mTLS with workload identity via per-node
+# ztunnel proxies (no per-pod sidecars). Mixed mode: the DFSP-edge
+# deployments keep their file-cert sidecars (ztunnel cannot originate TLS
+# with custom certs; sidecar pods are auto-excluded from ambient capture).
+#
+# Play 1 reconfigures Cilium for ambient interop; play 2 installs/enrolls
+# the mesh. Run after `make mtls` (needs istio base/istiod/gateway) — the
+# mtls role detects an ambient-enrolled namespace and preserves the ambient
+# istiod profile, so subsequent `make mtls` re-runs are safe.
+
+# Ambient replaces WireGuard as the pod-pod encryption layer (ztunnel mTLS
+# covers all enrolled traffic, same-node included), and requires socketLB to
+# stay out of pod network namespaces (a pod-netns connect()-time ClusterIP
+# rewrite happens before ztunnel can capture the flow — traffic would silently
+# escape the mesh). The cilium role only rolls the agents when this changes,
+# so this play is a no-op on re-runs. Agent rolls preserve endpoint state;
+# safe on a live cluster.
+- name: Reconfigure Cilium for ambient interop (socketLB host-ns only, WireGuard off)
+  hosts: switch
+  become: true
+  gather_facts: true
+  vars:
+    cilium_socketlb_hostns_only: true
+    cilium_encryption_enabled: false
+    cilium_replace_calico: false   # Calico is long gone by this stage; never re-attempt the swap
+    # Ambient exempts kubelet health probes by SNATing them to a link-local
+    # address via host-netns iptables. Cilium's eBPF masquerade + eBPF host
+    # routing bypass those rules — probes then reach ztunnel as off-mesh
+    # plaintext and STRICT rejects them (pods stay 0/1 forever). Route the
+    # host path through iptables so the probe exemption applies.
+    cilium_bpf_masquerade: "false"
+    cilium_bpf_host_legacy_routing: "true"
+  roles:
+    - cilium
+
+- name: Enable Istio ambient mesh on the switch cluster
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - ambient

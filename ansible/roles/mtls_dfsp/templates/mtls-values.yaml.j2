@@ -1,0 +1,9 @@
+simulators:
+  {{ fsp_name }}:
+    config:
+      schemeAdapter:
+        secrets:
+          tlsSecretName: {{ mtls_shared_secret_name }}
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: true
+          INBOUND_MUTUAL_TLS_ENABLED: true

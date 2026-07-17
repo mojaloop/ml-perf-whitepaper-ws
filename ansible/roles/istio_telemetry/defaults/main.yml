@@ -1,11 +1,11 @@
 ---
 # Scrape Istio proxy telemetry into the switch-cluster promfana Prometheus.
-# Closes the blind spot found during the 500tps investigation: the gateway +
-# mojaloop sidecars emit per-leg request volume/latency as istio_requests_total
-# / istio_request_duration on the merged :15020 endpoint, but nothing scraped
-# it — so Leg-A (DFSP->switch) and Leg-B (switch->DFSP notification) costs were
-# invisible. The kps Prometheus selectors are {} (selects all monitors in all
-# namespaces), so a PodMonitor anywhere is picked up automatically.
+# The gateway + mojaloop sidecars emit per-leg request volume/latency as
+# istio_requests_total / istio_request_duration on the merged :15020 endpoint;
+# without a scrape target, Leg-A (DFSP->switch) and Leg-B (switch->DFSP
+# notification) costs are invisible. The kps Prometheus selectors are {}
+# (selects all monitors in all namespaces), so a PodMonitor anywhere is
+# picked up automatically.
 
 istio_telemetry_namespace: monitoring
 istio_telemetry_release_label: promfana   # cosmetic; selectors are {} so not required

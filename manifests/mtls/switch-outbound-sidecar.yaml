@@ -1,30 +1,19 @@
-# ============================================================================
-# Switch outbound mTLS via Istio SIDECARS (Leg B) — replaces gateway mode
-# ============================================================================
-# Moves mTLS origination OFF the centralized istio-egressgateway and INTO each
-# calling pod's own Envoy sidecar. Eliminates the in-cluster double-hop
-# (switch pod -> egress GW pod -> DFSP) that drove ~6 cores of softirq.
+# Static snapshot for reference only — the ansible mtls_switch role renders
+# the live version of this manifest from templates/switch-outbound-sidecar.yaml.j2
+# with current DFSP IPs; this file's endpoint addresses go stale immediately.
 #
-# Path now:
-#   switch pod (notification/quoting-handler/ALS)
-#     -> http://sim-fspNNN.local/sim/fspNNN/inbound/...   (plain HTTP :80)
-#     -> hostAliases resolves sim-fspNNN.local -> DFSP node IP (NOT the egress GW)
-#     -> pod's OWN sidecar intercepts (includeOutboundIPRanges = DFSP /32s)
-#     -> VirtualService (gateways:[mesh]) rewrites /sim/fspNNN/inbound/ -> /
-#     -> DestinationRule originates MUTUAL TLS to :443 using FILE-MOUNTED certs
-#        (sidecar SDS does NOT load a DR credentialName secret — gateways do, sidecars
-#         don't; verified on istiod 1.24.1. So we mount switch-mtls-creds into the
-#         istio-proxy container and reference file paths instead.)
-#     -> DFSP nginx ssl-passthrough -> scheme-adapter (validates client cert)
+# Switch outbound mTLS via Istio sidecars (Leg B): mTLS origination happens
+# in each calling pod's own Envoy sidecar rather than a centralized gateway.
 #
-# REQUIRES the switch-mtls-creds Secret mounted into the istio-proxy sidecar of the
-# 3 outbound deployments, via these pod-template annotations (see sidecar-runbook.md):
-#   sidecar.istio.io/userVolume:      [{"name":"mtls-certs","secret":{"secretName":"switch-mtls-creds"}}]
-#   sidecar.istio.io/userVolumeMount: [{"name":"mtls-certs","mountPath":"/etc/istio/mtls-certs","readOnly":true}]
-#
-# Apply: kubectl apply -f manifests/mtls/switch-outbound-sidecar.yaml
-# Rollback: kubectl apply -f manifests/mtls/switch-outbound.yaml
-# ============================================================================
+# Path: switch pod -> http://sim-fspNNN.local/sim/fspNNN/inbound/... (plain
+# HTTP :80) -> hostAliases resolves to the real DFSP node IP -> the pod's own
+# sidecar intercepts (includeOutboundIPRanges = DFSP /32s) -> VirtualService
+# rewrites /sim/fspNNN/inbound/ -> / -> DestinationRule originates MUTUAL TLS
+# to :443 using file-mounted certs (sidecar SDS doesn't load a DestinationRule
+# credentialName secret the way gateways do, so the certs are mounted into
+# istio-proxy instead) -> DFSP nginx ssl-passthrough -> scheme-adapter
+# (validates client cert). Requires the switch-mtls-creds Secret mounted into
+# the istio-proxy sidecar of the outbound deployments — see sidecar-runbook.md.
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -153,7 +142,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp201.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp201/inbound/ }
@@ -172,7 +161,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp202.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp202/inbound/ }
@@ -191,7 +180,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp203.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp203/inbound/ }
@@ -210,7 +199,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp204.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp204/inbound/ }
@@ -229,7 +218,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp205.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp205/inbound/ }
@@ -248,7 +237,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp206.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp206/inbound/ }
@@ -267,7 +256,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp207.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp207/inbound/ }
@@ -286,7 +275,7 @@ metadata:
   namespace: mojaloop
 spec:
   hosts: [sim-fsp208.local]
-  gateways: [mesh]            # was [istio-system/dfsp-egress]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/fsp208/inbound/ }

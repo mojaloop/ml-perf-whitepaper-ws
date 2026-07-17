@@ -1,5 +1,5 @@
 ---
-- name: Deploy 8 DFSP simulators with mTLS Phase 1B + scaling
+- name: Deploy 8 DFSP simulators (plain HTTP; mTLS applied separately by `make mtls`)
   hosts: localhost
   gather_facts: false
   roles:

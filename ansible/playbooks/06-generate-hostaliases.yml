@@ -12,7 +12,7 @@
   hosts: localhost
   gather_facts: no
   vars:
-    artifacts_dir: "{{ playbook_dir }}/../../scenarios/{{ scenario | default('base', true) }}/artifacts"
+    artifacts_dir: "{{ playbook_dir }}/../../{{ scenario_path | default('scenarios/' ~ (scenario | default('base', true))) }}/artifacts"
     switch_ip: "{{ switch_lb_ip }}"
   tasks:
     - name: Assert switch_lb_ip is set

@@ -1,0 +1,14 @@
+{
+  "version": "v17.1.0",
+  "mtls": "on",
+  "tps": 500,
+  "run_id": "20260630T191735",
+  "git_sha": "accec4e",
+  "chart_version": "",
+  "status": "PASS",
+  "actual_tps": 499.9,
+  "success_pct": 99.98,
+  "transactions": 999797,
+  "p99_ms": { "discovery": 53, "quote": 240, "transfer": 620, "e2e": 804 },
+  "notes": "Auto-generated from k6-test-mojaloop-k6-test-1-nkhdl.log by finalize-run.sh"
+}

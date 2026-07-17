@@ -3,58 +3,36 @@
   ansible.builtin.import_role:
     name: _common
 
-- name: Ensure curl-pod exists in k6 cluster
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} apply -f \
-      {{ repo_root }}/tools/curl-pod.yaml
-  changed_when: false
-  environment: "{{ kubectl_env }}"
-
-- name: Wait for curl-pod to be Running
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} wait \
-      --for=condition=Ready pod/{{ sim_curl_pod }} --timeout=120s
-  changed_when: false
-  environment: "{{ kubectl_env }}"
-
-# One `kubectl exec` per FSP (was: one per MSISDN). The whole loop runs
-# inside the curl-pod with `xargs -P` for concurrency, so 1000 MSISDNs/FSP
-# completes in seconds instead of ~17 min of tunnel round-trips. Idempotent:
-# 500 "already registered" tolerated so re-runs after partial failure work.
-- name: Register MSISDNs on each target FSP
+# One task per FSP; inside it, loop over EVERY running backend pod and seed
+# via kubectl exec + the pod-local test-api (files/seed-parties.js). Each pod
+# holds its own in-memory party db, so every replica must be seeded — going
+# through the ingress/Service instead would round-robin the POSTs and leave
+# each pod with a partial set. The script exits non-zero if any pod ends up
+# below the expected party count, failing the task.
+- name: Seed parties on every backend pod of each FSP
   ansible.builtin.shell:
     cmd: |
       set -eu
-      kubectl --kubeconfig={{ kc_k6 }} -n {{ sim_curl_ns }} \
-        exec -i {{ sim_curl_pod }} -- env \
-          URL="http://sim-{{ item.fsp }}.local/sim/{{ item.fsp }}/test/repository/parties" \
-          BASE="{{ item.base }}" \
-          COUNT="{{ sim_count_per_fsp }}" \
-          PARALLEL="{{ sim_concurrency }}" \
-          SOURCE="{{ sim_fsp_source }}" \
-          sh -s <<'INNER'
-      set -eu
-      seq 0 $((COUNT - 1)) | xargs -P "$PARALLEL" -I{} sh -c '
-        ID=$((BASE + $1))
-        BODY=$(mktemp)
-        RESP=$(curl -sS -o "$BODY" -w "%{http_code}" \
-          -H "fspiop-source: $SOURCE" \
-          -H "content-type: application/json" \
-          --data-binary "{\"displayName\":\"Test FSP\",\"firstName\":\"Test\",\"middleName\":\"Test\",\"lastName\":\"FSP${ID}\",\"dateOfBirth\":\"1984-01-01\",\"idType\":\"MSISDN\",\"idValue\":\"${ID}\"}" \
-          "$URL")
-        case "$RESP" in
-          2*) rm -f "$BODY" ;;
-          500) grep -q "already registered" "$BODY" || { echo "FSP$ID rc=$RESP body=$(cat $BODY)" >&2; rm -f "$BODY"; exit 1; } ; rm -f "$BODY" ;;
-          *)   echo "FSP$ID rc=$RESP body=$(cat $BODY)" >&2; rm -f "$BODY"; exit 1 ;;
-        esac
-      ' _ {}
-      echo "Registered $COUNT parties"
-      INNER
+      KC="{{ kubeconfig_dir }}/kubeconfig-{{ item.fsp }}.yaml"
+      PODS=$(kubectl --kubeconfig="$KC" -n {{ ns_dfsps }} get pods \
+        -l app.kubernetes.io/name=sim-{{ item.fsp }}-backend \
+        --field-selector=status.phase=Running -o name)
+      [ -n "$PODS" ] || { echo "ERROR: no running backend pods for {{ item.fsp }}" >&2; exit 1; }
+      for POD in $PODS; do
+        echo "=== {{ item.fsp }} $POD ==="
+        kubectl --kubeconfig="$KC" -n {{ ns_dfsps }} exec -i "$POD" -c backend -- \
+          env SEED_BASE="{{ item.base | default(0) }}" \
+              SEED_COUNT="{{ item.count | default(sim_count_per_fsp) }}" \
+              SEED_EXTRA="{{ item.primary | default('') }}" \
+              SEED_CONCURRENCY="{{ sim_seed_concurrency }}" \
+              SEED_PORT="{{ sim_seed_port }}" \
+          node < "{{ role_path }}/files/seed-parties.js"
+      done
   loop: "{{ sim_fsp_msisdn_bases }}"
-  register: _reg
+  register: _seed
   changed_when: true
   environment: "{{ kubectl_env }}"
 
 - name: Summary
   ansible.builtin.debug:
-    msg: "Registered {{ sim_count_per_fsp }} parties on each of {{ sim_fsp_msisdn_bases | length }} FSPs"
+    msg: "Seeded parties on every backend pod of {{ sim_fsp_msisdn_bases | length }} FSPs (range + primary per pod)"

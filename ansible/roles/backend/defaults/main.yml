@@ -3,11 +3,11 @@ backend_chart: mojaloop/example-mojaloop-backend
 backend_release: backend
 backend_version: "{{ chart_versions.mojaloop_backend }}"
 
-# Override file precedence:
-#   common/backend.yaml                                 — base values
-#   scenarios/<scenario>/overrides/backend.yaml        — scenario tuning
+# Override file precedence: common/backend/<version>.yaml (version-specific
+# base values), then the scenario's own overrides/backend.yaml.
+backend_values_base: "{{ common_dir }}/backend/{{ backend_version }}.yaml"
 backend_values_files:
-  - "{{ common_dir }}/backend.yaml"
+  - "{{ backend_values_base }}"
   - "{{ scenario_overrides_dir }}/backend.yaml"
 
 # Replication mode requires Rancher local-path-provisioner instead of

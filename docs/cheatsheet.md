@@ -14,10 +14,11 @@ ssh -D 1080 perf-jump-host -N &
 export HTTPS_PROXY=socks5://127.0.0.1:1080
 ```
 
-Then point `KUBECONFIG` at the cluster you want:
+Then point `KUBECONFIG` at the cluster you want (paths are under the
+scenario's `artifacts/kubeconfigs/`):
 
 ```bash
-export KUBECONFIG=infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml
+export KUBECONFIG=benchmarks/<version>/<mtls>/<tps>/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml
 # or kubeconfig-fsp201.yaml ... kubeconfig-fsp208.yaml ... kubeconfig-k6.yaml
 ```
 
@@ -110,19 +111,19 @@ kubectl -n mojaloop port-forward pod/kafka-ui 8080:8080
 
 ## curl from inside the cluster
 
-For probing in-cluster services (especially with hostAliases injected
-by the egress mTLS pattern):
+For probing in-cluster services (especially DFSP hostnames reachable via
+switch hostAliases — see [architecture.md](architecture.md#network)):
 
 ```bash
 kubectl apply -f tools/curl-pod.yaml -n k6-test
 kubectl exec -it -n k6-test curl-k6-test -- sh
 ```
 
-## mTLS sanity probes
+## mTLS sanity probe
 
-Quick verification that egress mTLS is working from the switch to a
-DFSP. Run from a switch-namespace pod that has the
-`hostAliases-mtls.json` patch applied:
+Quick verification that Leg B (switch → DFSP) is reachable. Run from a
+switch-namespace pod that has the mTLS sidecar injected (see
+[mtls.md](mtls.md)):
 
 ```bash
 for i in 201 202 203 204 205 206 207 208; do
@@ -134,5 +135,4 @@ done
 ```
 
 End-to-end smoke transfer (POST /transfers + acceptParty + acceptQuote
-through the SDK adapter); driven by `tools/smoke-transfer.sh` once
-moved over.
+through the SDK adapter): `make smoke SCENARIO=<name>`.

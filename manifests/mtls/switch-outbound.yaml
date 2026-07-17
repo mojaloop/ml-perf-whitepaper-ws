@@ -1,42 +1,26 @@
-# ============================================================================
-# P7 — Switch outbound mTLS via Istio Egress Gateway (Leg B)
-# ============================================================================
-# Originates mTLS from switch -> DFSP simulators (sim-fspNNN.local:443).
+# Retired — superseded by sidecar mTLS origination (mtls_switch role). Kept
+# only for the manual rollback path (manifests/mtls/sidecar-runbook.md).
 #
-# Architecture:
-#   1. Switch app pods (ALS, Quoting, ML-API-Adapter, TTK) carry hostAliases
-#      mapping sim-fspNNN.local -> 10.152.183.253 (the egress gateway's
-#      pinned ClusterIP). They send plain HTTP :80.
-#   2. The egress gateway pod (istio: egressgateway, in istio-system) is
-#      selected by the Gateway below. It receives the request and matches
-#      the host.
-#   3. The VirtualService rewrites /sim/fspNNN/inbound/ -> / (the original
-#      switch nginx did this on :80; the DFSP :443 ssl-passthrough Ingress
-#      in P8 can't rewrite paths) and routes to port 443 on the SE host.
-#   4. The DestinationRule applies MUTUAL TLS using switch-mtls-creds
-#      (read from istio-system, the gateway's namespace). SNI is set to
-#      the DFSP hostname so the DFSP nginx ssl-passthrough Ingress can
-#      route on it.
-#   5. The egress gateway pod resolves sim-fspNNN.local via CoreDNS
-#      (which has a hosts{} block with real DFSP IPs — see Phase 3 in
-#      README.md). The gateway pod has NO hostAliases, so it reaches the
-#      real DFSPs, not itself.
+# Switch outbound mTLS via Istio Egress Gateway (Leg B): originates mTLS
+# from switch -> DFSP simulators (sim-fspNNN.local:443).
 #
-# Prerequisites:
-#   - P3 — Istio installed (istiod + istio-cni; ztunnel optional, unused here).
-#   - P4 — switch-mtls-creds Secret exists in istio-system (read by the
-#     egress gateway pod for mTLS origination).
-#   - P6 — istio-egressgateway Helm release deployed with pinned ClusterIP
-#     10.152.183.253 (see 06-istio-egressgateway-values.yaml).
-#   - Switch CoreDNS hosts{} block must list real DFSP IPs so the gateway
-#     pod can resolve sim-fspNNN.local (see README.md Phase 3).
-#   - Switch app pods must have hostAliases mapping sim-fspNNN.local to
-#     10.152.183.253 (see hostaliases-mtls.json artifact).
-# ============================================================================
+# Flow: switch app pods carry hostAliases mapping sim-fspNNN.local to the
+# egress gateway's pinned ClusterIP (10.152.183.253) and send plain HTTP :80.
+# The Gateway below receives it; the VirtualService rewrites
+# /sim/fspNNN/inbound/ -> / and routes to port 443 on the ServiceEntry host;
+# the DestinationRule applies MUTUAL TLS using switch-mtls-creds, with SNI
+# set to the DFSP hostname so the DFSP's ssl-passthrough Ingress can route
+# on it. The gateway pod itself resolves sim-fspNNN.local via CoreDNS (no
+# hostAliases), so it reaches the real DFSPs.
+#
+# Prerequisites: Istio installed (istiod + istio-cni); switch-mtls-creds
+# Secret in istio-system; istio-egressgateway Helm release with the pinned
+# ClusterIP above; switch CoreDNS hosts{} block listing real DFSP IPs; switch
+# app pods with hostAliases pointing at the gateway's ClusterIP.
 
 # ---- Gateway --------------------------------------------------------------
 # In istio-system, selects pods with `istio: egressgateway` (set by the
-# Helm values in 06-istio-egressgateway-values.yaml). Listens on :80 HTTP.
+# Helm values in common/istio-egressgateway.yaml). Listens on :80 HTTP.
 # `hosts: mojaloop/sim-fspNNN.local` says "accept these hosts when bound to
 # a VS in the mojaloop namespace" — keeps the VS in mojaloop while the
 # gateway sits in istio-system.
@@ -64,13 +48,10 @@ spec:
 # Defines each sim-fspNNN.local as a MESH_EXTERNAL host on port 443.
 #
 # resolution: STATIC — hardcoded DFSP node IPs (from coredns-corefile-mtls.yaml).
-#   Eliminates periodic STRICT_DNS re-resolution (CoreDNS hosts{} TTL = 5s from
-#   the hosts plugin, capped by `cache 30`). With DNS, Envoy fires updateHosts()
-#   every ~5s per DFSP = 1600 cluster-update events over 1000s, which
-#   accumulated ~1.87 GB per egress pod. STATIC bypasses DNS entirely; the
-#   cluster has one fixed endpoint per DFSP, matching how the ingress gateway
-#   works (static K8s service ClusterIPs).
-#   Update IPs here whenever DFSP nodes are re-provisioned.
+#   Avoids periodic STRICT_DNS re-resolution churn (Envoy re-fires
+#   updateHosts() on every CoreDNS hosts{} TTL expiry); STATIC bypasses DNS
+#   entirely, matching how the ingress gateway already works (static K8s
+#   service ClusterIPs). Update IPs here whenever DFSP nodes are re-provisioned.
 #
 # No `istio.io/use-waypoint` label — we are not using ambient/waypoint here.
 apiVersion: networking.istio.io/v1beta1
@@ -347,30 +328,17 @@ spec:
 # ---- DestinationRule × 8 --------------------------------------------------
 # MUTUAL TLS origination on port 443. credentialName references a Secret in
 # the egress gateway's namespace (istio-system). SNI is the DFSP hostname so
-# the DFSP nginx ssl-passthrough Ingress can route on it.
+# the DFSP's ssl-passthrough Ingress can route on it.
 #
-# connectionPool — balanced sizing for 500 TPS mTLS workload:
-#   At 500 TPS with 4 pods (125 TPS/pod), fsp201 (70% load) receives ~350
-#   parties+quotes+transfers callbacks/sec = ~87/sec per egress pod. At 10s
-#   timeout and 87/sec, worst-case queue depth is ~870 → http1MaxPendingRequests
-#   set to 1000 (headroom above peak). Setting it too low (< 100) caused 503
-#   Overflow for ALS callbacks before they reached DFSPs, making things worse.
-#   maxConnections: 500 — sufficient for 87/sec per pod at ~300ms avg latency
-#   http1MaxPendingRequests: 1000 — headroom above 870 worst-case for fsp201
-#   http2MaxRequests: 500 — consistent with maxConnections ceiling
-#   maxRequestsPerConnection: 100 — recycle connections after 100 requests.
-#     Prevents unbounded Envoy per-connection stats accumulation (observed:
-#     211Mi → 1963Mi per egress pod over 1000s with 0; ingress stayed flat at
-#     221Mi with recycling). TLS session resumption costs ~1-2ms per handshake;
-#     at ~8 active connections/pod recycling every ~2s the overhead is <1%.
-#   idleTimeout: 35s — slightly above VS timeout; clears stale connections
-#   h2UpgradePolicy: DO_NOT_UPGRADE — SDK scheme-adapter does not negotiate H2 via ALPN in
-#   SSL-passthrough mode; leaving UPGRADE causes HTTP/2 binary frames to leak back to
-#   notification handler's HTTP/1.1 parser → HPE_INVALID_CONSTANT crash
+# maxRequestsPerConnection recycles connections periodically to prevent
+# unbounded Envoy per-connection stats accumulation. h2UpgradePolicy is
+# DO_NOT_UPGRADE because the SDK scheme-adapter doesn't negotiate H2 via ALPN
+# in SSL-passthrough mode — otherwise HTTP/2 frames leak back to the
+# notification handler's HTTP/1.1 parser and crash it.
 #
-# outlierDetection — circuit-breaker: ejects hosts that return 5xx gateway
-#   errors (Envoy 503 from upstream exhaustion) for baseEjectionTime, then
-#   retries. Prevents a wedged DFSP from absorbing its full weight indefinitely.
+# outlierDetection is a circuit-breaker: ejects hosts returning 5xx gateway
+# errors for baseEjectionTime, preventing a wedged DFSP from absorbing its
+# full weight indefinitely.
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:

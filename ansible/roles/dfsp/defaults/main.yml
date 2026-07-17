@@ -1,7 +1,5 @@
 ---
-# DFSP simulator deployment + mTLS Phase 1B (passthrough Ingress, mounted
-# shared TLS Secret, OUTBOUND_MUTUAL_TLS_ENABLED + INBOUND_MUTUAL_TLS_ENABLED
-# flips to true).
+# DFSP simulator deployment (mTLS lives in the mtls_dfsp role).
 
 dfsp_chart: mojaloop/mojaloop-simulator
 dfsp_release: dfsp
@@ -10,27 +8,30 @@ dfsp_version: "{{ chart_versions.mojaloop_simulator }}"
 # Per-FSP values files location.
 dfsp_values_dir: "{{ common_dir }}/dfsp"
 
-
 # Liveness/readiness periodSeconds for scheme-adapter (defaults are
 # too aggressive under high load).
 dfsp_probe_period_seconds: 180
 
-# scheme-adapter replica counts. fsp201/202 are high-traffic pairs (fsp201
-# receives ~70% of callbacks at 500 TPS = ~1050/sec); fsp203-208 are standard.
-# Override per-scenario in inventory.yaml or group_vars.
-dfsp_sdk_replicas_high: 16  # fsp201, fsp202
-dfsp_sdk_replicas_low:  4   # fsp203-208
+# Replica counts are sized to the scenario's TPS/hardware — set them in the
+# scenario's overrides/dfsp.yaml (loaded in tasks/main.yml); values here are
+# fallbacks only, matching the current 500tps scenarios.
+
+# scheme-adapter replica counts, per FSP. FSPs not listed get the default.
+dfsp_sdk_replicas_default: 4
+dfsp_sdk_replicas:
+  fsp201: 16
+  fsp202: 16
+
+# sim backend replica counts, per FSP. The backend is a single-threaded Node
+# process (~1 core ceiling), so FSPs whose destination traffic share exceeds
+# one core need >1 replica. Same imperative-scale mechanism as the
+# scheme-adapter (Helm replicaCount applies to all components at once).
+# FSPs not listed get the default. Each backend pod keeps its own in-memory
+# party db — the sim_provision role seeds every pod individually, so always
+# run `make provision` after `make dfsp` or any backend restart.
+dfsp_backend_replicas_default: 1
+dfsp_backend_replicas: {}
 
 # switch_lb_ip is provided by inventory.yaml (all.vars.switch_lb_ip), which
 # terraform populates from the NLB ENI private IP. No default here — main.yml
 # asserts it's set.
-
-# DFSP cert + Phase 1B passthrough resources.
-dfsp_tls_secret:        "{{ repo_root }}/certs/dfsp-tls-secret.yaml"
-dfsp_passthrough_tmpl:  "{{ repo_root }}/manifests/mtls/dfsp-passthrough.yaml.j2"
-
-# Note: scheme-adapter env/config overrides (mTLS flags, ENABLE_TEST_FEATURES)
-# live in scenarios/<scenario>/overrides/dfsp.yaml — layered onto the helm
-# install via per_fsp.yml's _fsp_override_arg. No post-install `kubectl set env`
-# (was a source of Helm 4 SSA conflicts on re-runs). The scheme-adapter image is
-# no longer pinned — the chart default carries the JWS fix the old pin worked around.

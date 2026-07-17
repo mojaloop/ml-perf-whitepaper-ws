@@ -3,6 +3,21 @@
   ansible.builtin.import_role:
     name: _common
 
+- name: Stat version-specific backend base values
+  ansible.builtin.stat:
+    path: "{{ backend_values_base }}"
+  register: _backend_base_stat
+
+- name: Fail if no base values file for this backend version
+  ansible.builtin.fail:
+    msg: |
+      No backend base values for version {{ backend_version }} at:
+        {{ backend_values_base }}
+      Create common/backend/{{ backend_version }}.yaml (copy an existing version and
+      adjust for the chart's value schema), or fix the version in this
+      scenario's versions.yml.
+  when: not _backend_base_stat.stat.exists
+
 - name: Filter to existing values files
   ansible.builtin.stat:
     path: "{{ item }}"
@@ -106,4 +121,21 @@
       wait --for=condition=Ready pod -l app.kubernetes.io/instance={{ backend_release }} \
       --timeout=10m
   changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# The chart's topic-provisioning Job is a post-install/post-upgrade hook, so
+# it can run BEFORE an upgraded Kafka StatefulSet finishes rolling: it then
+# provisions against the OLD broker (where --if-not-exists no-ops), the new
+# pod wipes its ephemeral storage, and topics come back wrong or missing.
+# Re-run the job against the settled broker; --if-not-exists makes this a
+# cheap no-op when the hook already did the work.
+- name: Re-run Kafka topic provisioning against the settled broker
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status statefulset kafka-controller --timeout=300s
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get hooks {{ backend_release }} > {{ scenario_artifacts_dir }}/backend-hooks.yaml
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} delete job kafka-provisioning --ignore-not-found
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} apply -f {{ scenario_artifacts_dir }}/backend-hooks.yaml
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} wait --for=condition=complete job/kafka-provisioning --timeout=300s
+  register: _kafka_provision
+  changed_when: true
   environment: "{{ kubectl_env }}"

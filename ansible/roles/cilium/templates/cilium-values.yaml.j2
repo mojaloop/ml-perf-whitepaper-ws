@@ -50,6 +50,11 @@ k8sServicePort: {{ cilium_k8s_service_port }}
 installNoConntrackIptablesRules: true
 {% endif %}
 
+# --- Transparent encryption: kernel WireGuard tunnels between nodes ----------
+encryption:
+  enabled: {{ cilium_encryption_enabled | string | lower }}
+  type: {{ cilium_encryption_type }}
+
 # --- L7 / DNS proxy: backs toFQDNs egress policy (supply-chain control) ------
 l7Proxy: {{ cilium_l7_proxy | string | lower }}
 

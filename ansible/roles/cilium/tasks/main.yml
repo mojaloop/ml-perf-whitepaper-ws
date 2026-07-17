@@ -1,14 +1,12 @@
 ---
-# ============================================================================
-# Cilium eBPF CNI install (Phase A). Runs ON the switch nodes (become) and
-# drives the cluster via `microk8s` on the primary node — same pattern as
+# Cilium eBPF CNI install. Runs ON the switch nodes (become) and drives the
+# cluster via `microk8s` on the primary node — same pattern as
 # playbooks/02-configure-switch-cluster.yml. Does NOT import _common (that is
 # for tunnel/kubeconfig-based app roles; this runs node-local like 01/02).
 #
-# RUN THIS ON A FRESH, EMPTY CLUSTER (immediately after `make k8s`, before any
-# app stage). The Calico->Cilium swap briefly breaks pod networking until the
+# Run on a fresh, empty cluster (immediately after `make k8s`, before any app
+# stage) — the Calico->Cilium swap briefly breaks pod networking until the
 # Cilium agent is Ready; on an empty cluster only kube-system pods reschedule.
-# ============================================================================
 
 - name: Resolve primary switch node
   ansible.builtin.set_fact:
@@ -135,7 +133,7 @@
       ansible.builtin.debug:
         msg: "Cilium: {{ _cilium_status.stdout }}"
 
-    # --- OPTIONAL Phase D — egress lockdown (default off) -------------------
+    # --- Optional egress lockdown (default off) -----------------------------
     - name: Render the egress lockdown CiliumNetworkPolicy
       when: cilium_egress_lockdown | bool
       ansible.builtin.template:
@@ -150,19 +148,17 @@
       register: _egress_apply
       changed_when: "'created' in _egress_apply.stdout or 'configured' in _egress_apply.stdout"
 
-- name: Phase A summary + Phase B pointer
+- name: Summary
   run_once: true
   ansible.builtin.debug:
     msg: |
       Cilium eBPF CNI installed (routing=native, kubeProxyReplacement={{ cilium_kube_proxy_replacement }},
       ambient_ready={{ cilium_ambient_ready }}, egress_lockdown={{ cilium_egress_lockdown }}).
 
-      Verify the perf fix after applying load (node-exporter / Prometheus):
-        softnet_processed_total / wire_PPS  -> should hold ~1x and FLAT (was ~12x).
+      Verify under load (node-exporter / Prometheus):
+        softnet_processed_total / wire_PPS  -> should hold ~1x and flat.
         node_softnet_dropped_total          -> 0.
 
-      Phase B (Istio ambient), when ready: this Cilium install is already
-      ambient-compatible (cni.exclusive=false, socketLB.hostNamespaceOnly).
-      Enable ambient via the istiod ambient profile + ztunnel + namespace
-      label istio.io/dataplane-mode=ambient, keeping a sidecar only on the
-      3 Leg-B egress originators. No Cilium changes required.
+      This install is already ambient-compatible (cni.exclusive=false,
+      socketLB.hostNamespaceOnly) — enable the `ambient` role when ready;
+      no further Cilium changes required.

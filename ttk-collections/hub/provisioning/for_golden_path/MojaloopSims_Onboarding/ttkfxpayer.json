@@ -67,7 +67,7 @@
             "currency": "{$inputs.FX_SOURCE_CURRENCY}",
             "limit": {
               "type": "NET_DEBIT_CAP",
-              "value": 1000000
+              "value": 100000000
             },
             "initialPosition": 0
           },

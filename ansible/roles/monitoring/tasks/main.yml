@@ -65,6 +65,26 @@
   failed_when: false
   environment: "{{ kubectl_env }}"
 
+- name: Build --from-file args for the custom dashboards ConfigMap
+  ansible.builtin.set_fact:
+    _mon_dash_args: >-
+      {{ monitoring_custom_dashboards
+         | map('regex_replace', '^(.*)$', '--from-file=' + role_path + '/files/dashboards/\1')
+         | join(' ') }}
+
+- name: Apply custom dashboards ConfigMap (own Grafana folder, no chart changes)
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      create configmap {{ monitoring_custom_dashboards_configmap }} \
+      {{ _mon_dash_args }} \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_switch }} apply -f -
+    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      label configmap {{ monitoring_custom_dashboards_configmap }} grafana_dashboard=1 --overwrite
+    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      annotate configmap {{ monitoring_custom_dashboards_configmap }} grafana_folder="{{ monitoring_custom_dashboards_folder }}" --overwrite
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
 - name: Add prometheus-community helm repo (required for promfana deps)
   ansible.builtin.shell: |
     helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true

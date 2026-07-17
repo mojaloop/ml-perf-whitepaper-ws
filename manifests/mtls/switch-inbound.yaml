@@ -1,17 +1,14 @@
-# ============================================================================
-# P5 — Switch inbound mTLS
-# ============================================================================
-# Creates the Istio path for DFSP → switch mTLS traffic on port 443:
+# Switch inbound mTLS (Leg A). Creates the Istio path for DFSP -> switch mTLS
+# traffic on port 443:
 #   - Gateway: binds to istio-ingressgateway, terminates mTLS (tls.mode: MUTUAL),
 #     validates DFSP client certs against the shared CA in switch-mtls-creds.
 #   - VirtualServices: route each mTLS host to its in-cluster Service (port 80).
 #
-# This phase is ADDITIVE — nginx continues serving the same hostnames on :80,
-# so traffic behaviour is unchanged until the DFSP SDKs flip to HTTPS:443 with
-# their client cert in P7.
+# Additive — nginx continues serving the same hostnames on :80, so traffic
+# behaviour is unchanged until the DFSP SDKs flip to HTTPS:443 with their
+# client cert.
 #
-# Apply with:    kubectl apply -f infrastructure/mtls/05-switch-inbound-mtls.yaml
-# ============================================================================
+# Applied by: ansible/roles/mtls_switch/tasks/main.yml
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:

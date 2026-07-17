@@ -1,25 +1,17 @@
 ---
-# ============================================================================
-# Phase A — swap MicroK8s' Calico dataplane for Cilium eBPF (native routing).
-# The durable fix for the sustained-500-TPS softirq ceiling.
-#   docs/2026-06-04-durable-fix-ebpf-ambient.md
-#
-# Run on the switch cluster IMMEDIATELY AFTER `make k8s`, BEFORE any app stage
-# (monitoring/backend/switch/...). The cluster must be empty (only kube-system)
-# so the brief CNI-swap networking blip is harmless.
-#
-#   make cilium SCENARIO=<scenario>
-#
-# Phase B (Istio ambient) is provisioned-for but NOT enabled here — see the
-# cilium role's defaults (cilium_ambient_ready) and its summary task.
-# ============================================================================
+# Swap MicroK8s' Calico dataplane for Cilium eBPF (native routing). Run on
+# the switch cluster immediately after `make k8s`, before any app stage
+# (monitoring/backend/switch/...) — the cluster must be empty (only
+# kube-system) so the brief CNI-swap networking blip is harmless.
+# Istio ambient is provisioned-for but not enabled here — see the cilium
+# role's defaults (cilium_ambient_ready) and its summary task.
 - name: Install Cilium eBPF CNI on the switch cluster
   hosts: switch
   become: true
   gather_facts: true
   vars:
     config_file: >-
-      {{ (playbook_dir ~ '/../../scenarios/' ~ scenario ~ '/overrides/aws.yaml')
+      {{ (playbook_dir ~ '/../../' ~ (scenario_path | default('scenarios/' ~ scenario)) ~ '/overrides/aws.yaml')
          if (scenario | default('', true) | length > 0)
          else (playbook_dir ~ '/../../common/aws.yaml') }}
     config: "{{ lookup('file', config_file) | from_yaml }}"

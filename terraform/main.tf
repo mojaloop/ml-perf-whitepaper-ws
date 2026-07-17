@@ -45,6 +45,11 @@ locals {
   placement_group_enabled = try(local.aws_config.placement_group.enabled, false)
   detailed_monitoring     = try(local.aws_config.cloudwatch.detailed_monitoring, false)
 
+  # Single-AZ deployment: aws.availability_zone from the config file selects the
+  # zone for all subnets (and therefore all instances); falls back to the first
+  # available zone in the region.
+  availability_zone = try(local.aws_config.availability_zone, data.aws_availability_zones.available.names[0])
+
   # Load balancer settings
   nlb_config = try(local.lb_config.switch_nlb, null)
 }

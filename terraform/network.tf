@@ -42,7 +42,7 @@ resource "aws_eip" "nat" {
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = local.network_config.subnets.public.cidr
-  availability_zone       = data.aws_availability_zones.available.names[0]
+  availability_zone       = local.availability_zone
   map_public_ip_on_launch = local.network_config.subnets.public.map_public_ip
 
   tags = merge(
@@ -58,7 +58,7 @@ resource "aws_subnet" "public" {
 resource "aws_subnet" "private" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = local.network_config.subnets.private.cidr
-  availability_zone       = data.aws_availability_zones.available.names[0]
+  availability_zone       = local.availability_zone
   map_public_ip_on_launch = local.network_config.subnets.private.map_public_ip
 
   tags = merge(

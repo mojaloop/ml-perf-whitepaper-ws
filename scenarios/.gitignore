@@ -1,5 +1,0 @@
-# Ignore generated infrastructure artifacts
-*/artifacts/
-
-# Keep the directory structure but ignore all generated files
-!*/artifacts/.gitkeep

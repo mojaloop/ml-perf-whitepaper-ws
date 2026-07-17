@@ -1,28 +1,18 @@
-# ============================================================================
-# RENDERED by the ansible mtls_switch role — DO NOT EDIT BY HAND.
-# Source template: roles/mtls_switch/templates/switch-outbound-sidecar.yaml.j2
-# DFSP endpoint IPs come from {{ mojaloop_hostaliases_json }} (emitted by
-# playbook 06 each run) so this file is always in sync with the live nodes.
-# ============================================================================
-# Switch outbound mTLS via Istio SIDECARS (Leg B) — replaces egress-gateway mode.
+# Rendered by the ansible mtls_switch role — do not edit by hand. DFSP
+# endpoint IPs come from {{ mojaloop_hostaliases_json }} (emitted each run),
+# so this file stays in sync with the live nodes.
 #
-# mTLS origination moves OFF the centralized istio-egressgateway and INTO each
-# calling pod's own Envoy sidecar, eliminating the in-cluster double-hop
-# (switch pod -> egress GW pod -> DFSP) that drove ~6 cores of softirq.
+# Switch outbound mTLS via Istio sidecars (Leg B): mTLS origination happens
+# in each calling pod's own Envoy sidecar rather than a centralized gateway.
 #
-# Path:
-#   switch pod (notification / quoting-handler / ALS)
-#     -> http://sim-fspNNN.local/sim/fspNNN/inbound/...   (plain HTTP :80)
-#     -> hostAliases resolves sim-fspNNN.local -> DFSP node IP (real, not egress GW)
-#     -> pod's OWN sidecar intercepts (includeOutboundIPRanges = DFSP /32s)
-#     -> VirtualService (gateways:[mesh]) rewrites /sim/fspNNN/inbound/ -> /
-#     -> DestinationRule originates MUTUAL TLS to :443 using FILE-MOUNTED certs
-#        ({{ mtls_certs_mount_path }}/{tls.crt,tls.key,ca.crt}). Sidecar SDS does
-#        NOT load a DestinationRule credentialName secret (gateways do, sidecars
-#        don't), so the secret is mounted into the istio-proxy via the
-#        sidecar.istio.io/userVolume(+Mount) annotations the role applies.
-#     -> DFSP nginx ssl-passthrough -> scheme-adapter (validates client cert)
-# ============================================================================
+# Path: switch pod -> http://sim-fspNNN.local/sim/fspNNN/inbound/... (plain
+# HTTP :80) -> hostAliases resolves to the real DFSP node IP -> the pod's own
+# sidecar intercepts (includeOutboundIPRanges = DFSP /32s) -> VirtualService
+# rewrites /sim/fspNNN/inbound/ -> / -> DestinationRule originates MUTUAL TLS
+# to :443 using file-mounted certs ({{ mtls_certs_mount_path }}/{tls.crt,tls.key,ca.crt}
+# — sidecar SDS doesn't load a DestinationRule credentialName secret the way
+# gateways do, so the role mounts the secret into istio-proxy instead) ->
+# DFSP nginx ssl-passthrough -> scheme-adapter (validates client cert).
 {% for entry in dfsp_host_entries %}
 {% set host  = entry.hostnames[0] %}
 {% set short = host | regex_replace('\.local$', '') %}
@@ -50,7 +40,7 @@ metadata:
   namespace: {{ ns_mojaloop }}
 spec:
   hosts: [{{ host }}]
-  gateways: [mesh]            # sidecar-local routing (was [istio-system/dfsp-egress])
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
   http:
     - match:
         - uri: { prefix: /sim/{{ fsp }}/inbound/ }

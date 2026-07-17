@@ -1,0 +1,3 @@
+# infra artifacts, provisioned once per cell (kubeconfigs, inventory, tf-state,
+# rendered coredns) — never commit; contain cluster certs/tokens/IPs.
+*/*/*/artifacts/

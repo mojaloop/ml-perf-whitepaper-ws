@@ -1,9 +1,15 @@
 # mTLS — switch ↔ DFSPs
 
-mTLS is enabled on **both** legs between the Mojaloop switch and the 8
-DFSP simulators. Single shared CA + leaf cert (lab only — no PKI, no
-per-entity identities). The whole pipeline is wired into the deploy
-roles, so a fresh `make deploy` brings up a fully mTLS-enforced lab.
+Optional edge-mTLS layer between the Mojaloop switch and the 8 DFSP
+simulators, enabled via `make mtls` (see the root
+[README.md](../README.md#run-a-benchmark-scenario-from-scratch)). Single
+shared CA + leaf cert (lab only — no PKI, no per-entity identities).
+
+- **Leg A** (DFSP → switch, inbound): terminated by the Istio ingress
+  gateway.
+- **Leg B** (switch → DFSP, egress): originated by a per-pod Envoy
+  sidecar injected into the switch's outbound-calling deployments —
+  there is no centralized egress gateway.
 
 ## Cert chain
 
@@ -25,32 +31,41 @@ Files (in this repo):
 | Path | Purpose |
 |---|---|
 | `certs/regen-certs.sh` | Regenerates the CA + SAN leaf, emits the two Secret manifests below. Re-run to rotate. |
-| `certs/switch-tls-secret.yaml` | Secret `switch-mtls-creds` (`istio-system`). Generated. Mounted by the Istio gateways. |
-| `certs/dfsp-tls-secret.yaml` | Secret `mtls-shared-creds` (`dfsps`). Applied on all 8 DFSP clusters. Mounted by each `sdk-scheme-adapter`. |
+| `certs/switch-tls-secret.yaml` | Secret `switch-mtls-creds` (`istio-system`). Generated, git-ignored (private key material). Mounted by the Istio ingress gateway and copied into `mojaloop` for the egress sidecars to file-mount. |
+| `certs/dfsp-tls-secret.yaml` | Secret `mtls-shared-creds` (`dfsps`). Generated, git-ignored. Applied on all 8 DFSP clusters. Mounted by each `sdk-scheme-adapter`. |
 | `certs/jws/jwtRS256.{key,key.pub}` | JWS signing keypair used by the SDKs (separate from mTLS but kept alongside). |
 
-To change the SAN list (e.g. add a 9th DFSP), edit the `[alt_names]`
-block in `certs/regen-certs.sh` and re-run. Commit the regenerated
-Secret manifests.
+**The two generated Secret manifests are git-ignored, not committed** —
+private key material shouldn't live in a public repo, even a lab-only
+self-signed one. Run `certs/regen-certs.sh` once per clone before your
+first `make mtls`; it writes both manifests to the fixed paths above
+(`mtls_switch_tls_secret` / `dfsp_tls_secret` in the `mtls_switch`/
+`mtls_dfsp` role defaults — there's nowhere else to place them). Re-run
+the same script any time to rotate, or to change the SAN list (e.g. add
+a 9th DFSP, in the `[alt_names]` block) — see
+[Generating / rotating certs](#generating--rotating-certs) below.
 
 ## Leg A — DFSP → switch (inbound on the switch)
 
-`Istio 1.24.1` `istio-ingressgateway` (DaemonSet on `CORE-API-ADAPTERS`
-nodes) terminates DFSP→switch mTLS on `:443` and routes to `moja-*`
-services on `:80`. nginx keeps `:80`.
+Istio `istio-ingressgateway` terminates DFSP→switch mTLS on `:443`
+(exposed as NodePort 30443, since Cilium's `kubeProxyReplacement=false`
+doesn't program hostPort) and routes to `moja-*` services on `:80`. nginx
+keeps `:80` for plaintext ingress.
 
 Driven by `ansible/roles/mtls_switch/`:
 
 1. Frees `:443` on nginx (JSON-patch removes the `https` named port).
 2. Installs Gateway API CRDs + `istio-base` + `istiod` +
-   `istio-ingressgateway` (helm, version pinned in
-   `chart_versions.istio`).
-3. Patches `:443` host/container port onto the ingress DaemonSet
-   (the chart doesn't ship that port).
-4. Applies `manifests/mtls/switch-inbound.yaml` — `Gateway` (`:443`,
+   `istio-ingressgateway` (helm, version pinned in `chart_versions.istio`).
+   If the target namespace runs Istio ambient, `istiod` gets the ambient
+   profile overlay so sidecar↔ztunnel interop survives reinstalls.
+3. Applies `manifests/mtls/switch-inbound.yaml` — `Gateway` (`:443`,
    `mode: MUTUAL`, `credentialName: switch-mtls-creds`) + 3 ×
    `VirtualService` routing the three switch hostnames to their `:80`
    services.
+4. Applies upstream connection-pool `DestinationRule`s for the three
+   switch services the gateway routes to (bounds Envoy's upstream pool,
+   preventing an EMFILE storm under sustained load).
 
 Verification (post-deploy):
 
@@ -64,108 +79,114 @@ kubectl -n istio-system exec ${GPOD} -- pilot-agent request GET config_dump \
 
 ## Leg B — switch → DFSP (egress from the switch)
 
-The harder leg. We use the **Istio egress gateway pattern**:
+mTLS origination happens in each calling pod's own Envoy sidecar rather
+than a centralized gateway — this removes an extra in-cluster hop
+(pod → gateway pod → DFSP) that cost kernel softirq under sustained load.
 
-- A second Istio Deployment (`istio-egressgateway`) in `istio-system`
-  with a **pinned ClusterIP `10.152.183.253`** originates switch→DFSP
-  mTLS.
-- The four switch callback Deployments
-  (`moja-ml-api-adapter-handler-notification`,
-  `moja-account-lookup-service`, `moja-quoting-service`,
-  `moja-quoting-service-handler`) carry `hostAliases` mapping
-  `sim-fsp*.local` → the egress gateway IP.
-- They send plain HTTP `:80` to the gateway; the gateway resolves the
-  real DFSP IP via switch CoreDNS (the `hosts{}` block lists DFSP node
-  IPs) and opens mTLS `:443`.
-- DFSP nginx ssl-passthrough hands `:443` to the SDK on `:4000`,
-  which terminates mTLS.
+Driven by `ansible/roles/mtls_switch/` (Leg B section), after the guard
+that the switch's egress deployments already exist (created by the
+`switch` role):
 
-Why this and not ambient/waypoint: a 2026-04-30 attempt with
-`PILOT_ENABLE_IP_AUTOALLOCATE=true` + waypoint hit two intrinsic
-blockers in this lab — Node.js dialed the v6 synthetic VIP that ztunnel
-didn't intercept (ALS calls timed out), and Bitnami Kafka's
-NetworkPolicy refused HBONE `:15008` from ambient-labelled handler
-pods (consumers connected but never got partition assignment). The
-egress gateway pattern keeps app pods out of the mesh entirely, so
-neither blocker applies.
+1. Copies the `switch-mtls-creds` Secret into the `mojaloop` namespace
+   (sidecar SDS doesn't load a `DestinationRule` `credentialName` secret
+   the way gateways do, so the cert is file-mounted into `istio-proxy`
+   instead).
+2. Renders `ServiceEntry` / `VirtualService` / `DestinationRule` ×8 from
+   `ansible/roles/mtls_switch/templates/switch-outbound-sidecar.yaml.j2`,
+   using the live DFSP node IPs (from the hostAliases JSON emitted during
+   `make k8s`) — always in sync, no stale IPs to maintain by hand.
+3. Injects an `istio-proxy` sidecar into the three outbound deployments
+   (`moja-account-lookup-service`, `moja-quoting-service-handler`,
+   `moja-ml-api-adapter-handler-notification`) via pod-template
+   annotations: outbound interception scoped to the DFSP `/32` ranges
+   (or widened to all outbound, minus datastore ports, if the namespace
+   runs Istio ambient — see below), the cert volume mount, and
+   `holdApplicationUntilProxyStarts`.
+4. Re-points those deployments' `hostAliases` at the real DFSP node IPs
+   (dropping any leftover indirection from an older config).
+5. Waits for the rollout and verifies each pod is `2/2` with certs mounted.
 
-Resources (in this repo):
+Path: switch pod → `http://sim-fspNNN.local/sim/fspNNN/inbound/...`
+(plain HTTP `:80`) → hostAliases resolves to the real DFSP node IP → the
+pod's own sidecar intercepts → `VirtualService` rewrites the path → the
+`DestinationRule` originates MUTUAL TLS on `:443` using the file-mounted
+certs → DFSP nginx `ssl-passthrough` → scheme-adapter (validates client
+cert).
 
-| Path | Purpose |
-|---|---|
-| `common/istio-egressgateway.yaml` | Helm values for the egress gateway. `service.type: None` so the chart skips its own Service (it has no `service.clusterIP` field). |
-| `manifests/mtls/egressgateway-service.yaml` | Standalone Service with the **pinned ClusterIP `10.152.183.253`**. Must agree with `manifests/mojaloop/hostaliases-mtls.json`. |
-| `manifests/mtls/switch-outbound.yaml` | `Gateway` (port 80, hosts `sim-fsp*.local`) + 8× `ServiceEntry` (`resolution: DNS`) + 8× `VirtualService` (URI prefix `/sim/fspNNN/inbound/` rewritten to `/`) + 8× `DestinationRule` (`MUTUAL` origination on `:443`, SNI = DFSP host). |
-| `manifests/mojaloop/hostaliases-mtls.json` | The strategic-merge patch applied to the four callback Deployments. |
-| `manifests/mtls/dfsp-passthrough.yaml.j2` | Per-DFSP passthrough Ingress (`:443` → SDK `:4000`); `fspNNN` substituted at apply time. |
+The DFSP side of Leg B is in `ansible/roles/mtls_dfsp/` (run after
+`dfsp`, since it patches the already-deployed sims): enables
+`--enable-ssl-passthrough` on nginx, applies the shared DFSP TLS secret,
+helm-upgrades the scheme-adapter with an mTLS values overlay, applies
+the per-DFSP passthrough Ingress, and re-applies the scheme-adapter
+replica count (the mTLS helm upgrade runs with `--reuse-values
+--take-ownership`, which resets `.spec.replicas` to the chart default).
 
-Driven by `ansible/roles/mtls_switch/` (Phase 3 section): installs the
-egress gateway, applies the standalone Service + Leg B resources,
-patches switch CoreDNS with a `hosts{}` block listing the DFSP node IPs
-(read from `scenarios/<scenario>/artifacts/hostaliases.json` — emitted
-by `playbooks/06-generate-hostaliases.yml` during `make k8s`), and
-re-points the four callback Deployments' `hostAliases`.
+### Istio ambient interop
 
-The DFSP side of Leg B is in `ansible/roles/dfsp/` — it enables
-`--enable-ssl-passthrough` on nginx, applies the per-DFSP passthrough
-Ingress, swaps the SDK volumes to `mtls-shared-creds`, and sets
-`INBOUND_MUTUAL_TLS_ENABLED=true` on the SDK env.
+If the namespace also runs Istio ambient (`make ambient`, optional —
+see each scenario's own README for when it's used), sidecar-scoped DFSP
+interception would deliver the switch's *internal* app↔app calls (e.g.
+health/endpoint lookups) plaintext to STRICT-enrolled peers, which
+reject them. Both the `mtls_switch` and `ambient` roles detect this and
+widen the sidecar's outbound interception to all outbound traffic
+(datastore ports still excluded, so they stay direct/PERMISSIVE) — this
+converges correctly regardless of which role runs last.
 
-## Pinned ClusterIP
+### Retired: egress gateway pattern
 
-`10.152.183.253` is the egress gateway's pinned ClusterIP, picked from
-the MicroK8s default service CIDR `10.152.183.0/24`. **Two files must
-agree on this IP**:
-
-- `manifests/mtls/egressgateway-service.yaml`  → `spec.clusterIP`
-- `manifests/mojaloop/hostaliases-mtls.json`   → `hostAliases[0].ip`
-
-If a fresh cluster reports the IP taken (`Error from server: services
-"..." already exists` or `ip already allocated`), pick another free
-address in the high range and update both files together.
+An earlier iteration used a centralized `istio-egressgateway` Deployment
+with a pinned ClusterIP as the single Leg B origination point. It's
+superseded by the sidecar pattern above (removes the extra hop, no pinned
+IP to keep in sync) but the manifests are kept for a manual rollback path:
+`manifests/mtls/switch-outbound.yaml`, `manifests/mtls/egressgateway-service.yaml`,
+and `manifests/mtls/sidecar-runbook.md`.
 
 ## Known gotchas
 
-- **`istio/gateway` chart has no `service.clusterIP` field.** That's
-  why we ship our own Service. Don't try `--set service.clusterIP=…` —
-  it's silently dropped and you'll get a random ClusterIP.
+- **`istio/gateway` chart has no `service.clusterIP` field.** If you ever
+  need a standalone gateway Service with a pinned IP again (e.g. the
+  retired egress-gateway path), set `service.type: None` in the chart
+  values and ship your own Service manifest — `--set service.clusterIP=…`
+  is silently dropped.
 - **CoreDNS Corefile multi-line block syntax.** `health { lameduck 5s }`
   on a single line crashes CoreDNS at startup. Each `block { ... }`
   directive must be on its own multi-line block. Both
   `ansible/roles/mtls_switch/templates/coredns-corefile.j2` and the
   per-DFSP equivalent already match the right layout.
-- **Phase 3 ordering: INBOUND mTLS flip is required.** If the SDK
-  hasn't flipped to TLS-serving on `:4000`, nginx ssl-passthrough hands
-  TLS bytes to a non-TLS server and the gateway's TLS handshake fails
-  with `OPENSSL_internal:WRONG_VERSION_NUMBER`. The dfsp role flips
-  this at install time; the mtls role applies CoreDNS + egress gateway
-  before that — order matters in `make deploy`.
+- **The DFSP-side inbound mTLS flip must land before Leg B traffic
+  arrives.** If the SDK hasn't flipped to TLS-serving on `:4000`, nginx
+  ssl-passthrough hands TLS bytes to a non-TLS server and the caller's
+  TLS handshake fails with `OPENSSL_internal:WRONG_VERSION_NUMBER`. This
+  is why `mtls_dfsp` must run after `dfsp` but is applied consistently
+  across both switch and DFSP sides in the same `make mtls` invocation.
 - **Helm 4 SSA conflicts with `kubectl scale` / `kubectl set image`.**
   Once a Deployment has fields owned by `kubectl-scale` or
   `kubectl-set`, `helm upgrade` fails with `Apply failed with N
   conflicts`. The deploy roles sidestep by patching directly via
   `kubectl set env` / `kubectl patch` instead of re-running
-  `helm upgrade` after the initial install. To re-take ownership for a
-  helm-driven upgrade later: `helm upgrade --force-conflicts --take-ownership`.
+  `helm upgrade` after the initial install, or by passing
+  `--force-conflicts --take-ownership` when a helm upgrade is required
+  (e.g. the mTLS values overlay).
 - **Never sort nginx `args` array** (`jq … | unique`). It moves
   `/nginx-ingress-controller` off `args[0]` and the container dies
   trying to exec a literal space. Use JSON-patch `add`/`remove` at an
-  explicit index — both the dfsp and mtls_switch roles already do.
+  explicit index — both the `dfsp` and `mtls_switch` roles already do.
 - **Strategic-merge cannot delete array items** when the merge key
   matches. Removing `:443` from the nginx DaemonSet via a
   patch-array-by-name approach silently re-adds it. Use JSON-patch
   `remove` at a computed index.
 
-## Rotation
+## Generating / rotating certs
+
+Same command whether this is the first run after a clone or a later
+rotation — it always regenerates from scratch and overwrites both
+(git-ignored) manifests in place:
 
 ```bash
-# Edit alt_names in certs/regen-certs.sh if needed, then:
+# Edit alt_names in certs/regen-certs.sh first, if you need to (e.g. a 9th DFSP)
 ./certs/regen-certs.sh
-git add certs/{switch,dfsp}-tls-secret.yaml
-git commit -m "rotate mTLS certs"
-make mtls SCENARIO=<scenario>     # re-applies the new switch secret
-make dfsp SCENARIO=<scenario>     # re-applies the new dfsp secret
+make mtls SCENARIO=<scenario>     # applies both the switch and DFSP secrets
 ```
 
-(The `mtls` and `dfsp` roles' `apply` steps are idempotent — they
-update existing Secrets in-place.)
+(The `mtls_switch` and `mtls_dfsp` roles' apply steps are idempotent —
+they update existing Secrets in-place.)

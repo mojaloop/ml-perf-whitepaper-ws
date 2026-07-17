@@ -23,6 +23,24 @@
       terraform output `nlb_private_ip`. Re-run `make terraform-apply` to
       regenerate the inventory.
 
+# overrides/dfsp.yaml carries both the per-FSP Helm overlay (under
+# `simulators:`, filtered per-FSP in per_fsp.yml) and scenario-wide replica
+# counts, sized to the scenario's hardware/TPS. Loaded once here so the
+# per-FSP loop just reads dfsp_sdk_replicas/dfsp_backend_replicas.
+- name: Stat scenario dfsp.yaml override
+  ansible.builtin.stat:
+    path: "{{ scenario_overrides_dir }}/dfsp.yaml"
+  register: _scenario_dfsp_stat
+
+- name: Load scenario replica counts from dfsp.yaml
+  when: _scenario_dfsp_stat.stat.exists
+  vars:
+    _dfsp_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
+  ansible.builtin.set_fact:
+    dfsp_sdk_replicas_default: "{{ _dfsp_override.dfsp_sdk_replicas_default | default(dfsp_sdk_replicas_default) }}"
+    dfsp_sdk_replicas: "{{ _dfsp_override.dfsp_sdk_replicas | default(dfsp_sdk_replicas) }}"
+    dfsp_backend_replicas: "{{ _dfsp_override.dfsp_backend_replicas | default(dfsp_backend_replicas) }}"
+
 - name: Per-DFSP loop
   ansible.builtin.include_tasks: per_fsp.yml
   loop: "{{ dfsp_indices }}"

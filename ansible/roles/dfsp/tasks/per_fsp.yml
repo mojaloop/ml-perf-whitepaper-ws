@@ -39,49 +39,33 @@
   failed_when: false
   environment: "{{ kubectl_env }}"
 
-# ---- mTLS Phase 1B prep on the cluster (idempotent capability switches) ----
-
-- name: "fsp{{ fsp_idx }}: enable nginx ssl-passthrough"
-  ansible.builtin.shell: |
-    if ! kubectl --kubeconfig={{ kc_fsp }} -n ingress get daemonset nginx-ingress-microk8s-controller \
-         -o jsonpath='{.spec.template.spec.containers[0].args}' | grep -q enable-ssl-passthrough; then
-      kubectl --kubeconfig={{ kc_fsp }} -n ingress patch daemonset nginx-ingress-microk8s-controller --type=json -p='[
-        {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--enable-ssl-passthrough"}
-      ]'
-      kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout status daemonset nginx-ingress-microk8s-controller --timeout=180s
-    fi
-  changed_when: false
-  environment: "{{ kubectl_env }}"
-
-- name: "fsp{{ fsp_idx }}: tune nginx ingress ConfigMap for high-TPS SSL passthrough"
+- name: "fsp{{ fsp_idx }}: tune nginx ingress ConfigMap for high throughput"
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_fsp }} -n ingress patch configmap nginx-load-balancer-microk8s-conf \
       --type merge -p '{"data":{"worker-processes":"auto","worker-connections":"65536","keep-alive":"120","keepalive-requests":"10000"}}'
-    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout restart daemonset nginx-ingress-microk8s-controller
-    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout status daemonset nginx-ingress-microk8s-controller --timeout=120s
-  changed_when: false
+  register: _nginx_cm
+  # kubectl prints "... patched (no change)" when nothing changed. Only restart
+  # (and wait) when the ConfigMap actually changed — skips ~2min of rollout on
+  # every re-run where nginx tuning is already in place.
+  changed_when: "'(no change)' not in _nginx_cm.stdout"
   environment: "{{ kubectl_env }}"
 
-- name: "fsp{{ fsp_idx }}: apply DFSP TLS secret"
+- name: "fsp{{ fsp_idx }}: restart nginx ingress (only if ConfigMap changed)"
+  when: _nginx_cm.changed
   ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_fsp }} apply -f {{ dfsp_tls_secret }}
-  register: _dfsp_secret
-  changed_when: "'created' in _dfsp_secret.stdout or 'configured' in _dfsp_secret.stdout"
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout restart daemonset nginx-ingress-microk8s-controller
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout status daemonset nginx-ingress-microk8s-controller --timeout=120s
+  changed_when: true
   environment: "{{ kubectl_env }}"
 
 # ---- helm install simulator ----
 
-- name: "fsp{{ fsp_idx }}: stat scenario dfsp.yaml override"
-  ansible.builtin.stat:
-    path: "{{ scenario_overrides_dir }}/dfsp.yaml"
-  register: _scenario_dfsp_stat
-
-# The override file is shared across all 8 per-FSP helm releases. It
-# typically declares per-FSP entries under `simulators.fspNNN.*`. Without
-# filtering, every cluster's chart would render Deployments for ALL 8
-# sims (24 deployments/cluster vs. the 3 actually needed). We filter to
-# `simulators.<this-fsp>.*` here, preserving any other top-level keys
-# the user might add for scenario-wide settings.
+# _scenario_dfsp_stat was already registered once in main.yml (it also reads
+# dfsp.yaml's scenario-wide replica counts). Here we only need the Helm
+# overlay under `simulators.<this-fsp>.*` — replica counts and any other
+# ansible-facing top-level key are NOT forwarded to Helm, only `simulators`.
+# Without this filtering every cluster's chart would render Deployments for
+# all 8 sims (24 deployments/cluster vs. the 3 actually needed).
 - name: "fsp{{ fsp_idx }}: load + filter scenario override to this FSP"
   when: _scenario_dfsp_stat.stat.exists
   block:
@@ -89,11 +73,12 @@
       ansible.builtin.set_fact:
         _full_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
 
-    - name: "fsp{{ fsp_idx }}: build per-FSP override (simulators filtered)"
+    # Built as a single Jinja expression (native dict) — Ansible templates
+    # dict values but not dict keys, so a YAML mapping with a templated key
+    # would ship the literal string "{{ fsp_name }}" to Helm.
+    - name: "fsp{{ fsp_idx }}: build per-FSP override (simulators only)"
       ansible.builtin.set_fact:
-        _per_fsp_override: >-
-          {{ _full_override
-             | combine({'simulators': {fsp_name: (_full_override.simulators | default({})).get(fsp_name, {})}}) }}
+        _per_fsp_override: "{{ {'simulators': {fsp_name: (_full_override.simulators | default({})).get(fsp_name, {})}} }}"
 
     - name: "fsp{{ fsp_idx }}: write filtered override to artifacts"
       ansible.builtin.copy:
@@ -123,50 +108,22 @@
 
 # Scale only scheme-adapter — replicaCount in Helm values applies to all
 # components (backend+cache+adapter), so we scale imperatively instead.
-# Replica counts are dfsp_sdk_replicas_high/low in defaults/main.yml.
+# Replica counts are dfsp_sdk_replicas (per-FSP) in defaults/main.yml.
 - name: "fsp{{ fsp_idx }}: scale scheme-adapter replicas"
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment {{ fsp_sdk_deploy }} \
-      --replicas={{ dfsp_sdk_replicas_high if fsp_idx | int <= 202 else dfsp_sdk_replicas_low }}
+      --replicas={{ dfsp_sdk_replicas[fsp_name] | default(dfsp_sdk_replicas_default) }}
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-# Defuse :80 -> :443 auto-redirect that fires once a TLS Ingress appears.
-- name: "fsp{{ fsp_idx }}: disable ssl-redirect on simulator Ingress"
+# Scale the sim backend per dfsp_backend_replicas (defaults/main.yml). Every
+# backend pod needs its own party seed afterwards — sim_provision handles it.
+- name: "fsp{{ fsp_idx }}: scale sim backend replicas"
   ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} annotate ingress dfsp-sim-simulators \
-      nginx.ingress.kubernetes.io/ssl-redirect=false --overwrite
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment dfsp-sim-{{ fsp_name }}-backend \
+      --replicas={{ dfsp_backend_replicas[fsp_name] | default(dfsp_backend_replicas_default) }}
   changed_when: false
   environment: "{{ kubectl_env }}"
-
-# Apply the per-DFSP passthrough Ingress (template substitutes fspNNN -> fspXXX).
-- name: "fsp{{ fsp_idx }}: render+apply mTLS passthrough Ingress"
-  ansible.builtin.shell: |
-    sed 's/fspNNN/{{ fsp_name }}/g' {{ dfsp_passthrough_tmpl }} \
-      | kubectl --kubeconfig={{ kc_fsp }} apply -f -
-  register: _passthrough
-  changed_when: "'created' in _passthrough.stdout or 'configured' in _passthrough.stdout"
-  environment: "{{ kubectl_env }}"
-
-# Swap the SDK's mounted TLS Secret to the shared mtls-shared-creds.
-- name: "fsp{{ fsp_idx }}: patch SDK volumes to mtls-shared-creds"
-  ansible.builtin.shell: |
-    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} patch deployment {{ fsp_sdk_deploy }} --type=strategic -p '
-    spec:
-      template:
-        spec:
-          volumes:
-          - name: tls-secrets
-            secret:
-              secretName: mtls-shared-creds'
-  changed_when: false
-  environment: "{{ kubectl_env }}"
-
-# mTLS env vars (Phase 2 OUTBOUND + Phase 3 INBOUND) are now set
-# declaratively in scenarios/<scenario>/overrides/dfsp.yaml under
-# simulators.fspNNN.config.schemeAdapter.env.*_MUTUAL_TLS_ENABLED.
-# Was: a post-install `kubectl set env` step that took kubectl-set field
-# ownership and caused Helm 4 SSA conflicts on subsequent upgrades.
 
 # Patch hostAliases (switch services) + probe periodSeconds.
 - name: "fsp{{ fsp_idx }}: patch hostAliases for switch services"
@@ -209,8 +166,15 @@
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_fsp }} -n kube-system patch configmap coredns \
       --type merge --patch-file {{ scenario_artifacts_dir }}/dfsp-{{ fsp_name }}-coredns.yaml
+  register: _coredns_cm
+  changed_when: "'(no change)' not in _coredns_cm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: restart CoreDNS (only if ConfigMap changed)"
+  when: _coredns_cm.changed
+  ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_fsp }} -n kube-system rollout restart deployment coredns
     kubectl --kubeconfig={{ kc_fsp }} -n kube-system rollout status  deployment coredns --timeout=120s
-  changed_when: false
+  changed_when: true
   environment: "{{ kubectl_env }}"
 
