@@ -31,6 +31,8 @@ monitoring_custom_dashboards:
   - quoting-service-v2.json
   - ml-api-adapter-v2.json
   - mysql-overview-v2.json
+  - fsp-capacity.json
+  - kafka-overview.json
 
 monitoring_custom_dashboards_configmap: whitepaper-dashboards
 monitoring_custom_dashboards_folder: "Whitepaper"

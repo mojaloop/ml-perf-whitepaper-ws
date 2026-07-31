@@ -1,31 +1,37 @@
-# Mojaloop Performance Benchmarks — Security-Posture Comparison
+# Mojaloop Performance Benchmarks
 
-Reproducible measurements of the Mojaloop switch (v17.1.0) under three
-security configurations on **identical hardware** (5× m7i.2xlarge switch
-nodes + dedicated Kafka/MySQL nodes + 8 DFSP simulators), all validated with
-the same steady-state methodology (start+5min .. end−2min trim, Kafka
-topic-rate validity gate, ≥1M transfers measured per run).
+Reproducible performance measurements of the Mojaloop switch across
+different chart versions, security postures, and configurations. Every
+scenario is validated with the same steady-state methodology (start+5min
+.. end−2min trim, Kafka topic-rate validity gate, ≥1M transfers measured
+per run). See each scenario's own README for its exact version, hardware,
+and configuration.
 
-## Scenarios
+## Security postures
 
-| Scenario | Security posture | Full writeup |
-|---|---|---|
-| **mtls-off** | Plaintext baseline — no encryption anywhere; the comparison floor. Also carries the max-TPS exploration for this hardware (650 TPS verified <1s; 700 sustains but misses). | [README](v17.1.0/mtls-off/500tps/README.md) |
-| **mtls-wireguard** | Edge mTLS (Istio sidecars) + Kafka/MySQL protocol TLS + Cilium WireGuard pod-pod encryption. Quantifies the cost of double-encrypting datastore traffic (WireGuard has no per-workload exclusion). | [README](v17.1.0/mtls-wireguard/500tps/README.md) |
-| **mtls-mesh** | Edge mTLS (Istio sidecars) + Kafka/MySQL protocol TLS + Istio ambient mesh (ztunnel HBONE, SPIFFE workload identity, STRICT) with datastores excluded from the mesh. Every transaction-path byte encrypted. | [README](v17.1.0/mtls-mesh/500tps/README.md) |
+| Posture | Description |
+|---|---|
+| **mtls-off** | Plaintext baseline — no encryption anywhere; the comparison floor. |
+| **mtls-wireguard** | Edge mTLS (Istio sidecars) + Kafka/MySQL protocol TLS + Cilium WireGuard pod-pod encryption. Quantifies the cost of double-encrypting datastore traffic (WireGuard has no per-workload exclusion). |
+| **mtls-mesh** | Edge mTLS (Istio sidecars) + Kafka/MySQL protocol TLS + Istio ambient mesh (ztunnel HBONE, SPIFFE workload identity, STRICT) with datastores excluded from the mesh. Every transaction-path byte encrypted. |
 
-Each scenario's README is self-contained: scenario definition, hardware,
+A given security posture may be run at different chart versions, TPS
+targets, hardware profiles, or message-format modes (see the Results
+table's Mode column) over time — each such run is one row in the Results
+table below, with its own writeup. Each scenario's README is
+self-contained: scenario definition, hardware,
 security setup (crypto + traffic flows), tuning, deploy sequence, k6 +
 steady-state results, capacity data, caveats, reproduction gotchas, and
 dashboard screenshots.
 
-## Results
+## Scenarios
 
-| Version | mTLS | Run TPS | Status | Actual TPS | Success % | e2e p99 (ms) | Recorded run |
-|---------|------|---------|--------|-----------|-----------|--------------|--------------|
-| v17.1.0 | off | 650 | PASS | 649.6 | 99.97 | 946 | [20260713T143556](v17.1.0/mtls-off/500tps/results/20260713T143556/) |
-| v17.1.0 | wireguard | 450 | PASS | 449.8 | 99.99 | 918 | [20260710T235901](v17.1.0/mtls-wireguard/500tps/results/20260710T235901/) |
-| v17.1.0 | mesh | 500 | PASS | 499.9 | 99.93 | 910 | [20260707T153631](v17.1.0/mtls-mesh/500tps/results/20260707T153631/) |
+| Version | Security posture | Mode | Run TPS | Status | Actual TPS | Success % | e2e p99 (ms) | Financial transactions | Writeup |
+|---------|------|---------|---------|--------|-----------|-----------|--------------|---------|---------|
+| v17.1.0 | mtls-off | FSPIOP | 650 | PASS | 649.6 | 99.97 | 946 | ~1M | [README](v17.1.0/mtls-off/500tps/README.md) |
+| v17.1.0 | mtls-wireguard | FSPIOP | 450 | PASS | 449.8 | 99.99 | 918 | ~1M | [README](v17.1.0/mtls-wireguard/500tps/README.md) |
+| v17.1.0 | mtls-mesh | FSPIOP | 500 | PASS | 499.9 | 99.93 | 910 | ~1M | [README](v17.1.0/mtls-mesh/500tps/README.md) |
+| v17.1.0 | mtls-mesh | ISO20022 | 500 | PASS | 499.7 | 99.96 | 951 | ~1M | [README](v17.1.0/mtls-mesh/500tps-iso20022/README.md) |
 
 The e2e p99 goal is **<1s at the steady-state percentile** (the k6 full-run
 aggregate is also recorded but is inflated by ramp edges). Note the "Run TPS"
@@ -42,8 +48,8 @@ load) lives in the [repo-level README](../README.md#run-a-benchmark-scenario-fro
 scenario's own README §10 spells out. After a run:
 
 ```bash
-benchmarks/tools/steady-state.sh              # steady-state report from Prometheus
-benchmarks/tools/finalize-run.sh <scenario>   # write summary.json + MANIFEST.md into results/<UTC>/
+benchmarks/tools/steady-state.sh   # steady-state report from Prometheus — paste
+                                    # the output into the scenario's README §12/§13
 ```
 
 ## Directory layout
@@ -51,7 +57,7 @@ benchmarks/tools/finalize-run.sh <scenario>   # write summary.json + MANIFEST.md
 ```
 benchmarks/
 ├── README.md                     # this file — scenarios, results, layout, tooling
-├── tools/                        # steady-state / finalize-run
+├── tools/                        # steady-state.sh
 └── <version>/
     └── <mtls>/                   # mtls-off / mtls-wireguard / mtls-mesh
         └── <tps>/
@@ -61,18 +67,13 @@ benchmarks/
             ├── configmaps/       # per-service Mojaloop configmap patches (replace default.json wholesale)
             ├── onboard.yaml      # TTK onboarding manifest (collections live in ttk-collections/ at repo root)
             ├── versions.yml      # chart versions: mojaloop/backend/simulator
-            ├── artifacts/        # INFRA — provisioned once (git-ignored)
-            └── results/<UTC>/                             # ONE recorded run per scenario:
-                ├── steady-state.md                        #   authoritative percentiles + gate + node CPU
-                ├── MANIFEST.md                            #   human record
-                └── summary.json                           #   machine record
-                                                             #   (raw k6 pod logs are not committed — *.log is git-ignored)
+            └── artifacts/        # INFRA — provisioned once (git-ignored)
 ```
 
-Two lifecycles per scenario: **infra** is provisioned once into `artifacts/`
-(terraform state isolated per scenario via `TF_WORKSPACE=<slug>`); **test
-runs** land in `results/<UTC>/`, many per provision, with exactly one kept +
-recorded per scenario.
+**infra** is provisioned once into `artifacts/` (terraform state isolated per
+scenario via `TF_WORKSPACE=<slug>`). Test runs are not committed as separate
+files — the scenario's own README §11-13 is the single recorded result per
+scenario, updated in place when a new run supersedes it.
 
 `make` finds the scenario directory by naming convention — no registry, no wiring:
 
@@ -102,7 +103,7 @@ scenario_chart_versions:
 ## Extending
 
 New scenario (version, mode, or TPS): copy an existing scenario dir, drop its
-`artifacts/` + `results/` + `screenshots/` content, adjust `versions.yml` and
-overrides, and add a row to the Scenarios/Results tables above. The directory
-path must follow `benchmarks/<version>/<mtls>/<N>tps/` — that's what the
-`SCENARIO` name resolves to.
+`artifacts/` + `screenshots/` content, adjust `versions.yml` and overrides,
+and add a row to the Scenarios/Results tables above. The directory path must
+follow `benchmarks/<version>/<mtls>/<N>tps/` — that's what the `SCENARIO`
+name resolves to.

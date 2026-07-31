@@ -115,7 +115,11 @@
 - name: Set CPU requests (and limits where defined) on heavy Mojaloop deployments
   ansible.builtin.shell: |
     c=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployment {{ item.key }} \
-      -o jsonpath='{.spec.template.spec.containers[0].name}')
+      -o jsonpath='{.spec.template.spec.containers[0].name}' 2>/dev/null)
+    if [ -z "$c" ]; then
+      echo "SKIPPED: {{ item.key }} not found (disabled for this scenario?)"
+      exit 0
+    fi
     res=$(jq -nc --arg req "{{ item.value }}" --arg lim "{{ mojaloop_cpu_limits[item.key] | default('') }}" \
       '{requests: {cpu: $req}} + (if $lim != "" then {limits: {cpu: $lim}} else {} end)')
     kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item.key }} \
@@ -131,7 +135,11 @@
 - name: Relax probes on load-fragile deployments
   ansible.builtin.shell: |
     c=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployment {{ item }} \
-      -o jsonpath='{.spec.template.spec.containers[0].name}')
+      -o jsonpath='{.spec.template.spec.containers[0].name}' 2>/dev/null)
+    if [ -z "$c" ]; then
+      echo "SKIPPED: {{ item }} not found (disabled for this scenario?)"
+      exit 0
+    fi
     kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
       --type strategic -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$c\",
         \"livenessProbe\":{\"timeoutSeconds\":{{ mojaloop_probe_timeout_seconds }},\"failureThreshold\":{{ mojaloop_probe_failure_threshold }}},
@@ -162,11 +170,13 @@
   when: _cm_dir_stat.stat.exists
   ansible.builtin.shell: |
     file="{{ scenario_dir }}/configmaps/{{ item.value }}"
-    if [ -f "$file" ]; then
+    if [ ! -f "$file" ]; then
+      echo "skip: $file not present"
+    elif ! kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get configmap {{ item.key }} &>/dev/null; then
+      echo "skip: configmap {{ item.key }} not found (disabled for this scenario?)"
+    else
       kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch configmap {{ item.key }} \
         --type merge -p "$(jq -n --arg cfg "$(cat $file)" '{data: {"default.json": $cfg}}')"
-    else
-      echo "skip: $file not present"
     fi
   loop: "{{ mojaloop_configmap_patches | dict2items }}"
   register: _cm_patch

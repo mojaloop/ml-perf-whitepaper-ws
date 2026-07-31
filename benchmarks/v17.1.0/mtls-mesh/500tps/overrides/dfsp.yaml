@@ -11,7 +11,13 @@
 # default image carries the JWS fix that the old v24.19.6 pin worked around, so
 # the workaround was removed. Pin an `image:` block again only if a future
 # regression requires it.
-#
+
+# Sim backend replicas per FSP (single-threaded process, ~1 core each;
+# unlisted FSPs get dfsp_backend_replicas_default). Every backend pod is
+# seeded individually by `make provision`.
+dfsp_backend_replicas_default: 1
+dfsp_backend_replicas: {}
+
 # One block per FSP because the values structure is keyed by simulator name.
 
 simulators:

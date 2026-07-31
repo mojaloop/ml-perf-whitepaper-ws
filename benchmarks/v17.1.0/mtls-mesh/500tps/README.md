@@ -1,16 +1,14 @@
 # v17.1.0 / mtls-mesh / 500tps — Scenario Report
 
-_See `results/<run>/MANIFEST.md` + `summary.json` for raw per-run
-data, and `screenshots/` for dashboard captures. This file consolidates
-everything else — setup, deploy sequence, results, chart deviations — into
-a single scenario reference._
+This scenario secures app-to-app traffic with an Istio ambient service
+mesh (per-node ztunnel proxies, SPIFFE workload identity, STRICT mTLS)
+instead of blanket network-layer encryption, while Kafka/MySQL keep their
+own protocol TLS and are explicitly excluded from the mesh to avoid
+double-encrypting datastore traffic. Every byte on the transaction path is
+encrypted, and this posture holds the full 500 TPS design target under
+the `<1s` steady-state goal.
 
 ## 1. Scenario
-
-Scenario:
-**mTLS + full service mesh** — every byte on the transaction path encrypted,
-using workload-identity mTLS for app-to-app traffic and native protocol TLS
-for datastores.
 
 - **Version:** v17.1.0 (mojaloop chart), backend chart 17.1.0, simulator chart 15.10.0
 - **Target load:** 500 TPS, 13 FSP pairs (4 source FSPs → 4 destination FSPs)
@@ -205,7 +203,9 @@ The edge cert's key usage is `digitalSignature` only (no static-ECDH `keyAgreeme
 
 ```bash
 SLUG=v17.1.0-mtls-mesh-500tps
-make terraform-apply SCENARIO=$SLUG    # skip if sharing infra (see §4)
+make terraform-plan  SCENARIO=$SLUG    # regenerate plan against current state + aws.yaml
+make terraform-apply SCENARIO=$SLUG
+make tunnel  SCENARIO=$SLUG            # SOCKS5 via bastion. To stop: lsof -ti :1080 | xargs kill
 make k8s     SCENARIO=$SLUG
 make cilium  SCENARIO=$SLUG
 make deploy  SCENARIO=$SLUG

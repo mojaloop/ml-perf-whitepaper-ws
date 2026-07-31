@@ -21,7 +21,7 @@ ANS_DIR  := ansible
 # Scenario directory resolution — by naming convention, no registry:
 #   v<version>-<middle>-<N>tps  ->  benchmarks/<version>/<middle>/<N>tps
 #   anything else               ->  scenarios/<name>   (hand-authored)
-SCENARIO_DIR := $(shell echo "$(SCENARIO)" | sed -E 's|^(v[0-9][^-]*)-(.+)-([0-9]+tps)$$|benchmarks/\1/\2/\3|')
+SCENARIO_DIR := $(shell echo "$(SCENARIO)" | sed -E 's|^(v[0-9][^-]*)-(.+)-([0-9]+tps(-[a-zA-Z0-9]+)*)$$|benchmarks/\1/\2/\3|')
 ifeq ($(SCENARIO_DIR),$(SCENARIO))
   SCENARIO_DIR := scenarios/$(SCENARIO)
 endif

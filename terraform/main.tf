@@ -29,9 +29,10 @@ locals {
 
   # Common tags for all resources
   common_tags = {
-    Project     = local.project_config.name
-    Environment = local.project_config.environment
-    ManagedBy   = "Terraform"
+    Project               = local.project_config.name
+    Environment           = local.project_config.environment
+    ManagedBy             = "Terraform"
+    "mojaloop/cost_center" = "oss-perf-ws"
   }
 
   # Parse VM configurations

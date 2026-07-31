@@ -24,6 +24,8 @@
   ansible.builtin.set_fact:
     dfsp_sdk_replicas_default: "{{ _dfsp_override.dfsp_sdk_replicas_default | default(dfsp_sdk_replicas_default) }}"
     dfsp_sdk_replicas: "{{ _dfsp_override.dfsp_sdk_replicas | default(dfsp_sdk_replicas) }}"
+    dfsp_backend_replicas_default: "{{ _dfsp_override.dfsp_backend_replicas_default | default(dfsp_backend_replicas_default) }}"
+    dfsp_backend_replicas: "{{ _dfsp_override.dfsp_backend_replicas | default(dfsp_backend_replicas) }}"
 
 - name: Per-DFSP mTLS loop
   ansible.builtin.include_tasks: per_fsp.yml

@@ -17,3 +17,9 @@ dfsp_sdk_replicas_default: 4
 dfsp_sdk_replicas:
   fsp201: 16
   fsp202: 16
+
+# sim backend replica counts, per FSP. Same duplication reason as above — the
+# mTLS helm upgrade resets .spec.replicas on ALL chart-managed deployments
+# (scheme-adapter, backend, cache), not just scheme-adapter.
+dfsp_backend_replicas_default: 1
+dfsp_backend_replicas: {}

@@ -10,7 +10,7 @@
 # The `files` list is the exact set of TTK collection JSONs the CLI
 # will execute — what's listed runs, nothing else.
 
-env: ttk-collections/perf-env-example.json
+env: ttk-collections/perf-env-fspiop.json
 
 jobs:
   - name: hub-setup

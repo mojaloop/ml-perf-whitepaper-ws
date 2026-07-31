@@ -1,16 +1,15 @@
 # v17.1.0 / mtls-wireguard / 500tps — Scenario Report
 
-_See `results/<run>/MANIFEST.md` + `summary.json` for raw per-run
-data, and `screenshots/` for dashboard captures. This file consolidates
-everything else — setup, deploy sequence, results, chart deviations — into
-a single scenario reference._
+This scenario layers edge mTLS and Kafka/MySQL protocol TLS with **Cilium
+WireGuard** encrypting all pod-pod traffic at the network layer — an
+alternative to a workload-identity service mesh for securing app-to-app
+communication. Because WireGuard encrypts indiscriminately (no
+per-workload exclusion), datastore traffic ends up double-encrypted
+(protocol TLS + WireGuard), and this scenario quantifies what that costs:
+the 500 TPS design target fails the `<1s` steady-state goal here, and the
+recorded result backs off to 450 TPS.
 
 ## 1. Scenario
-
-Scenario:
-**mTLS + full encryption** — edge mTLS + database protocol TLS (Kafka **and**
-MySQL) + **Cilium WireGuard** for pod-pod encryption-in-transit. No
-workload-identity mesh is used in this scenario.
 
 - **Version:** v17.1.0 (mojaloop chart), backend chart 17.1.0, simulator chart 15.10.0
 - **Target load:** 500 TPS design target, 13 FSP pairs (4 source FSPs → 4 destination FSPs)
@@ -246,7 +245,9 @@ WireGuard deployment would choose by default, and this scenario's ceiling
 
 ```bash
 SLUG=v17.1.0-mtls-wireguard-500tps
+make terraform-plan  SCENARIO=$SLUG    # regenerate plan against current state + aws.yaml
 make terraform-apply SCENARIO=$SLUG
+make tunnel  SCENARIO=$SLUG            # SOCKS5 via bastion. To stop: lsof -ti :1080 | xargs kill
 make k8s     SCENARIO=$SLUG
 make cilium  SCENARIO=$SLUG EXTRA='-e cilium_encryption_enabled=true'   # WireGuard on
 make backend SCENARIO=$SLUG

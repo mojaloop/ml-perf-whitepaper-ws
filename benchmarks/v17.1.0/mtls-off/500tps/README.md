@@ -1,15 +1,14 @@
 # v17.1.0 / mtls-off / 500tps — Scenario Report
 
-_See `results/<run>/MANIFEST.md` + `summary.json` for raw per-run
-data. This file consolidates everything else — setup, deploy sequence,
-results, chart deviations — into a single scenario reference._
+This scenario runs the Mojaloop switch with no encryption anywhere on the
+transaction path — no edge mTLS, no Kafka/MySQL protocol TLS, no pod-pod
+encryption of any kind — establishing a zero-security-cost baseline. It
+also carries this hardware's max-sustainable-TPS exploration: the same
+5-node switch cluster is pushed past its 500 TPS design target to find
+where the `<1s` steady-state e2e p99 goal actually breaks, independent of
+any encryption cost.
 
 ## 1. Scenario
-
-Scenario:
-**plaintext baseline** — no edge mTLS, no database or Kafka TLS, no pod-pod
-encryption of any kind. The control/floor measurement that quantifies what
-the security layers in the other configurations cost.
 
 - **Version:** v17.1.0 (mojaloop chart), backend chart 17.1.0, simulator chart 15.10.0
 - **Target load:** 650 TPS, 13 FSP pairs (4 source FSPs → 4 destination FSPs)
@@ -102,11 +101,6 @@ Cilium **replaces** MicroK8s' default Calico dataplane: Calico's iptables/veth d
   - `overrides/backend.yaml` — plaintext Kafka + plaintext MySQL; broker/DB tuning per §9 (`max_connections=1500`, MySQL CPU limit 4.0, Kafka CPU limit 3.5)
   - `overrides/aws.yaml` — node sizing per §4
   - `overrides/dfsp.yaml` — DFSP simulator replica counts per §7
-- **Replica adjustments beyond committed chart values** (see §14):
-  - account-lookup-service scaled 8 → **10** replicas (live `kubectl scale`)
-  - fsp201/fsp202 sim backends at **2** replicas, every replica seeded with the
-    full party set (`dfsp_backend_replicas` in `overrides/dfsp.yaml`;
-    `make provision` seeds each backend pod's in-memory party db individually)
 
 ## 7. Pod distribution & replica counts
 
@@ -141,10 +135,10 @@ Notification handler (18) is deliberately the highest-replica service — it's t
 
 | Component | fsp201 / fsp202 | fsp203–fsp208 |
 |---|---|---|
-| mojaloop-simulator | 1 (fsp202: **2**, see §6) | 1 |
+| mojaloop-simulator | 2 | 1 |
 | sdk-scheme-adapter | 16 | 4 |
 
-`fsp201`/`fsp202` get 4x the scheme-adapter replicas of the other 6 — they carry the heaviest share of the FSP pair load (see §3's source×destination matrix). fsp202's sim backend runs 2 replicas because it receives 49% of all traffic through a component that is otherwise a single-threaded Node process (§15).
+`fsp201`/`fsp202` get 4x the scheme-adapter replicas of the other 6 — they carry the heaviest share of the FSP pair load (see §3's source×destination matrix). fsp201/fsp202's sim backends run 2 replicas each because they receive the bulk of all traffic (70%/49%) through a component that is otherwise a single-threaded Node process (§15).
 
 Pod-to-node spread across the 5 generic nodes is scheduler-determined per service (topologySpreadConstraints, maxSkew=1); the cross-service aggregate can still concentrate on one node (§15).
 
@@ -202,7 +196,9 @@ mTLS and Istio-telemetry stages entirely:
 
 ```bash
 SLUG=v17.1.0-mtls-off-500tps
+make terraform-plan  SCENARIO=$SLUG    # regenerate plan against current state + aws.yaml
 make terraform-apply SCENARIO=$SLUG
+make tunnel          SCENARIO=$SLUG    # SOCKS5 via bastion. To stop: lsof -ti :1080 | xargs kill
 make k8s             SCENARIO=$SLUG
 make cilium          SCENARIO=$SLUG EXTRA='-e cilium_encryption_enabled=false'
 make monitoring      SCENARIO=$SLUG
@@ -211,10 +207,6 @@ make switch          SCENARIO=$SLUG    # also exposes nginx :80 (NodePort 30080)
 make dfsp            SCENARIO=$SLUG    # pure sims, plain HTTP
 make dfsp-monitoring SCENARIO=$SLUG
 make k6              SCENARIO=$SLUG
-# live replica adjustment (ALS is not in the committed chart values):
-#   kubectl -n mojaloop scale deployment moja-account-lookup-service --replicas=10
-# DFSP replica counts come from overrides/dfsp.yaml (applied by `make dfsp`);
-# `make provision` then seeds EVERY backend pod
 make onboard         SCENARIO=$SLUG
 make provision       SCENARIO=$SLUG
 make smoke           SCENARIO=$SLUG    # GATE — a plain-HTTP transfer must COMPLETE
@@ -313,7 +305,7 @@ hardware on both the switch side and the two heavy DFSP nodes.
 - **Kafka RF=1, single broker (KRaft)** — no replication, no HA. Acceptable for a throughput benchmark; not a production posture.
 - **MySQL: single instance, ephemeral storage (`persistence.enabled: false`)** — no HA, no durability across pod restart. `sync_binlog=0` + `innodb_flush_log_at_trx_commit=2` trade a small durability window for throughput.
 - **Plaintext is the point, not an oversight** — this configuration exists as the comparison floor; it is not a deployable security posture for a financial switch.
-- **ALS replica count is applied live, not via committed chart values** (§6): scaled to 10 where the committed file says 8 (the subchart takes `replicaCount` normally). DFSP replica counts come from `overrides/dfsp.yaml` (`dfsp_backend_replicas`, `dfsp_sdk_replicas_*` — ansible vars, not forwarded to Helm) — the simulator chart cannot express per-component replicas, so the dfsp role scales imperatively — and the sim_provision role seeds every backend pod's in-memory party set individually (the party db is per-process; seeding through the Service would round-robin and leave each pod with a partial set).
+- **DFSP replica counts come from `overrides/dfsp.yaml`** (`dfsp_backend_replicas`, `dfsp_sdk_replicas_*` — ansible vars, not forwarded to Helm) — the simulator chart cannot express per-component replicas, so the dfsp role scales imperatively.
 - **Sim backends must be restarted before each measurement campaign** — see §15; their in-memory databases grow without bound across runs.
 - **`log_level: info` on all switch services** — a known CPU/GC cost near saturation; kept for parity across all measured configurations.
 
@@ -328,8 +320,6 @@ configuration was the first pushed past its design target):
 - **MySQL's limit is connection *slots*, not query throughput.** With every service replica holding a `POOL_MAX_SIZE`-deep idle pool, `threads_connected` approached the 1000 default while `threads_running` never exceeded 40 — the failure mode is connection-refused storms that collapse all legs at once, at *lower* node CPU than a healthy run. Budget `max_connections` for aggregate pool demand (replicas × pool size), or shrink the per-replica pools.
 - **CFS throttling metrics must be read per-container, not per-pod.** The Kafka pod's jmx-exporter sidecar (0.375-core limit) throttles constantly and dominates the pod-level number; the broker container itself throttled 0%. Attributing sidecar throttling to the main container leads to unnecessary limit increases.
 - **Per-service topologySpreadConstraints do not prevent cross-service aggregate skew.** Every heavy service satisfied maxSkew=1 individually while all of their "remainder" pods stacked on the same node (~15-20 CPU points hotter than the coolest peer). Manual rebalancing relocates the hotspot rather than dissolving it (verified across three placements); at 650 TPS placement made no measurable p99 difference (946-974ms across three spreads), at 700 TPS it was worth ~90ms — never enough to change a verdict.
-- **Switching this scenario from an encrypted configuration leaves two live artifacts that Helm does not clean up:** the `kafka-exporter` Deployment keeps `--tls.enabled` args (it then retry-storms against the plaintext broker and its Prometheus target goes down — Kafka lag visibility silently disappears), and each DFSP cluster keeps an `ssl-passthrough` Ingress that was applied outside Helm (it routes plaintext bytes into a TLS-expecting path). Both must be removed by hand.
-- The MySQL server still *offers* TLS (`MYSQL_ENABLE_SSL=yes` is a chart-level default independent of `mysql.tls.enabled`), and its `Ssl_accepts` counter is non-zero from monitoring-side clients. Application traffic is plaintext (all client `ssl` options removed; `require_secure_transport=OFF`).
 
 ## 16. Dashboard screenshots
 

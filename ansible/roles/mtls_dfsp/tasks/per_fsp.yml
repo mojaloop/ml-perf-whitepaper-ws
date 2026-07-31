@@ -67,3 +67,10 @@
       --replicas={{ dfsp_sdk_replicas[fsp_name] | default(dfsp_sdk_replicas_default) }}
   changed_when: false
   environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: re-scale sim backend replicas after mTLS overlay"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment dfsp-sim-{{ fsp_name }}-backend \
+      --replicas={{ dfsp_backend_replicas[fsp_name] | default(dfsp_backend_replicas_default) }}
+  changed_when: false
+  environment: "{{ kubectl_env }}"

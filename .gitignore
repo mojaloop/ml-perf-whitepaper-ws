@@ -21,10 +21,12 @@ phase1/*/artifacts/
 phase1/*/*-artifacts/
 
 # Local Claude Code config + reference-only scratch material — not repo content.
-/.claude/
+# CLAUDE.md itself IS shared/committed (see exception below); everything else
+# under .claude/ (settings, session state, one-off scratch docs) stays local.
+/.claude/*
+!/.claude/CLAUDE.md
 /CLAUDE/
 /memory/
-/CLAUDE.md
 
 # Editor-local settings.
 /.vscode/

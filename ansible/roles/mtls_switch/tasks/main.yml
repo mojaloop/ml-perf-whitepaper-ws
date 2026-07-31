@@ -321,7 +321,7 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
-- name: Verify each egress pod is 2/2 (app + istio-proxy) with certs mounted
+- name: Verify each egress pod is 2/2 (app + istio-proxy)
   ansible.builtin.shell: |
     set -e
     POD=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get pod \
@@ -331,11 +331,24 @@
     READY=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get pod "$POD" \
             -o jsonpath='{.status.containerStatuses[*].ready}')
     echo "$READY" | grep -q "true true"
-    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} exec "$POD" -c istio-proxy -- \
-      ls {{ mtls_certs_mount_path }}/tls.crt {{ mtls_certs_mount_path }}/tls.key {{ mtls_certs_mount_path }}/ca.crt
   loop: "{{ mtls_sidecar_deployments }}"
   loop_control:
     label: "{{ item.name }}"
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# istio-proxy runs the distroless proxyv2 image (no shell/ls/coreutils), so
+# cert-file presence can't be exec-checked inside the container. A pod that
+# reached Running/2-2-Ready already proves the secret-backed volume mounted
+# (a missing/malformed Secret blocks the pod at ContainerCreating) — this
+# only needs to additionally confirm the shared Secret carries all three
+# expected keys, checked once via the API instead of once per deployment.
+- name: Verify the mTLS cert Secret has all three expected keys
+  ansible.builtin.shell: |
+    set -e
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get secret {{ mtls_certs_secret_name }} \
+      -o jsonpath='{.data.tls\.crt}{"|"}{.data.tls\.key}{"|"}{.data.ca\.crt}' \
+      | grep -qE '^[^|]+\|[^|]+\|[^|]+$'
   changed_when: false
   environment: "{{ kubectl_env }}"
 
