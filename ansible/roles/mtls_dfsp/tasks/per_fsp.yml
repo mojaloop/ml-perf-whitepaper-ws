@@ -1,0 +1,76 @@
+---
+- name: "fsp{{ fsp_idx }}: set facts"
+  ansible.builtin.set_fact:
+    fsp_name: "fsp{{ fsp_idx }}"
+    kc_fsp: "{{ kubeconfig_dir }}/kubeconfig-fsp{{ fsp_idx }}.yaml"
+
+- name: "fsp{{ fsp_idx }}: enable nginx ssl-passthrough"
+  ansible.builtin.shell: |
+    if ! kubectl --kubeconfig={{ kc_fsp }} -n ingress get daemonset nginx-ingress-microk8s-controller \
+         -o jsonpath='{.spec.template.spec.containers[0].args}' | grep -q enable-ssl-passthrough; then
+      kubectl --kubeconfig={{ kc_fsp }} -n ingress patch daemonset nginx-ingress-microk8s-controller --type=json -p='[
+        {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--enable-ssl-passthrough"}
+      ]'
+      kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout status daemonset nginx-ingress-microk8s-controller --timeout=180s
+    fi
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: apply shared DFSP TLS secret"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} apply -f {{ dfsp_tls_secret }}
+  register: _dfsp_secret
+  changed_when: "'created' in _dfsp_secret.stdout or 'configured' in _dfsp_secret.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: render mTLS values overlay"
+  ansible.builtin.template:
+    src: mtls-values.yaml.j2
+    dest: "{{ scenario_artifacts_dir }}/mtls-{{ fsp_name }}-values.yaml"
+    mode: '0644'
+
+- name: "fsp{{ fsp_idx }}: helm upgrade scheme-adapter with mTLS overlay"
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} upgrade {{ dfsp_release }} {{ dfsp_chart }} \
+      --version {{ dfsp_version }} \
+      --reuse-values \
+      --values {{ scenario_artifacts_dir }}/mtls-{{ fsp_name }}-values.yaml \
+      --force-conflicts --take-ownership \
+      --wait --timeout 10m
+  register: _mtls_helm
+  changed_when: "'has been upgraded' in _mtls_helm.stdout or 'has been deployed' in _mtls_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: disable ssl-redirect on simulator Ingress"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} annotate ingress dfsp-sim-simulators \
+      nginx.ingress.kubernetes.io/ssl-redirect=false --overwrite
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: render+apply mTLS passthrough Ingress"
+  ansible.builtin.shell: |
+    sed 's/fspNNN/{{ fsp_name }}/g' {{ dfsp_passthrough_tmpl }} \
+      | kubectl --kubeconfig={{ kc_fsp }} apply -f -
+  register: _passthrough
+  changed_when: "'created' in _passthrough.stdout or 'configured' in _passthrough.stdout"
+  environment: "{{ kubectl_env }}"
+
+# The mTLS helm upgrade above runs with --reuse-values --take-ownership, which
+# resets scheme-adapter .spec.replicas to the chart default (1) and wipes the
+# imperative scale the dfsp role applied. Re-apply it here so the deploy ends
+# with the intended replica counts; new replicas inherit the mTLS-enabled pod
+# template, so they come up already configured for mTLS.
+- name: "fsp{{ fsp_idx }}: re-scale scheme-adapter replicas after mTLS overlay"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment dfsp-sim-fsp{{ fsp_idx }}-scheme-adapter \
+      --replicas={{ dfsp_sdk_replicas[fsp_name] | default(dfsp_sdk_replicas_default) }}
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: re-scale sim backend replicas after mTLS overlay"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment dfsp-sim-{{ fsp_name }}-backend \
+      --replicas={{ dfsp_backend_replicas[fsp_name] | default(dfsp_backend_replicas_default) }}
+  changed_when: false
+  environment: "{{ kubectl_env }}"

@@ -1,0 +1,81 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure curl-pod exists in k6 cluster
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ smoke_curl_ns }} apply -f \
+      {{ repo_root }}/tools/curl-pod.yaml
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ smoke_curl_ns }} wait \
+      --for=condition=Ready pod/{{ smoke_curl_pod }} --timeout=120s
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Generate transfer UUID
+  ansible.builtin.set_fact:
+    smoke_uuid: "{{ ansible_date_time.iso8601_micro | default(lookup('pipe','date +%s%N')) | hash('sha1') | truncate(36, true, '') }}"
+
+- name: "[1/3] POST /transfers"
+  ansible.builtin.shell: |
+    set -e
+    URL="http://sim-{{ smoke_src_fsp }}.local/sim/{{ smoke_src_fsp }}/outbound/transfers"
+    PAYLOAD='{
+      "from": { "displayName": "smoke", "idType": "MSISDN", "idValue": "{{ smoke_src_msisdn }}" },
+      "to":   { "idType": "MSISDN", "idValue": "{{ smoke_dest_msisdn }}" },
+      "amountType": "SEND",
+      "currency": "{{ smoke_currency }}",
+      "amount": "{{ smoke_amount }}",
+      "transactionType": "TRANSFER",
+      "note": "smoke-transfer",
+      "homeTransactionId": "{{ smoke_uuid }}"
+    }'
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ smoke_curl_ns }} exec -i {{ smoke_curl_pod }} -- \
+      curl -sS --max-time {{ smoke_curl_timeout }} -X POST "$URL" \
+        -H 'content-type: application/json' --data-binary "$PAYLOAD"
+  register: _step1
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Extract transferId + verify state
+  ansible.builtin.set_fact:
+    _step1_json: "{{ _step1.stdout | from_json }}"
+
+- name: Fail if step 1 not WAITING_FOR_PARTY_ACCEPTANCE
+  ansible.builtin.fail:
+    msg: "Step 1 expected WAITING_FOR_PARTY_ACCEPTANCE, got {{ _step1_json.currentState | default('<missing>') }}\n{{ _step1.stdout }}"
+  when: _step1_json.currentState | default('') != 'WAITING_FOR_PARTY_ACCEPTANCE'
+
+- name: "[2/3] PUT acceptParty"
+  ansible.builtin.shell: |
+    URL="http://sim-{{ smoke_src_fsp }}.local/sim/{{ smoke_src_fsp }}/outbound/transfers/{{ _step1_json.transferId }}"
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ smoke_curl_ns }} exec -i {{ smoke_curl_pod }} -- \
+      curl -sS --max-time {{ smoke_curl_timeout }} -X PUT "$URL" \
+        -H 'content-type: application/json' --data-binary '{"acceptParty": true}'
+  register: _step2
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Verify step 2 state
+  ansible.builtin.fail:
+    msg: "Step 2 expected WAITING_FOR_QUOTE_ACCEPTANCE, got {{ (_step2.stdout | from_json).currentState | default('<missing>') }}\n{{ _step2.stdout }}"
+  when: (_step2.stdout | from_json).currentState | default('') != 'WAITING_FOR_QUOTE_ACCEPTANCE'
+
+- name: "[3/3] PUT acceptQuote"
+  ansible.builtin.shell: |
+    URL="http://sim-{{ smoke_src_fsp }}.local/sim/{{ smoke_src_fsp }}/outbound/transfers/{{ _step1_json.transferId }}"
+    kubectl --kubeconfig={{ kc_k6 }} -n {{ smoke_curl_ns }} exec -i {{ smoke_curl_pod }} -- \
+      curl -sS --max-time {{ smoke_curl_timeout }} -X PUT "$URL" \
+        -H 'content-type: application/json' --data-binary '{"acceptQuote": true}'
+  register: _step3
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Verify step 3 state
+  ansible.builtin.fail:
+    msg: "Step 3 expected COMPLETED, got {{ (_step3.stdout | from_json).currentState | default('<missing>') }}\n{{ _step3.stdout }}"
+  when: (_step3.stdout | from_json).currentState | default('') != 'COMPLETED'
+
+- name: PASS
+  ansible.builtin.debug:
+    msg: "PASS smoke-transfer COMPLETED  transferId={{ _step1_json.transferId }}"

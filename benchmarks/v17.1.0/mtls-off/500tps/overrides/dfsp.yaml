@@ -1,0 +1,83 @@
+# Per-scenario DFSP simulator overrides, read by the dfsp role's per_fsp loop.
+# Two kinds of content, both scenario-owned:
+#
+#   simulators:            Helm value overlay, layered on top of
+#                           common/dfsp/values-fspNNN.yaml. Filtered per-FSP
+#                           before being passed to `helm --values` (the dfsp
+#                           chart applies replicaCount to ALL components —
+#                           backend, cache, scheme-adapter — so replica counts
+#                           are NOT set here; see below instead).
+#
+#   dfsp_sdk_replicas,      Ansible vars, per FSP, sized to this scenario's
+#   dfsp_backend_replicas:  hardware/TPS. Read once in dfsp/tasks/main.yml
+#                           and applied imperatively (kubectl scale) in
+#                           per_fsp.yml — NOT forwarded to Helm.
+#
+#   - ENABLE_TEST_FEATURES=false for all FSPs (base values set it to true)
+#
+# NOTE: the scheme-adapter image is intentionally NOT pinned here — the chart's
+# default image carries the JWS fix that the old v24.19.6 pin worked around, so
+# the workaround was removed. Pin an `image:` block again only if a future
+# regression requires it.
+
+# scheme-adapter replicas per FSP (unlisted FSPs get dfsp_sdk_replicas_default).
+dfsp_sdk_replicas:
+  fsp201: 16
+  fsp202: 16
+  fsp203: 4
+  fsp204: 4
+  fsp205: 4
+  fsp206: 4
+  fsp207: 4
+  fsp208: 4
+
+# Sim backend replicas per FSP (single-threaded process, ~1 core each;
+# unlisted FSPs get dfsp_backend_replicas_default = 1). Every backend pod is
+# seeded individually by `make provision`.
+dfsp_backend_replicas:
+  fsp201: 2
+  fsp202: 2
+
+# Helm overlay — one block per FSP because the values structure is keyed by
+# simulator name.
+simulators:
+  fsp201:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+  fsp202:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+  fsp203:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+  fsp204:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+  fsp205:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+  fsp206:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+  fsp207:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+  fsp208:
+    config:
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"

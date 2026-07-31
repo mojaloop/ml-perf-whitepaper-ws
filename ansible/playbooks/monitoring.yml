@@ -1,0 +1,6 @@
+---
+- name: Deploy monitoring stack (promfana = prometheus + grafana + alertmanager)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: monitoring

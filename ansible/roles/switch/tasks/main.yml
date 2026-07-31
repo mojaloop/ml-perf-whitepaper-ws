@@ -1,0 +1,324 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Stat version-specific mojaloop base values
+  ansible.builtin.stat:
+    path: "{{ mojaloop_values_base }}"
+  register: _moja_base_stat
+
+- name: Fail if no base values file for this mojaloop version
+  ansible.builtin.fail:
+    msg: |
+      No mojaloop base values for version {{ mojaloop_version }} at:
+        {{ mojaloop_values_base }}
+      Create common/mojaloop/{{ mojaloop_version }}.yaml (copy an existing version and
+      adjust for the chart's value schema), or fix the version in this
+      scenario's versions.yml.
+  when: not _moja_base_stat.stat.exists
+
+- name: Filter to existing values files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ mojaloop_values_files }}"
+  register: _moja_values_stat
+
+- name: Build helm -f arg list
+  ansible.builtin.set_fact:
+    _moja_values_paths: >-
+      {{ _moja_values_stat.results
+         | selectattr('stat.exists')
+         | map(attribute='item')
+         | list }}
+    _moja_values_args: >-
+      {{ _moja_values_stat.results
+         | selectattr('stat.exists')
+         | map(attribute='item')
+         | map('regex_replace', '^(.*)$', '-f \1')
+         | join(' ') }}
+
+# ---- Helm skip-if-unchanged ----
+# Checksum the helm inputs; if they match the stamp from the last successful
+# helm run AND the release exists, skip helm (saves two full switch rollouts).
+
+- name: Compute helm inputs checksum
+  ansible.builtin.shell: |
+    { echo "{{ mojaloop_version }}"; cat {{ _moja_values_paths | join(' ') }}; } | shasum -a 256 | awk '{print $1}'
+  register: _helm_sum
+  changed_when: false
+
+- name: Decide whether helm needs to run
+  ansible.builtin.shell: |
+    if [ "{{ switch_helm_force | lower }}" = "true" ]; then echo run-forced; exit 0; fi
+    if [ ! -f "{{ switch_helm_stamp }}" ] || [ "$(cat {{ switch_helm_stamp }})" != "{{ _helm_sum.stdout }}" ]; then
+      echo run-changed; exit 0
+    fi
+    if helm --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} status {{ mojaloop_release }} >/dev/null 2>&1; then
+      echo skip
+    else
+      echo run-missing
+    fi
+  register: _helm_need
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Helm install/upgrade Mojaloop switch
+  when: _helm_need.stdout != 'skip'
+  ansible.builtin.shell: |
+    # --force-conflicts --take-ownership: this role helm-installs, then kubectl
+    # patches service configmaps and deployment fields. On any re-run helm
+    # server-side apply conflicts with the kubectl-patch field manager on those
+    # fields; these flags let helm reclaim ownership. Same as the dfsp role.
+    #
+    # No --wait: services may need the configmap patches applied below before
+    # they can become Ready (settings the chart cannot render, e.g. Kafka
+    # client TLS), so waiting here would deadlock. Readiness is gated by the
+    # rollout-status waits at the end of this role, which run AFTER the
+    # patches and the single Recreate rollout they trigger.
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} upgrade --install \
+      {{ mojaloop_release }} {{ mojaloop_chart }} \
+      --version {{ mojaloop_version }} \
+      {{ _moja_values_args }} \
+      --force-conflicts --take-ownership \
+      --timeout 15m
+  register: _moja_helm
+  changed_when: "'has been upgraded' in _moja_helm.stdout or 'has been deployed' in _moja_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Stamp helm inputs checksum
+  when: _helm_need.stdout != 'skip'
+  ansible.builtin.copy:
+    content: "{{ _helm_sum.stdout }}\n"
+    dest: "{{ switch_helm_stamp }}"
+    mode: "0644"
+
+# NODE_OPTIONS can't be set uniformly via helm values (ml-api/central-ledger
+# subcharts expose no `env` key), so inject it here. Runs BEFORE the topology
+# Recreate patch below, so the single Recreate rollout applies it. Helm's
+# --take-ownership would strip it on the next upgrade, so this re-applies every run.
+- name: Set NODE_OPTIONS on Node.js switch services
+  when: switch_node_options | length > 0
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} set env deployment/{{ item }} \
+      NODE_OPTIONS="{{ switch_node_options }}"
+  loop: "{{ switch_node_options_deployments }}"
+  register: _nodeopts
+  changed_when: "'updated' in (_nodeopts.stdout | default(''))"
+  environment: "{{ kubectl_env }}"
+
+# CPU requests ≈ measured usage — gives the scheduler the load signal the
+# chart omits (all pods otherwise request 0), so heavy singletons land on the
+# least-loaded node on every fresh provision. Requests only, no limits.
+# Runs BEFORE the topology Recreate patch (single rollout); helm
+# --take-ownership strips it each upgrade, so this re-applies every run.
+- name: Set CPU requests (and limits where defined) on heavy Mojaloop deployments
+  ansible.builtin.shell: |
+    c=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployment {{ item.key }} \
+      -o jsonpath='{.spec.template.spec.containers[0].name}' 2>/dev/null)
+    if [ -z "$c" ]; then
+      echo "SKIPPED: {{ item.key }} not found (disabled for this scenario?)"
+      exit 0
+    fi
+    res=$(jq -nc --arg req "{{ item.value }}" --arg lim "{{ mojaloop_cpu_limits[item.key] | default('') }}" \
+      '{requests: {cpu: $req}} + (if $lim != "" then {limits: {cpu: $lim}} else {} end)')
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item.key }} \
+      --type strategic -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$c\",\"resources\":$res}]}}}}"
+  loop: "{{ mojaloop_cpu_requests | dict2items }}"
+  register: _cpu_req
+  changed_when: "'patched' in (_cpu_req.stdout | default(''))"
+  environment: "{{ kubectl_env }}"
+
+# Chart probes are timeoutSeconds:1 / failureThreshold:3 — kill-happy for pods
+# that are briefly CPU-starved at load start. Relax both probes on the
+# deployments listed; strategic merge keeps path/port/period from the chart.
+- name: Relax probes on load-fragile deployments
+  ansible.builtin.shell: |
+    c=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployment {{ item }} \
+      -o jsonpath='{.spec.template.spec.containers[0].name}' 2>/dev/null)
+    if [ -z "$c" ]; then
+      echo "SKIPPED: {{ item }} not found (disabled for this scenario?)"
+      exit 0
+    fi
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
+      --type strategic -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$c\",
+        \"livenessProbe\":{\"timeoutSeconds\":{{ mojaloop_probe_timeout_seconds }},\"failureThreshold\":{{ mojaloop_probe_failure_threshold }}},
+        \"readinessProbe\":{\"timeoutSeconds\":{{ mojaloop_probe_timeout_seconds }},\"failureThreshold\":{{ mojaloop_probe_failure_threshold }}}}]}}}}"
+  loop: "{{ mojaloop_probe_relax_deployments }}"
+  register: _probe_relax
+  changed_when: "'patched' in (_probe_relax.stdout | default(''))"
+  environment: "{{ kubectl_env }}"
+
+- name: Apply NetworkPolicy (optional)
+  when: apply_network_policy
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} apply -f {{ mojaloop_network_policy }}
+  register: _np
+  changed_when: "'created' in _np.stdout or 'configured' in _np.stdout"
+  environment: "{{ kubectl_env }}"
+
+# ---- Per-scenario configmap overrides ----
+# Applied first so the single Recreate rollout (triggered by the topology patch
+# below) picks up both configmap content and topology constraints in one shot.
+
+- name: Stat scenario configmaps directory
+  ansible.builtin.stat:
+    path: "{{ scenario_dir }}/configmaps"
+  register: _cm_dir_stat
+
+- name: Patch Mojaloop configmaps from scenario overrides
+  when: _cm_dir_stat.stat.exists
+  ansible.builtin.shell: |
+    file="{{ scenario_dir }}/configmaps/{{ item.value }}"
+    if [ ! -f "$file" ]; then
+      echo "skip: $file not present"
+    elif ! kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get configmap {{ item.key }} &>/dev/null; then
+      echo "skip: configmap {{ item.key }} not found (disabled for this scenario?)"
+    else
+      kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch configmap {{ item.key }} \
+        --type merge -p "$(jq -n --arg cfg "$(cat $file)" '{data: {"default.json": $cfg}}')"
+    fi
+  loop: "{{ mojaloop_configmap_patches | dict2items }}"
+  register: _cm_patch
+  changed_when: "'patched' in (_cm_patch.stdout | default(''))"
+  environment: "{{ kubectl_env }}"
+
+# When helm runs, the strip/re-patch cycle rolls every deployment, so new
+# configmap content is picked up implicitly. When helm is SKIPPED, a changed
+# configmap needs an explicit restart of its deployment (configmap name is
+# <deployment>-config).
+- name: Restart deployments whose configmap changed (helm skipped)
+  when: >-
+    _helm_need.stdout == 'skip'
+    and item.stdout is defined
+    and 'patched' in item.stdout
+    and '(no change)' not in item.stdout
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout restart \
+      deployment {{ item.item.key | regex_replace('-config$', '') }}
+  loop: "{{ _cm_patch.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key | default('') }}"
+  register: _cm_restart
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+
+# ---- Deployment topology patches ----
+# Each deployment gets exactly one patch that sets:
+#   strategy: Recreate  — kills all pods at once so the topology scheduler
+#                         starts from a clean slate (no skewed baseline)
+#   topologySpreadConstraints:
+#     hostname  DoNotSchedule + nodeTaintsPolicy:Honor
+#               Honor excludes tainted infra nodes (kafka, mysql) from the
+#               domain count so only the 4 generic switch nodes are eligible.
+#     zone      ScheduleAnyway (best-effort)
+#
+# Callback deployments also receive hostAliases (DFSP node IPs) in the same
+# patch so only one rollout is triggered per deployment. The mtls_switch role
+# (sidecar mode) re-applies these same real DFSP IPs and injects an istio-proxy
+# so each pod originates Leg B mTLS directly (no egress gateway).
+
+- name: Stat hostAliases JSON
+  ansible.builtin.stat:
+    path: "{{ mojaloop_hostaliases_json }}"
+  register: _ha_stat
+
+- name: Patch callback deployments — Recreate + topology + hostAliases
+  when: _ha_stat.stat.exists
+  ansible.builtin.shell: |
+    ha=$(jq '.spec.template.spec.hostAliases' {{ mojaloop_hostaliases_json }})
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item.deploy }} \
+      --type=merge -p "$(jq -n --arg app '{{ item.app }}' --argjson ha "$ha" '{
+        spec: {
+          strategy: {type: "Recreate", rollingUpdate: null},
+          template: {spec: {
+            hostAliases: $ha,
+            topologySpreadConstraints: [
+              {maxSkew: 1, topologyKey: "kubernetes.io/hostname",
+               whenUnsatisfiable: "DoNotSchedule",
+               nodeAffinityPolicy: "Honor", nodeTaintsPolicy: "Honor",
+               labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}},
+              {maxSkew: 1, topologyKey: "topology.kubernetes.io/zone",
+               whenUnsatisfiable: "ScheduleAnyway",
+               labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}}
+            ]
+          }}
+        }
+      }')"
+  loop: "{{ mojaloop_callback_topology_deployments }}"
+  register: _callback_patch
+  changed_when: "'patched' in _callback_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Patch multi-replica deployments — Recreate + topology
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item.deploy }} \
+      --type=merge -p "$(jq -n --arg app '{{ item.app }}' '{
+        spec: {
+          strategy: {type: "Recreate", rollingUpdate: null},
+          template: {spec: {topologySpreadConstraints: [
+            {maxSkew: 1, topologyKey: "kubernetes.io/hostname",
+             whenUnsatisfiable: "DoNotSchedule",
+             nodeAffinityPolicy: "Honor", nodeTaintsPolicy: "Honor",
+             labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}},
+            {maxSkew: 1, topologyKey: "topology.kubernetes.io/zone",
+             whenUnsatisfiable: "ScheduleAnyway",
+             labelSelector: {matchLabels: {"app.kubernetes.io/name": $app}}}
+          ]}}
+        }
+      }')"
+  loop: "{{ mojaloop_topology_deployments }}"
+  register: _topo_patch
+  changed_when: "'patched' in _topo_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Patch singleton deployments — soft anti-affinity across switch nodes
+  ansible.builtin.shell: |
+    if kubectl --kubeconfig={{ kc_switch }} get deployment {{ item }} -n {{ ns_mojaloop }} &>/dev/null; then
+      kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
+        --type=merge -p '{"spec":{"template":{"spec":{"affinity":{"podAntiAffinity":{
+          "preferredDuringSchedulingIgnoredDuringExecution":[{
+            "weight":100,
+            "podAffinityTerm":{
+              "topologyKey":"kubernetes.io/hostname",
+              "labelSelector":{"matchExpressions":[{
+                "key":"app.kubernetes.io/instance",
+                "operator":"In",
+                "values":["moja"]
+              }]}
+            }
+          }]
+        }}}}}}'
+    fi
+  loop: "{{ mojaloop_singleton_deployments }}"
+  register: _singleton_patch
+  changed_when: "'patched' in _singleton_patch.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Patch TTK StatefulSet with hostAliases
+  when: _ha_stat.stat.exists
+  ansible.builtin.shell: |
+    ha=$(jq '.spec.template.spec.hostAliases' {{ mojaloop_hostaliases_json }})
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch statefulset moja-ml-testing-toolkit-backend \
+      --type=strategic --patch "$(jq -n --argjson ha "$ha" \
+        '{"spec":{"template":{"spec":{"hostAliases":$ha}}}}')"
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# ---- Wait for rollouts ----
+# Recreate rollouts triggered by the topology patches above.
+
+- name: Wait for multi-replica deployment rollouts
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} \
+      rollout status deployment {{ item }} --timeout=600s
+  loop: "{{ mojaloop_restart_deployments }}"
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Expose nginx ingress on NodePort 30080
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ switch_nginx_nodeport }}
+  register: _nginx_np
+  changed_when: "'created' in _nginx_np.stdout or 'configured' in _nginx_np.stdout"
+  environment: "{{ kubectl_env }}"

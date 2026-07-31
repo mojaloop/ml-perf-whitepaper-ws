@@ -1,0 +1,180 @@
+---
+# Per-FSP deployment loop body. fsp_idx (e.g. 201) is supplied by the
+# parent loop in main.yml.
+
+- name: "fsp{{ fsp_idx }}: set facts"
+  ansible.builtin.set_fact:
+    fsp_name: "fsp{{ fsp_idx }}"
+    kc_fsp: "{{ kubeconfig_dir }}/kubeconfig-fsp{{ fsp_idx }}.yaml"
+    fsp_values: "{{ dfsp_values_dir }}/values-fsp{{ fsp_idx }}.yaml"
+    fsp_sdk_deploy: "dfsp-sim-fsp{{ fsp_idx }}-scheme-adapter"
+
+# ---- ns + dockerhub-secret + SA patch ----
+
+- name: "fsp{{ fsp_idx }}: ensure namespace"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} create ns {{ ns_dfsps }} \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_fsp }} apply -f -
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: dockerhub-secret"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} \
+      create secret docker-registry dockerhub-secret \
+      --docker-server=https://index.docker.io/v1/ \
+      --docker-username='{{ dockerhub_username }}' \
+      --docker-password='{{ dockerhub_token }}' \
+      --docker-email='{{ dockerhub_email }}' \
+      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_fsp }} apply -f -
+  changed_when: false
+  no_log: true
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: patch default SA with imagePullSecrets"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} patch serviceaccount default \
+      -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}'
+  changed_when: false
+  failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: tune nginx ingress ConfigMap for high throughput"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress patch configmap nginx-load-balancer-microk8s-conf \
+      --type merge -p '{"data":{"worker-processes":"auto","worker-connections":"65536","keep-alive":"120","keepalive-requests":"10000"}}'
+  register: _nginx_cm
+  # kubectl prints "... patched (no change)" when nothing changed. Only restart
+  # (and wait) when the ConfigMap actually changed — skips ~2min of rollout on
+  # every re-run where nginx tuning is already in place.
+  changed_when: "'(no change)' not in _nginx_cm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: restart nginx ingress (only if ConfigMap changed)"
+  when: _nginx_cm.changed
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout restart daemonset nginx-ingress-microk8s-controller
+    kubectl --kubeconfig={{ kc_fsp }} -n ingress rollout status daemonset nginx-ingress-microk8s-controller --timeout=120s
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+
+# ---- helm install simulator ----
+
+# _scenario_dfsp_stat was already registered once in main.yml (it also reads
+# dfsp.yaml's scenario-wide replica counts). Here we only need the Helm
+# overlay under `simulators.<this-fsp>.*` — replica counts and any other
+# ansible-facing top-level key are NOT forwarded to Helm, only `simulators`.
+# Without this filtering every cluster's chart would render Deployments for
+# all 8 sims (24 deployments/cluster vs. the 3 actually needed).
+- name: "fsp{{ fsp_idx }}: load + filter scenario override to this FSP"
+  when: _scenario_dfsp_stat.stat.exists
+  block:
+    - name: "fsp{{ fsp_idx }}: load full override"
+      ansible.builtin.set_fact:
+        _full_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
+
+    # Built as a single Jinja expression (native dict) — Ansible templates
+    # dict values but not dict keys, so a YAML mapping with a templated key
+    # would ship the literal string "{{ fsp_name }}" to Helm.
+    - name: "fsp{{ fsp_idx }}: build per-FSP override (simulators only)"
+      ansible.builtin.set_fact:
+        _per_fsp_override: "{{ {'simulators': {fsp_name: (_full_override.simulators | default({})).get(fsp_name, {})}} }}"
+
+    - name: "fsp{{ fsp_idx }}: write filtered override to artifacts"
+      ansible.builtin.copy:
+        content: "{{ _per_fsp_override | to_nice_yaml(indent=2) }}"
+        dest: "{{ scenario_artifacts_dir }}/dfsp-{{ fsp_name }}-override.yaml"
+        mode: '0644'
+
+- name: "fsp{{ fsp_idx }}: build scenario override -f arg"
+  ansible.builtin.set_fact:
+    _fsp_override_arg: "{{ '--values ' ~ scenario_artifacts_dir ~ '/dfsp-' ~ fsp_name ~ '-override.yaml' if _scenario_dfsp_stat.stat.exists else '' }}"
+
+- name: "fsp{{ fsp_idx }}: helm install simulator"
+  ansible.builtin.shell: |
+    # --force-conflicts --take-ownership: needed once per cluster to wrest
+    # field ownership from `kubectl-set` (legacy post-install env-setter
+    # that has since been moved into helm values). Safe to keep on.
+    helm --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} upgrade --install \
+      {{ dfsp_release }} {{ dfsp_chart }} \
+      --version {{ dfsp_version }} \
+      --values {{ fsp_values }} {{ _fsp_override_arg }} \
+      --create-namespace \
+      --force-conflicts --take-ownership \
+      --wait --timeout 10m
+  register: _dfsp_helm
+  changed_when: "'has been upgraded' in _dfsp_helm.stdout or 'has been deployed' in _dfsp_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+# Scale only scheme-adapter — replicaCount in Helm values applies to all
+# components (backend+cache+adapter), so we scale imperatively instead.
+# Replica counts are dfsp_sdk_replicas (per-FSP) in defaults/main.yml.
+- name: "fsp{{ fsp_idx }}: scale scheme-adapter replicas"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment {{ fsp_sdk_deploy }} \
+      --replicas={{ dfsp_sdk_replicas[fsp_name] | default(dfsp_sdk_replicas_default) }}
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# Scale the sim backend per dfsp_backend_replicas (defaults/main.yml). Every
+# backend pod needs its own party seed afterwards — sim_provision handles it.
+- name: "fsp{{ fsp_idx }}: scale sim backend replicas"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} scale deployment dfsp-sim-{{ fsp_name }}-backend \
+      --replicas={{ dfsp_backend_replicas[fsp_name] | default(dfsp_backend_replicas_default) }}
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# Patch hostAliases (switch services) + probe periodSeconds.
+- name: "fsp{{ fsp_idx }}: patch hostAliases for switch services"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} patch deployment {{ fsp_sdk_deploy }} --type=json -p='[
+      {"op":"add","path":"/spec/template/spec/hostAliases","value":[
+        {"ip":"{{ switch_lb_ip }}","hostnames":["account-lookup-service.local","quoting-service.local","ml-api-adapter.local"]}
+      ]}
+    ]'
+  changed_when: false
+  failed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: patch Redis cache args (maxmemory + no-persistence)"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} patch deployment dfsp-sim-{{ fsp_name }}-cache \
+      --type=strategic -p '{"spec":{"template":{"spec":{"containers":[
+        {"name":"cache","args":["--maxmemory","200mb","--maxmemory-policy","allkeys-lru","--save",""]}
+      ]}}}}'
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: relax probe periodSeconds"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} patch deployment {{ fsp_sdk_deploy }} --type=json -p='[
+      {"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe/periodSeconds","value":{{ dfsp_probe_period_seconds }}},
+      {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/periodSeconds","value":{{ dfsp_probe_period_seconds }}}
+    ]'
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# CoreDNS hosts{} block for switch services (DFSP cluster's own resolver).
+- name: "fsp{{ fsp_idx }}: render DFSP CoreDNS Corefile"
+  ansible.builtin.template:
+    src: dfsp-coredns.j2
+    dest: "{{ scenario_artifacts_dir }}/dfsp-{{ fsp_name }}-coredns.yaml"
+    mode: '0644'
+
+- name: "fsp{{ fsp_idx }}: patch DFSP cluster CoreDNS"
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n kube-system patch configmap coredns \
+      --type merge --patch-file {{ scenario_artifacts_dir }}/dfsp-{{ fsp_name }}-coredns.yaml
+  register: _coredns_cm
+  changed_when: "'(no change)' not in _coredns_cm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: "fsp{{ fsp_idx }}: restart CoreDNS (only if ConfigMap changed)"
+  when: _coredns_cm.changed
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_fsp }} -n kube-system rollout restart deployment coredns
+    kubectl --kubeconfig={{ kc_fsp }} -n kube-system rollout status  deployment coredns --timeout=120s
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+

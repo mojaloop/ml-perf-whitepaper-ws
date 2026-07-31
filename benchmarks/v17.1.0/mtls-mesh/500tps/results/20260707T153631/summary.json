@@ -1,0 +1,11 @@
+{
+  "version": "v17.1.0",
+  "mtls": "mesh",
+  "tps": 500,
+  "run_id": "20260707T153631",
+  "status": "PASS",
+  "actual_tps": 499.9,
+  "success_pct": 99.93,
+  "p99_ms": { "discovery": 53, "quote": 288, "transfer": 698, "e2e": 910 },
+  "notes": "Scenario #3 FINAL — ambient mesh + Kafka-TLS + MySQL-TLS (gap-free). e2e p99 is the STEADY-STATE figure (authoritative). Full-run aggregate p99 963ms (also <1s, unclipped). Statistically identical to scenario #2 (909ms) — headline: workload-identity mesh costs ~nothing over transparent encryption at this scale."
+}

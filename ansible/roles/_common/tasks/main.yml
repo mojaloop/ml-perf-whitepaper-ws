@@ -1,0 +1,38 @@
+---
+# Pre-flight checks shared by every deployment role.
+# Roles include this via `import_role: name=_common` at the top of
+# their tasks/main.yml.
+
+# Per-scenario chart version overrides. versions.yml sets `scenario_chart_versions:`,
+# which the chart_versions default (defaults/main.yml) merges onto chart_versions_default.
+- name: Check for per-scenario version overrides
+  ansible.builtin.stat:
+    path: "{{ scenario_dir }}/versions.yml"
+  register: _versions_stat
+
+- name: Load per-scenario version overrides (versions.yml)
+  ansible.builtin.include_vars:
+    file: "{{ scenario_dir }}/versions.yml"
+  when: _versions_stat.stat.exists
+
+- name: Verify SOCKS tunnel is up
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 1080
+    timeout: 2
+    msg: |
+      SOCKS5 tunnel on 127.0.0.1:1080 is not up.
+      Start it with: make tunnel SCENARIO={{ scenario }}
+
+- name: Verify scenario artifacts directory exists
+  ansible.builtin.stat:
+    path: "{{ scenario_artifacts_dir }}"
+  register: _artifacts_stat
+
+- name: Fail if scenario artifacts are missing
+  ansible.builtin.fail:
+    msg: |
+      Scenario artifacts not found at {{ scenario_artifacts_dir }}.
+      Run `make terraform-apply SCENARIO={{ scenario }}` and
+      `make k8s SCENARIO={{ scenario }}` first.
+  when: not _artifacts_stat.stat.exists

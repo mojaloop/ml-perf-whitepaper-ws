@@ -1,0 +1,83 @@
+---
+# Istio ambient mesh — pod-pod mTLS with workload identity, without per-pod
+# sidecars. One ztunnel L4 proxy per node carries HBONE mTLS (istiod-issued
+# SPIFFE certs) between all enrolled pods, including same-node pairs and the
+# datastores. Enrollment is live (istio-cni programs redirection in the pod
+# netns), no pod restarts.
+#
+# Mixed mode: the DFSP-edge deployments (ALS / quoting-service-handler /
+# notif-handler) keep their injected sidecars — ztunnel cannot originate TLS
+# with the file-mounted partner certs, and sidecar pods are automatically
+# excluded from ambient capture. Sidecar and ambient pods interoperate.
+#
+# Run after `make mtls` (istio base/istiod/gateway must exist). The mtls role
+# detects an ambient-enrolled namespace and preserves the ambient istiod
+# profile and widened interception, so the stages converge in either order.
+# To replace WireGuard with ambient as the pod-pod encryption layer, disable
+# WireGuard separately: `make cilium` (without the encryption flag).
+
+istio_version: "{{ chart_versions.istio }}"
+ambient_helm_timeout: 10m
+
+# istiod values: the base file (shared with mtls_switch) + the ambient overlay.
+istiod_values:         "{{ common_dir }}/istiod-values.yaml"
+ambient_istiod_overlay: "{{ common_dir }}/istiod-ambient.yaml"
+
+# MicroK8s containerd reads CNI conf/binaries from under /var/snap/microk8s —
+# same paths the cilium role uses. istio-cni CHAINS after Cilium (the cilium
+# role sets cni.exclusive=false + socketLB.hostNamespaceOnly for exactly this).
+ambient_cni_conf_dir: /var/snap/microk8s/current/args/cni-network
+ambient_cni_bin_dir:  /var/snap/microk8s/current/opt/cni/bin
+
+# Namespaces enrolled in the ambient dataplane (istio.io/dataplane-mode=ambient).
+#   mojaloop   — all app pods AND datastores (kafka/mysql/mongo/redis): their
+#                traffic gets ztunnel mTLS, replacing WireGuard coverage.
+#   monitoring — Prometheus joins the mesh so its scrapes of enrolled pods
+#                ride HBONE instead of being rejected under STRICT.
+#   ingress    — nginx joins so ingress :80 upstream calls to STRICT pods work.
+ambient_namespaces:
+  - "{{ ns_mojaloop }}"
+  - monitoring
+  - ingress
+
+# STRICT PeerAuthentication: enrolled pods accept ONLY mesh mTLS. Applied to
+# the app namespace; monitoring/ingress stay PERMISSIVE (they receive
+# off-mesh traffic: remote_write from DFSP clusters, NLB health checks).
+ambient_strict: true
+ambient_strict_namespaces:
+  - "{{ ns_mojaloop }}"
+
+# Datastores accept BOTH mesh mTLS and plaintext (selector PERMISSIVE
+# overriding the namespace STRICT). Required for any ENROLLED datastore
+# because (a) chart init containers (wait-for-mysql) run BEFORE a pod joins
+# the mesh, and (b) the DFSP-edge sidecar pods intercept only scoped egress,
+# so their datastore connections arrive outside the mesh. Enrolled↔enrolled
+# traffic still gets ztunnel mTLS automatically — PERMISSIVE only permits the
+# plaintext fallback, it never downgrades mesh-capable peers. For datastores
+# excluded from the mesh (istio.io/dataplane-mode=none + protocol TLS, the
+# standard posture in backend.yaml), these are inert safety nets.
+# Values = app.kubernetes.io/name.
+ambient_permissive_workloads:
+  - mysql
+  - kafka
+
+# The DFSP-edge sidecars ship with outbound interception scoped to the DFSP
+# IP ranges. In mesh mode that scoping breaks their app↔app calls (e.g. the
+# notification handler's central-ledger health/endpoint lookups, ALS→oracle):
+# those flows bypass Envoy, arrive plaintext at STRICT-enrolled pods, and get
+# reset. Widen interception to ALL outbound so app↔app rides sidecar mTLS
+# (sidecar↔ztunnel interop); datastore ports stay outside Envoy — direct to
+# the PERMISSIVE datastores, never proxied.
+ambient_sidecar_deployments:
+  - moja-account-lookup-service
+  - moja-quoting-service-handler
+  - moja-ml-api-adapter-handler-notification
+ambient_sidecar_exclude_outbound_ports: "9092,3306,27017,6379"
+
+# Enrollment captures NEW connections only; pods hold long-lived flows (Kafka
+# consumers, MySQL pools) opened before enrollment, which would stay outside
+# the mesh. Restarting the app deployments re-establishes every connection
+# through ztunnel. Datastores are never restarted (their inbound conns renew
+# with the app restarts; a Kafka pod recreation wipes its emptyDir).
+ambient_restart_workloads: true
+ambient_restart_timeout: 1200s

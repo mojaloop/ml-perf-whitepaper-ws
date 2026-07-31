@@ -1,0 +1,6 @@
+---
+- name: Scrape Istio proxy telemetry (gateways + sidecars) into promfana Prometheus
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: istio_telemetry

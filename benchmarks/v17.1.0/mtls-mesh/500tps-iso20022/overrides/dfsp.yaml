@@ -1,0 +1,110 @@
+# Per-scenario DFSP simulator overrides — layered on top of
+# common/dfsp/values-fspNNN.yaml by the dfsp role's per_fsp loop.
+#
+#   - ENABLE_TEST_FEATURES=false for all FSPs (base values set it to true)
+#   - scheme-adapter/backend replica scaling is done imperatively via kubectl
+#     scale (dfsp_sdk_replicas/dfsp_backend_replicas, per FSP, in the dfsp
+#     role defaults or this scenario's own overrides); replicaCount is NOT
+#     set here because the chart applies it to all components at once.
+#
+# NOTE: the scheme-adapter image IS pinned here to v24.19.7 — carries the fix
+# for missing ChrgBr/Cdtr/Dbtr fields on ISO20022 /simpleTransfers requests.
+# Revert to the chart default once a newer default picks this version up.
+
+# Sim backend replicas per FSP (single-threaded process, ~1 core each;
+# unlisted FSPs get dfsp_backend_replicas_default). Every backend pod is
+# seeded individually by `make provision`.
+dfsp_backend_replicas_default: 1
+dfsp_backend_replicas: {}
+
+# One block per FSP because the values structure is keyed by simulator name.
+
+simulators:
+  fsp201:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"
+  fsp202:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"
+  fsp203:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"
+  fsp204:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"
+  fsp205:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"
+  fsp206:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"
+  fsp207:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"
+  fsp208:
+    config:
+      schemeAdapter:
+        image:
+          repository: mojaloop/sdk-scheme-adapter
+          tag: v24.19.7
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+          LOG_LEVEL: "info"

@@ -1,0 +1,124 @@
+---
+# Cilium eBPF CNI, replacing MicroK8s' default Calico dataplane. Also sets the
+# Cilium<->Istio integration flags needed if Istio ambient is enabled later,
+# so ambient can be turned on without reinstalling or reconfiguring Cilium.
+
+cilium_version: "1.17.1"
+cilium_helm_repo: "https://helm.cilium.io"
+cilium_namespace: kube-system
+cilium_release_name: cilium
+
+cilium_cluster_name: "{{ config.k8s.switch_cluster_name | default('mojaloop-switch') }}"
+
+# Set explicitly to the cluster's actual pod CIDR — Cilium's cluster-pool IPAM
+# must match what MicroK8s already carved (kube-proxy --cluster-cidr etc.), not
+# whatever common/aws.yaml's networking.pod_network_cidr says (that value is
+# unrelated to the live MicroK8s CIDR).
+cilium_pod_cidr: "10.1.0.0/16"
+cilium_pod_cidr_mask_size: 24
+
+# Native-routing CIDR: pod traffic within this range is routed directly (no
+# masquerade, no encap). Defaults to the pod CIDR since all switch nodes share
+# one L2 subnet.
+cilium_native_routing_cidr: "{{ cilium_pod_cidr }}"
+
+# false: Cilium's eBPF native-routing dataplane coexists with MicroK8s'
+# embedded kube-proxy — this alone removes the CNI-level packet re-injection
+# that drove softirq load, without touching kube-proxy.
+# true: also requires disabling MicroK8s' embedded kube-proxy (baked into
+# kubelite; see cilium_disable_microk8s_kube_proxy). Validate on a fresh
+# cluster first — this path can leave a cluster unreachable if misconfigured.
+cilium_kube_proxy_replacement: "false"
+
+# When kube-proxy-free, Cilium must reach the API server directly.
+cilium_k8s_service_host: ""        # set in tasks from the primary node IP
+cilium_k8s_service_port: "16443"
+
+# The switch ingress (istio-ingressgateway :443, nginx :80) runs as hostPort
+# DaemonSets fronted by the NLB. With kubeProxyReplacement=false, Cilium
+# otherwise leaves hostPort unprogrammed, black-holing all inbound traffic —
+# enable it explicitly (it needs the nodePort datapath too).
+cilium_host_port_enabled: true
+cilium_node_port_enabled: true
+
+# BPF masquerade + eBPF host-routing + eBPF hostPort need Cilium's eBPF
+# service layer, which is on whenever kubeProxyReplacement is true OR nodePort
+# is enabled (our case, for hostPort ingress). Gate on "kpr OR nodePort".
+cilium_bpf_masquerade: "{{ 'true' if (cilium_kube_proxy_replacement | string | lower == 'true' or cilium_node_port_enabled | bool) else 'false' }}"
+cilium_bpf_host_legacy_routing: "{{ 'false' if (cilium_kube_proxy_replacement | string | lower == 'true' or cilium_node_port_enabled | bool) else 'true' }}"
+
+# Disabling MicroK8s' embedded kube-proxy is MicroK8s-version specific and
+# only meaningful when cilium_kube_proxy_replacement == "true" — off by default.
+cilium_disable_microk8s_kube_proxy: false
+
+# Cilium's L7 proxy hosts the DNS proxy backing toFQDNs egress rules
+# (cilium_egress_lockdown below). Cheap to leave on.
+cilium_l7_proxy: true
+
+cilium_hubble_enabled: true
+
+# cni.exclusive=false lets istio-cni chain after Cilium so ambient's redirect
+# can be installed; socketLB.hostNamespaceOnly keeps Cilium's socket-LB out of
+# the pod netns so it doesn't swallow ztunnel's redirect. Harmless with plain
+# sidecar Istio, so safe to leave on regardless of whether ambient is used.
+cilium_ambient_ready: true
+
+# eBPF socket-level LB: pod->ClusterIP connections are redirected to a backend
+# pod IP at connect() time, bypassing kube-proxy iptables and the host
+# netif_rx backlog. Works without full kube-proxy replacement.
+cilium_socketlb_enabled: true
+# Must be true for Istio ambient — pod-netns socketLB would resolve ClusterIP
+# before ztunnel can capture the flow, letting traffic escape the mesh.
+# playbooks/ambient.yml overrides this (and disables WireGuard) when
+# reconfiguring Cilium for the mesh.
+cilium_socketlb_hostns_only: false
+
+# Removes the MicroK8s Calico dataplane before installing Cilium (backs up
+# the CNI manifest first). Disable only if Calico was already removed.
+cilium_replace_calico: true
+cilium_calico_manifest: /var/snap/microk8s/current/args/cni-network/cni.yaml
+cilium_values_remote_path: /var/snap/microk8s/common/cilium-values.yaml
+
+# MicroK8s' containerd reads CNI config/binaries from under /var/snap/microk8s,
+# not the upstream defaults the Cilium chart writes to by default — without
+# these overrides, non-hostNetwork pods hang in ContainerCreating while the
+# (hostNetwork) Cilium agents run fine.
+cilium_cni_conf_path: /var/snap/microk8s/current/args/cni-network
+cilium_cni_bin_path: /var/snap/microk8s/current/opt/cni/bin
+cilium_stale_cni_confs:
+  - "{{ cilium_cni_conf_path }}/10-calico.conflist"
+  - "{{ cilium_cni_conf_path }}/05-cilium.conflist.old"
+
+# MicroK8s' confined containerd invokes cilium-cni in a mount namespace where
+# /var/run/cilium resolves here — the agent must write its socket to this
+# path or every non-hostNetwork pod fails sandbox setup.
+cilium_run_path: /var/snap/microk8s/current/var/run/cilium
+
+cilium_operator_replicas: 1
+cilium_helm_timeout: 10m
+
+# Kernel WireGuard tunnels between nodes: every cross-node pod packet is
+# encrypted in-kernel (Kafka, MySQL, Mongo, Redis, HTTP), no app/chart
+# changes needed. Same-node pod traffic never leaves the host and is not
+# encrypted. Requires UDP 51871 between nodes and an in-kernel WireGuard
+# module. Toggle per run: make cilium SCENARIO=<s> EXTRA='-e cilium_encryption_enabled=true'
+cilium_encryption_enabled: false
+cilium_encryption_type: wireguard
+
+cilium_rollout_timeout: 300s
+
+# Optional egress lockdown: default-deny egress for the mojaloop namespace,
+# allowing only cluster-internal traffic, kube-dns, and the 8 DFSP sim hosts
+# on :443. Audit the full egress inventory (image pulls, AWS APIs, etc.)
+# before enabling — this will block anything not explicitly allowed.
+cilium_egress_lockdown: false
+cilium_egress_namespace: "{{ ns_mojaloop | default('mojaloop') }}"
+cilium_egress_allowed_fqdns:
+  - "sim-fsp201.local"
+  - "sim-fsp202.local"
+  - "sim-fsp203.local"
+  - "sim-fsp204.local"
+  - "sim-fsp205.local"
+  - "sim-fsp206.local"
+  - "sim-fsp207.local"
+  - "sim-fsp208.local"

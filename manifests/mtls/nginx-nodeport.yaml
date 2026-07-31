@@ -1,0 +1,28 @@
+# NodePort exposure for the MicroK8s nginx ingress controller (:80). Cilium
+# (kubeProxyReplacement=false) doesn't program hostPort, so the
+# nginx-ingress-microk8s-controller DaemonSet's hostPort :80 doesn't forward;
+# Cilium does implement NodePort, so this additive Service exposes the same
+# pods on nodePort 30080 -> container :80, which the NLB :80 listener targets.
+# The MicroK8s addon DaemonSet itself is left unmodified — its stale hostPort
+# is harmless (ignored by Cilium).
+#
+# Selector matches the MicroK8s ingress addon pod label
+# (name=nginx-ingress-microk8s) — verify on your build:
+#   kubectl -n ingress get pod --show-labels | grep nginx
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-ingress-nodeport
+  namespace: ingress
+  labels:
+    app: nginx-ingress-nodeport
+spec:
+  type: NodePort
+  selector:
+    name: nginx-ingress-microk8s
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+      protocol: TCP

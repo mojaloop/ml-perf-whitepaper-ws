@@ -1,0 +1,61 @@
+# Switch ingress gateway upstream connection-pool caps. Without these,
+# Envoy's upstream pool to the three switch services (account-lookup-service,
+# quoting-service, ml-api-adapter) is unbounded (uint32 max); under sustained
+# TPS the gateway can accumulate huge numbers of upstream fds and, combined
+# with the downstream side from DFSP SDK reconnects, hit its per-container fd
+# ceiling and EMFILE-storm. Bounding the pool and forcing connection reuse is
+# the cheap complement to raising the container fd ceiling (ansible OS-tuning
+# tasks) — apply both.
+#
+# Applied by: ansible/roles/mtls_switch/tasks/main.yml
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: switch-upstream-pool-als
+  namespace: mojaloop
+spec:
+  host: moja-account-lookup-service.mojaloop.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 5000
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        maxRequestsPerConnection: 1000
+        idleTimeout: 60s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: switch-upstream-pool-quoting
+  namespace: mojaloop
+spec:
+  host: moja-quoting-service.mojaloop.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 5000
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        maxRequestsPerConnection: 1000
+        idleTimeout: 60s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: switch-upstream-pool-ml-api
+  namespace: mojaloop
+spec:
+  host: moja-ml-api-adapter-service.mojaloop.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 5000
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        maxRequestsPerConnection: 1000
+        idleTimeout: 60s

@@ -1,0 +1,38 @@
+---
+# Promfana (prometheus + grafana + alertmanager) on the switch cluster.
+# Chart is NOT published to mojaloop.io/helm/repo — clone from GitHub at
+# deploy time and reference the local path.
+
+monitoring_helm_repo_url: "https://github.com/mojaloop/helm.git"
+monitoring_helm_repo_branch: "main"
+monitoring_helm_repo_local: "{{ scenario_artifacts_dir }}/mojaloop-helm"
+
+# Local chart path inside the cloned repo
+monitoring_chart: "{{ monitoring_helm_repo_local }}/monitoring/promfana"
+monitoring_release: promfana
+
+monitoring_values_files:
+  - "{{ common_dir }}/monitoring.yaml"
+  - "{{ scenario_overrides_dir }}/monitoring.yaml"
+
+monitoring_namespace: monitoring
+
+# Dashboards checked into this role (files/dashboards/), applied as a
+# standalone ConfigMap (see tasks/main.yml) rather than into the cloned
+# chart, so they land in their own Grafana folder alongside the chart's
+# own dashboards rather than replacing them.
+monitoring_custom_dashboards:
+  - capacity-saturation.json
+  - mtls-mesh-overhead.json
+  - service-mesh-hop-latency.json
+  - k6-transaction-latency.json
+  - central-ledger-transfer-legs.json
+  - account-lookup-service-v2.json
+  - quoting-service-v2.json
+  - ml-api-adapter-v2.json
+  - mysql-overview-v2.json
+  - fsp-capacity.json
+  - kafka-overview.json
+
+monitoring_custom_dashboards_configmap: whitepaper-dashboards
+monitoring_custom_dashboards_folder: "Whitepaper"

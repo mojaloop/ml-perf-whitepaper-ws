@@ -1,0 +1,164 @@
+---
+# Cilium eBPF CNI install. Runs ON the switch nodes (become) and drives the
+# cluster via `microk8s` on the primary node — same pattern as
+# playbooks/02-configure-switch-cluster.yml. Does NOT import _common (that is
+# for tunnel/kubeconfig-based app roles; this runs node-local like 01/02).
+#
+# Run on a fresh, empty cluster (immediately after `make k8s`, before any app
+# stage) — the Calico->Cilium swap briefly breaks pod networking until the
+# Cilium agent is Ready; on an empty cluster only kube-system pods reschedule.
+
+- name: Resolve primary switch node
+  ansible.builtin.set_fact:
+    primary_node: "{{ primary_node | default(groups['switch'] | select('match', '.*n1$') | first) }}"
+
+- name: Resolve API server host for kube-proxy-free mode
+  ansible.builtin.set_fact:
+    cilium_k8s_service_host: >-
+      {{ cilium_k8s_service_host
+         | default(hostvars[primary_node].ansible_host, true)
+         | default(hostvars[primary_node].ansible_default_ipv4.address, true) }}
+  when: cilium_kube_proxy_replacement | string | lower == 'true'
+
+# Per-node (runs on every switch host): drop stale Calico conflists from the
+# MicroK8s CNI conf dir so containerd doesn't try a dangling plugin. Cilium's
+# agent writes 05-cilium.conflist here once confPath is correct.
+- name: Remove stale Calico CNI conflists from the MicroK8s conf dir
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ cilium_stale_cni_confs }}"
+
+# All cluster-level operations run once, from the primary node.
+- name: Install Cilium (run once from the primary node)
+  run_once: true
+  delegate_to: "{{ primary_node }}"
+  block:
+    - name: Add + update the Cilium helm repo
+      ansible.builtin.shell: |
+        microk8s helm3 repo add cilium {{ cilium_helm_repo }} 2>/dev/null || true
+        microk8s helm3 repo update cilium
+      changed_when: false
+
+    - name: Render Cilium helm values onto the primary node
+      ansible.builtin.template:
+        src: cilium-values.yaml.j2
+        dest: "{{ cilium_values_remote_path }}"
+        mode: '0600'
+
+    # --- Remove the Calico dataplane (backed up first) ---------------------
+    - name: Check whether Calico is the active CNI
+      ansible.builtin.shell: |
+        microk8s kubectl -n kube-system get daemonset calico-node -o name
+      register: _calico_present
+      changed_when: false
+      failed_when: false
+
+    - name: Back up the MicroK8s Calico CNI manifest (for rollback)
+      when:
+        - cilium_replace_calico | bool
+        - _calico_present.rc == 0
+      ansible.builtin.copy:
+        src: "{{ cilium_calico_manifest }}"
+        dest: "{{ cilium_calico_manifest }}.pre-cilium.bak"
+        remote_src: true
+        force: false
+      failed_when: false
+
+    - name: Remove the Calico dataplane resources
+      when:
+        - cilium_replace_calico | bool
+        - _calico_present.rc == 0
+      ansible.builtin.shell: |
+        microk8s kubectl delete -f {{ cilium_calico_manifest }} --ignore-not-found --wait=false
+      register: _calico_delete
+      changed_when: "'deleted' in _calico_delete.stdout"
+
+    # --- kube-proxy-free is an explicit, validate-first operator decision ----
+    - name: Guard — kube-proxy-free requested but auto-disable not wired
+      when:
+        - cilium_kube_proxy_replacement | string | lower == 'true'
+        - cilium_disable_microk8s_kube_proxy | bool
+      ansible.builtin.fail:
+        msg: |
+          cilium_kube_proxy_replacement=true requires MicroK8s' embedded kube-proxy
+          (inside kubelite) to be disabled first. This is MicroK8s-version specific
+          and is intentionally NOT automated here (it is the brick-prone step).
+          Either:
+            - keep cilium_kube_proxy_replacement="false" (native-routing eBPF
+              datapath already delivers the softirq fix), or
+            - disable kube-proxy out-of-band and set
+              cilium_disable_microk8s_kube_proxy=false to bypass this guard.
+
+    # --- Install Cilium -----------------------------------------------------
+    - name: Helm install Cilium
+      ansible.builtin.shell: |
+        microk8s helm3 upgrade --install {{ cilium_release_name }} cilium/cilium \
+          --namespace {{ cilium_namespace }} --version {{ cilium_version }} \
+          --timeout {{ cilium_helm_timeout }} \
+          -f {{ cilium_values_remote_path }}
+      register: _cilium_install
+      changed_when: "'has been upgraded' in _cilium_install.stdout or 'has been deployed' in _cilium_install.stdout"
+
+    # The Cilium chart does NOT stamp a config checksum on the agent DaemonSet,
+    # so a config-only `helm upgrade` updates the ConfigMap but does not roll the
+    # agents — they keep (crash-looping on) the old config until restarted. Force
+    # a roll whenever the install changed so the new cilium-config is picked up.
+    - name: Roll the Cilium agents to pick up config changes
+      when: _cilium_install.changed
+      ansible.builtin.shell: |
+        microk8s kubectl -n {{ cilium_namespace }} rollout restart daemonset/cilium
+      changed_when: true
+
+    - name: Wait for the Cilium agent DaemonSet to roll out
+      ansible.builtin.shell: |
+        microk8s kubectl -n {{ cilium_namespace }} rollout status daemonset/cilium \
+          --timeout={{ cilium_rollout_timeout }}
+      changed_when: false
+
+    - name: Wait for the Cilium operator to roll out
+      ansible.builtin.shell: |
+        microk8s kubectl -n {{ cilium_namespace }} rollout status deployment/cilium-operator \
+          --timeout={{ cilium_rollout_timeout }}
+      changed_when: false
+
+    - name: Verify Cilium status (datapath + kube-proxy mode)
+      ansible.builtin.shell: |
+        microk8s kubectl -n {{ cilium_namespace }} exec ds/cilium -c cilium-agent -- \
+          cilium-dbg status --brief
+      register: _cilium_status
+      changed_when: false
+
+    - name: Show Cilium status
+      ansible.builtin.debug:
+        msg: "Cilium: {{ _cilium_status.stdout }}"
+
+    # --- Optional egress lockdown (default off) -----------------------------
+    - name: Render the egress lockdown CiliumNetworkPolicy
+      when: cilium_egress_lockdown | bool
+      ansible.builtin.template:
+        src: egress-lockdown.yaml.j2
+        dest: "{{ cilium_values_remote_path | dirname }}/cilium-egress-lockdown.yaml"
+        mode: '0644'
+
+    - name: Apply the egress lockdown policy (AUDIT egress inventory first!)
+      when: cilium_egress_lockdown | bool
+      ansible.builtin.shell: |
+        microk8s kubectl apply -f {{ cilium_values_remote_path | dirname }}/cilium-egress-lockdown.yaml
+      register: _egress_apply
+      changed_when: "'created' in _egress_apply.stdout or 'configured' in _egress_apply.stdout"
+
+- name: Summary
+  run_once: true
+  ansible.builtin.debug:
+    msg: |
+      Cilium eBPF CNI installed (routing=native, kubeProxyReplacement={{ cilium_kube_proxy_replacement }},
+      ambient_ready={{ cilium_ambient_ready }}, egress_lockdown={{ cilium_egress_lockdown }}).
+
+      Verify under load (node-exporter / Prometheus):
+        softnet_processed_total / wire_PPS  -> should hold ~1x and flat.
+        node_softnet_dropped_total          -> 0.
+
+      This install is already ambient-compatible (cni.exclusive=false,
+      socketLB.hostNamespaceOnly) — enable the `ambient` role when ready;
+      no further Cilium changes required.

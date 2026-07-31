@@ -1,0 +1,71 @@
+# Istio telemetry scrape config — rendered by the istio_telemetry role.
+# PodMonitor scrapes every istio-proxy (gateways + sidecars) on the merged
+# :15020 endpoint (via the prometheus.io/{scrape,port,path} annotations Istio
+# injects). DO NOT edit in artifacts/ — change the role template and re-run.
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: istio-envoy-stats
+  namespace: {{ istio_telemetry_namespace }}
+  labels:
+    release: {{ istio_telemetry_release_label }}
+    app.kubernetes.io/part-of: istio-telemetry
+spec:
+  # all istio-injected pods (gateways + sidecars), any namespace
+  selector:
+    matchExpressions:
+      - { key: istio-prometheus-ignore, operator: DoesNotExist }
+  namespaceSelector:
+    any: true
+  jobLabel: istio-envoy-stats
+  podMetricsEndpoints:
+    - interval: {{ istio_telemetry_scrape_interval }}
+      path: /stats/prometheus
+      relabelings:
+        # only the sidecar/gateway container
+        - action: keep
+          sourceLabels: [__meta_kubernetes_pod_container_name]
+          regex: istio-proxy
+        # only pods Istio marked scrapable
+        - action: keep
+          sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          regex: "true"
+        # scrape podIP:<prometheus.io/port> (15020 merged endpoint)
+        - action: replace
+          sourceLabels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          targetLabel: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - action: replace
+          sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - action: replace
+          sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+      metricRelabelings:
+        - action: keep
+          sourceLabels: [__name__]
+          regex: "{{ istio_telemetry_keep_metrics_regex }}"
+{% if istio_telemetry_scrape_istiod %}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istiod-monitor
+  namespace: {{ istio_telemetry_namespace }}
+  labels:
+    release: {{ istio_telemetry_release_label }}
+    app.kubernetes.io/part-of: istio-telemetry
+spec:
+  namespaceSelector:
+    matchNames: [istio-system]
+  selector:
+    matchLabels:
+      istio: pilot
+  endpoints:
+    - port: http-monitoring   # istiod :15014 /metrics
+      interval: {{ istio_telemetry_scrape_interval }}
+{% endif %}

@@ -1,0 +1,38 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+# One task per FSP; inside it, loop over EVERY running backend pod and seed
+# via kubectl exec + the pod-local test-api (files/seed-parties.js). Each pod
+# holds its own in-memory party db, so every replica must be seeded — going
+# through the ingress/Service instead would round-robin the POSTs and leave
+# each pod with a partial set. The script exits non-zero if any pod ends up
+# below the expected party count, failing the task.
+- name: Seed parties on every backend pod of each FSP
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      KC="{{ kubeconfig_dir }}/kubeconfig-{{ item.fsp }}.yaml"
+      PODS=$(kubectl --kubeconfig="$KC" -n {{ ns_dfsps }} get pods \
+        -l app.kubernetes.io/name=sim-{{ item.fsp }}-backend \
+        --field-selector=status.phase=Running -o name)
+      [ -n "$PODS" ] || { echo "ERROR: no running backend pods for {{ item.fsp }}" >&2; exit 1; }
+      for POD in $PODS; do
+        echo "=== {{ item.fsp }} $POD ==="
+        kubectl --kubeconfig="$KC" -n {{ ns_dfsps }} exec -i "$POD" -c backend -- \
+          env SEED_BASE="{{ item.base | default(0) }}" \
+              SEED_COUNT="{{ item.count | default(sim_count_per_fsp) }}" \
+              SEED_EXTRA="{{ item.primary | default('') }}" \
+              SEED_CONCURRENCY="{{ sim_seed_concurrency }}" \
+              SEED_PORT="{{ sim_seed_port }}" \
+          node < "{{ role_path }}/files/seed-parties.js"
+      done
+  loop: "{{ sim_fsp_msisdn_bases }}"
+  register: _seed
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+
+- name: Summary
+  ansible.builtin.debug:
+    msg: "Seeded parties on every backend pod of {{ sim_fsp_msisdn_bases | length }} FSPs (range + primary per pod)"

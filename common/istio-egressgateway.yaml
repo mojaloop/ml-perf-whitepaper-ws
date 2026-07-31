@@ -1,0 +1,40 @@
+# Istio EgressGateway Helm values.
+#
+# Same chart as the ingress gateway (istio/gateway), configured as a
+# cluster-internal egress for switch -> DFSP traffic.
+#
+# `service.type: None` disables the chart's Service. We ship our own
+# Service in 06-istio-egressgateway-service.yaml so we can pin the
+# ClusterIP — the chart has no `service.clusterIP` field. Pinning the IP
+# (10.152.183.253) lets the switch app pods reference it as a config-time
+# constant via hostAliases. Service CIDR confirmed 10.152.183.0/24 on
+# MicroK8s; .253 is in the high range, clear of auto-allocated IPs.
+#
+# Pod label `istio: egressgateway` is matched by the Gateway selector in
+# 07-switch-outbound-mtls.yaml AND by the standalone Service in 06-...service.yaml.
+#
+# autoscaling disabled — fixed replica count, sized per TPS scenario.
+
+# 4 replicas so each pod handles ~125 TPS (500 TPS / 4), matching ingress load
+# per pod. 2 replicas at 250 TPS each hit the 2-CPU limit under mTLS load,
+# causing liveness probe timeouts and restarts.
+replicaCount: 4
+
+labels:
+  app: istio-egressgateway
+  istio: egressgateway
+
+service:
+  type: None
+
+autoscaling:
+  enabled: false
+
+# Same node class and same TPS-per-pod as ingress — same limits apply.
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "4"
+    memory: 8Gi
