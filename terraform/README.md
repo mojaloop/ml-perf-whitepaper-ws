@@ -1,105 +1,64 @@
-# Terraform Infrastructure for Mojaloop Performance Testing
+# Terraform
 
-## Overview
-This Terraform module creates AWS infrastructure for Mojaloop performance testing with:
-- VPC with public and private subnets
-- Bastion host for secure access
-- Switch nodes (control plane) - 3 nodes for HA
-- DFSP nodes (workers) - 8 nodes by default
-- Security groups with proper isolation
-- NAT Gateway for outbound internet access from private subnet
+Provisions the AWS infrastructure for one scenario: a VPC (single AZ), a
+bastion host, the switch cluster's EC2 instances, each DFSP's EC2 instance,
+security groups, and (optionally) an NLB in front of the switch cluster.
+Always invoked through the root `Makefile`'s four atomic targets
+(`terraform-init`/`-plan`/`-apply`/`-destroy`); see
+[Run a benchmark scenario from scratch](../README.md#run-a-benchmark-scenario-from-scratch)
+in the root README for the actual command sequence, including the
+`unset HTTPS_PROXY` and saved-plan gotchas.
 
-## Architecture
-```
-Internet
-    |
-    v
-[Internet Gateway]
-    |
-    v
-[Public Subnet: 10.110.1.0/24]
-    |
-    +-- [Bastion Host] <-- SSH from Internet
-    |
-    +-- [NAT Gateway]
-            |
-            v
-[Private Subnet: 10.110.2.0/24]
-    |
-    +-- [Switch Nodes: sw1-n1, sw1-n2, sw1-n3]
-    |
-    +-- [DFSP Nodes: fsp201-108]
-```
+## Layout
 
-## Prerequisites
-1. AWS CLI configured with profile `gtmlab`
-2. SSH key pair `ndelma-gtm-202504091000` exists in AWS
-3. Terraform >= 1.0
+- `main.tf` — provider, decodes the config YAML, common tags, placement group
+- `network.tf` — VPC, subnets, NAT gateway, route tables
+- `instances.tf` — bastion, switch, and DFSP EC2 instances
+- `security.tf` — security groups, built from the config file's rule lists
+- `load_balancer.tf` — the switch cluster's NLB (only if the config enables it)
+- `outputs.tf` — outputs, plus the `local_file` resources that render
+  `templates/*.tpl` into the scenario's `artifacts/` dir (inventory,
+  ssh-config, hosts, connection-info)
+- `variables.tf` — the handful of variables not sourced from the config YAML
 
 ## Configuration
-All infrastructure is defined in `../config.yaml`. Key sections:
-- `aws`: AWS profile and region
-- `network`: VPC and subnet configuration
-- `security`: Security group rules
-- `vms`: Instance specifications
 
-## Usage
+Everything instance/network/security-shaped is read from one YAML file at
+plan time (`local.config_file = yamldecode(file(var.config_file_path))`):
+`common/aws.yaml`, or a scenario's own `overrides/aws.yaml` if one exists.
+The Makefile resolves which one and passes it as `TF_VAR_config_file_path`
+— see [Optional security layers](../README.md#optional-security-layers) and
+the `overrides/aws.yaml` row in
+[Creating a new scenario](../README.md#creating-a-new-scenario) for what
+goes in that file.
 
-### Initialize Terraform
-```bash
-cd terraform
-terraform init
-```
+The Makefile also sets, per invocation:
+- `TF_VAR_ssh_key_name` — from `SSH_KEY_NAME` in the root `.env`
+- `TF_VAR_artifacts_dir` — the active scenario's `artifacts/` directory
 
-### Review Plan
-```bash
-terraform plan
-```
+A `terraform.tfvars` (see `terraform.tfvars.example`) is only relevant for a
+manual `terraform plan`/`apply` run outside the Makefile.
 
-### Apply Infrastructure
-```bash
-terraform apply
-```
+## State
 
-### Destroy Infrastructure
-```bash
-terraform destroy
-```
+One Terraform workspace per scenario (`TF_WORKSPACE=<slug>`, e.g.
+`v17.1.0-mtls-off-500tps`) — state lives under `terraform.tfstate.d/<slug>/`.
+The Makefile's `terraform-init`/`-plan`/`-apply`/`-destroy` targets select or
+create the workspace automatically; running `terraform` directly without
+selecting a workspace first operates on `default`, which nothing else uses.
 
-## Outputs
-After successful deployment:
-- `bastion_public_ip`: Public IP to SSH to bastion
-- `ssh_config_entry`: SSH config for ~/.ssh/config
-- `ansible_inventory`: Generated Ansible inventory
-- `inventory-generated.yaml`: Auto-generated inventory file
+## Generated artifacts
 
-## SSH Access
-1. Copy the contents of `../artifacts/ssh-config` to `~/.ssh/config`
+`terraform-apply` writes these into the scenario's `artifacts/` directory
+(via the `local_file` resources in `outputs.tf`):
 
-2. Connect to bastion:
-```bash
-ssh -i ~/.ssh/ndelma-gtm-202504091000.pem ubuntu@<bastion_public_ip>
-```
+| File | Content |
+|---|---|
+| `inventory.yaml` | Ansible inventory (`switch`, `dfsps`, `bastion` groups) |
+| `ssh-config` | SSH client config — bastion jump host + one `Host` entry per node |
+| `hosts` | Flat `/etc/hosts`-style node list |
+| `connection-info.txt` | Human-readable summary (SSH commands, NLB DNS, node IPs) |
+| `terraform.plan` | Saved plan from `terraform-plan`, applied by `terraform-apply` if present |
 
-3. From bastion, connect to internal nodes:
-```bash
-ssh ubuntu@<private_ip>
-```
-
-Or use SSH ProxyJump:
-```bash
-ssh -J ubuntu@<bastion_public_ip> ubuntu@<private_ip>
-```
-
-## Security
-- Only bastion has public IP
-- Internal nodes accessible only through bastion
-- All nodes have internet egress through NAT Gateway
-- Security groups enforce strict ingress rules
-
-## Customization
-Copy `terraform.tfvars.example` to `terraform.tfvars` to override:
-- AMI ID
-- SSH allowed CIDR blocks
-- Project name
-- Region
+Append `artifacts/ssh-config` to your local `~/.ssh/config` to reach any
+node by name (`ssh sw1-n1`, `ssh fsp201`, ...) through the bastion.

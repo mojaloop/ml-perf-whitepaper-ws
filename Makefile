@@ -8,7 +8,7 @@
 #   make tunnel SCENARIO=v17.1.0-mtls-off-500tps   # one-shot: open the bastion SOCKS tunnel
 #   make terraform-apply SCENARIO=v17.1.0-mtls-off-500tps
 #   make k8s SCENARIO=v17.1.0-mtls-off-500tps
-#   make deploy SCENARIO=v17.1.0-mtls-off-500tps   # backend -> switch -> mtls -> dfsp -> k6 -> onboard -> provision
+#   make deploy SCENARIO=v17.1.0-mtls-off-500tps   # monitoring -> backend -> switch -> dfsp -> mtls -> dfsp-monitoring -> istio-telemetry -> k6 -> onboard -> provision -> smoke
 #   make smoke SCENARIO=v17.1.0-mtls-off-500tps
 #   make load  SCENARIO=v17.1.0-mtls-off-500tps
 
@@ -174,7 +174,8 @@ clean: ## Remove scenario artifacts (NOT terraform state — use terraform-destr
 	rm -rf $(ARTIFACTS_DIR)/coredns-*.yaml \
 	       $(ARTIFACTS_DIR)/dfsp-fsp*.yaml \
 	       $(ARTIFACTS_DIR)/k6-coredns.yaml \
-	       $(ARTIFACTS_DIR)/ttk-* \
+	       $(ARTIFACTS_DIR)/k6-coredns-hosts.conf \
+	       $(ARTIFACTS_DIR)/onboard/ \
 	       $(ARTIFACTS_DIR)/terraform.plan
 
 # Help

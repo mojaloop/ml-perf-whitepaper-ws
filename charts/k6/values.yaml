@@ -18,24 +18,23 @@ parallelism: 1
 k6:
   targetTxnCount: 10
   targetTps: 1
-  fspMode: "8-DFSP"
   abortOnError: true
   transferAmount: "1"
   currency: "USD"
   fspPairs:
-    - source: fsp1
-      dest: fsp2
-      weight: 0.5
-    - source: fsp3
-      dest: fsp4
-      weight: 0.5
+    - source: fsp201
+      dest: fsp202
+      weight: 1.0
   fspConfig: |
     {
-      "fsp1": { "id": "fsp1", "msisdn": "17039811910", "baseUrl": "http://sim-fsp1.local/sim/fsp1/outbound", "startMsisdn": "17039811911" },
-      "fsp2": { "id": "fsp2", "msisdn": "17039811911", "baseUrl": "http://sim-fsp2.local/sim/fsp2/outbound", "startMsisdn": "17039811921" },
-      "fsp3": { "id": "fsp3", "msisdn": "17039811912", "baseUrl": "http://sim-fsp3.local/sim/fsp3/outbound", "startMsisdn": "37039811911" },
-      "fsp4": { "id": "fsp4", "msisdn": "17039811913", "baseUrl": "http://sim-fsp4.local/sim/fsp4/outbound", "startMsisdn": "47039811921" },
+      "fsp201": { "id": "fsp201", "msisdn": "17039811918", "baseUrl": "http://sim-fsp201.local/sim/fsp201/outbound", "startMsisdn": "17039811918", "endMsisdn": "17039811918" },
+      "fsp202": { "id": "fsp202", "msisdn": "17039811919", "baseUrl": "http://sim-fsp202.local/sim/fsp202/outbound", "startMsisdn": "17039811929", "endMsisdn": "17039812928" }
     }
+
+prometheus:
+  rwUrl: http://promfana-prometheus.local:30090/api/v1/write
+  rwTrendAsNativeHistogram: true
+
 resources:
   limits:
     cpu: "2"

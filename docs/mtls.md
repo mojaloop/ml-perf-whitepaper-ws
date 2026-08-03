@@ -137,9 +137,9 @@ converges correctly regardless of which role runs last.
 An earlier iteration used a centralized `istio-egressgateway` Deployment
 with a pinned ClusterIP as the single Leg B origination point. It's
 superseded by the sidecar pattern above (removes the extra hop, no pinned
-IP to keep in sync) but the manifests are kept for a manual rollback path:
-`manifests/mtls/switch-outbound.yaml`, `manifests/mtls/egressgateway-service.yaml`,
-and `manifests/mtls/sidecar-runbook.md`.
+IP to keep in sync). The `mtls_switch` role still uninstalls any prior
+egress-gateway install it finds (`mtls_cleanup_egressgateway`, default
+`true`); its manifests are no longer kept in the repo.
 
 ## Known gotchas
 

@@ -1,5 +1,5 @@
 # Per-scenario chart versions (merged onto ansible _common chart_versions_default).
-# Loaded by the _common role from scenarios/<slug>/versions.yml.
+# Loaded by the _common role from this scenario's own versions.yml.
 scenario_chart_versions:
   mojaloop: "17.1.0"
   mojaloop_backend: "17.1.0"

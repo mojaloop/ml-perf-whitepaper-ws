@@ -169,6 +169,9 @@ resource "local_file" "ssh_config" {
   content = templatefile("${path.module}/templates/ssh_config.tpl", {
     bastion_public_ip = var.create_bastion && local.bastion_config.enabled ? aws_instance.bastion[0].public_ip : ""
     ssh_key_name      = var.ssh_key_name
+    # First two octets of the VPC CIDR (a /16 in every scenario), for the
+    # wildcard fallback Host entry — e.g. "10.112.0.0/16" -> "10.112.*".
+    vpc_wildcard = "${split(".", local.network_config.vpc.cidr)[0]}.${split(".", local.network_config.vpc.cidr)[1]}.*"
     switch_nodes = {
       for name, instance in aws_instance.switch : name => {
         private_ip = instance.private_ip

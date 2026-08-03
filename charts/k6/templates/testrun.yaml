@@ -26,12 +26,8 @@ spec:
         value: {{ .Values.k6.transferAmount | quote }}
       - name: CURRENCY
         value: {{ .Values.k6.currency | quote }}
-      - name: PARALLELISM
-        value: {{ .Values.parallelism | quote }}
       - name: K6_PROMETHEUS_RW_SERVER_URL
         value: {{ .Values.prometheus.rwUrl }}
-      # - name: K6_PROMETHEUS_RW_TREND_STATS
-      #   value: {{ .Values.prometheus.rwTrendStats }}
       - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
         value: {{ .Values.prometheus.rwTrendAsNativeHistogram | quote }}
 

@@ -1,16 +1,14 @@
 # Example Terraform Variables File
-# Copy this file to terraform.tfvars and customize as needed
+#
+# Only needed for a manual `terraform plan`/`apply` run outside the root
+# Makefile — `make terraform-plan`/`terraform-apply` set config_file_path,
+# artifacts_dir, and ssh_key_name via TF_VAR_* env vars instead.
+# Copy this file to terraform.tfvars and customize as needed.
 
 # Path to configuration file (relative to terraform directory)
-# config_file_path = "../config.yaml"
+# config_file_path = "../common/aws.yaml"
 
-# Override project name from config.yaml
-# override_project_name = "my-custom-project"
-
-# Override AWS region from config.yaml
-# override_region = "us-east-1"
-
-# Override AMI ID from config.yaml
+# Override AMI ID from the config file
 # override_ami_id = "ami-12345678"
 
 # Whether to create bastion host

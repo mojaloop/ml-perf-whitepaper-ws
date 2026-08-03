@@ -1,6 +1,0 @@
----
-- name: Switch-side mTLS (Istio install + Leg A inbound + Leg B sidecar mTLS)
-  hosts: localhost
-  gather_facts: false
-  roles:
-    - role: mtls_switch

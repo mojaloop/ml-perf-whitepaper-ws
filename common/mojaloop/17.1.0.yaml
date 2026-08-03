@@ -6170,7 +6170,7 @@ centralsettlement:
             value: '{{ .Values.config.kafka_port }}'
     ## Enable this handler if you wish to support Continuous Gross Settlement (CGS) and rule processing.
     ## Note: Ensure that you have configured the appropriated settlementModels (refer to the associated tagged release on https://github.com/mojaloop/postman for an example). See below more information on how to configure rule processing for Interchange Fees.
-    enabled: true
+    enabled: false
 
     image:
       registry: docker.io

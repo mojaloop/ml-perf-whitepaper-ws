@@ -17,21 +17,9 @@ variable "config_file_path" {
 }
 
 variable "artifacts_dir" {
-  description = "Directory for generated artifacts. Set by Makefile via TF_VAR_artifacts_dir to ../scenarios/<scenario>/artifacts."
+  description = "Directory for generated artifacts. Set by Makefile via TF_VAR_artifacts_dir to the active scenario's artifacts/ dir."
   type        = string
   default     = "../scenarios/base/artifacts"
-}
-
-variable "override_project_name" {
-  description = "Override the project name from config.yaml"
-  type        = string
-  default     = null
-}
-
-variable "override_region" {
-  description = "Override the AWS region from config.yaml"
-  type        = string
-  default     = null
 }
 
 variable "override_ami_id" {

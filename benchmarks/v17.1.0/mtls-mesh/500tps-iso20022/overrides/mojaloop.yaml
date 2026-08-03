@@ -180,11 +180,6 @@ centralsettlement:
     config:
       db_ssl_enabled: true
       db_ssl_verify: false
-  centralsettlement-handler-rules:
-    enabled: false
-    config:
-      db_ssl_enabled: true
-      db_ssl_verify: false
 
 als-msisdn-oracle:
   enabled: true

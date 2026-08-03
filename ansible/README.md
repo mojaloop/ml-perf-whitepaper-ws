@@ -1,149 +1,74 @@
-# Kubernetes Deployment with Ansible
+# Ansible
 
-## Overview
-This Ansible setup deploys MicroK8s clusters:
-- **Switch Cluster**: 3-node HA cluster for Mojaloop core services
-- **FSP Clusters**: Individual single-node clusters per FSP
+Bootstraps the MicroK8s clusters (switch + one per DFSP) and deploys every
+application-layer stage on top of them — backend, switch, mTLS, DFSP
+simulators, monitoring, k6, onboarding. Always invoked through the root
+`Makefile`, one stage at a time; see the root [README.md](../README.md) for
+the full walkthrough of running a scenario end to end.
 
-## Prerequisites
-1. Infrastructure deployed via Terraform
-2. Inventory file at `../../provisioning/artifacts/inventory.yaml`
-3. SSH config configured from artifacts - copy the contents of `../../provisioning/artifacts/ssh-config` to `~/.ssh/config`
-4. SSH to the jump host - `ssh -D 1080 perf-jump-host -N`
-5. Ansible installed locally
+## Layout
 
-## Quick Start
-
-### Deploy Everything
-```bash
-cd kubernetes/ansible
-make deploy
-```
-
-### Step-by-Step Deployment
-```bash
-# 1. Install MicroK8s on all nodes
-make install
-
-# 2. Configure switch cluster
-make switch-cluster
-
-# 3. Configure FSP clusters
-make fsp-clusters
-
-# 4. Generate kubeconfig files
-make kubeconfig
-```
-
-## Using the Clusters
-
-It is important to connect to the jump host and set HTTPS proxy to access kubernetes 
-
-### Connect to jump host
-```bash
-ssh -D 1080 perf-jump-host -N
-```
-
-### Set HTTP_PROXY for kubernetes access
-```bash
-export HTTPS_PROXY=socks5://127.0.0.1:1080
-```
-
-### Access Switch Cluster
-```bash
-export KUBECONFIG=ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-mojaloop-switch.yaml
-kubectl get nodes
-```
-
-### Access FSP Cluster
-```bash
-export KUBECONFIG=ml-perf-whitepaper-ws/infrastructure/provisioning/artifacts/kubeconfigs/kubeconfig-fsp201.yaml
-kubectl get nodes
-```
-
-## Configuration
-
-All configuration is read from:
-- `../../provisioning/config.yaml` - Main configuration
-- `group_vars/all.yml` - Ansible variables
-
-### K8s Configuration in config.yaml
-```yaml
-k8s:
-  microk8s_version: "1.30/stable"
-  switch_cluster_name: "mojaloop-switch"
-  addons:
-    switch_cluster: [dns, storage, ingress, metrics-server]
-    fsp_clusters: [dns, storage, ingress, metrics-server]
-```
+- `playbooks/` — one playbook per deployment stage (table below)
+- `roles/` — the task logic each playbook runs; see
+  [Ansible roles](../README.md#ansible-roles) in the root README for the
+  current list
+- `templates/` — Jinja2 templates rendered into the scenario's
+  `artifacts/` directory (kubeconfig `ProxyCommand`, DFSP hostaliases, k6
+  CoreDNS hosts)
+- `group_vars/all.yml` — the one variable that isn't passed per-invocation
+  by the Makefile: `artifacts_dir`, resolved from `scenario_path`
+- `ansible.cfg` — SSH pipelining/multiplexing, fact caching, `roles_path`
 
 ## Playbooks
 
-| Playbook | Description |
-|----------|-------------|
-| `01-install-microk8s.yml` | Installs MicroK8s on all nodes |
-| `02-configure-switch-cluster.yml` | Forms the 3-node switch cluster |
-| `03-configure-fsp-clusters.yml` | Configures individual FSP clusters |
-| `04-generate-kubeconfigs.yml` | Creates kubeconfig files with ProxyCommand |
-| `deploy-k8s.yml` | Main playbook that runs all steps |
+| Playbook | Makefile target | Does |
+|---|---|---|
+| `deploy-k8s.yml` | `make k8s` | Imports the five playbooks below in order |
+| `01-install-microk8s.yml` | (via `k8s`) | Installs MicroK8s on every node |
+| `02-configure-switch-cluster.yml` | (via `k8s`) | Forms the switch cluster |
+| `03-configure-fsp-clusters.yml` | (via `k8s`) | Configures each FSP's single-node cluster |
+| `05-enable-remote-access.yml` | (via `k8s`) | Binds each node's MicroK8s API server to its private IP so the Ansible controller can reach it through the bastion |
+| `04-generate-kubeconfigs.yml` | (via `k8s`) | Writes kubeconfigs using an SSH `ProxyCommand` through the bastion |
+| `06-generate-hostaliases.yml` | (via `k8s`) | Renders `hostaliases.json` (switch↔DFSP `hostAliases` patches) and the k6 CoreDNS hosts file |
+| `cilium-cni.yml` | `make cilium` | Swaps the switch cluster's CNI from Calico to Cilium eBPF |
+| `backend.yml` | `make backend` | Kafka, MySQL, MongoDB, Redis |
+| `monitoring.yml` | `make monitoring` | Prometheus / Grafana / Alertmanager (`promfana`) |
+| `switch.yml` | `make switch` | Mojaloop core services + per-scenario configmap patches |
+| `mtls.yml` | `make mtls` | Switch-side mTLS (Istio Leg A/B), then DFSP-side certs/overlay |
+| `ambient.yml` | `make ambient` | Istio ambient mesh enrollment (pod-to-pod mTLS via ztunnel) |
+| `dfsp.yml` | `make dfsp` | The 8 DFSP simulators |
+| `dfsp-monitoring.yml` | `make dfsp-monitoring` | Per-DFSP Prometheus agent + node-exporter, remote-write to the switch Prometheus |
+| `istio-telemetry.yml` | `make istio-telemetry` | Scrapes Istio proxy metrics into the switch Prometheus |
+| `k6.yml` | `make k6` | k6 operator, DockerHub pull secret, CoreDNS |
+| `onboard.yml` | `make onboard` | Runs the TTK onboarding Jobs listed in the scenario's `onboard.yaml` |
+| `als-provision.yml`, `sim-provision.yml` | `make provision` | Seeds MSISDNs into the ALS DB and registers parties on each simulator |
+| `smoke-test.yml` | `make smoke` | One end-to-end transfer |
+| `load-test.yml` | `make load` | Runs the k6 TestRun for the active scenario |
 
-## Generated Artifacts
+## Inventory and scenario variables
 
-After deployment, find these in `../../provisioning/artifacts/`:
+The inventory (`<scenario>/artifacts/inventory.yaml`) is generated by
+Terraform, not hand-maintained — it defines the `switch`, `dfsps`, and
+`bastion` groups. Every Makefile-driven invocation passes `-i` to that file
+plus `-e scenario=<name> -e scenario_path=<path>`; roles use
+`scenario_path` to resolve their `overrides/*.yaml` and `scenario_path`/
+`artifacts` for generated files. Don't run `ansible-playbook` directly
+without also setting these — use the Makefile targets, and pass through
+extra ansible flags with `EXTRA`, e.g.:
 
+```bash
+make switch SCENARIO=v17.1.0-mtls-off-500tps EXTRA='-vvv'
 ```
-artifacts/
-├── kubeconfigs/
-│   ├── kubeconfig-mojaloop-switch.yaml
-│   ├── kubeconfig-fsp201.yaml
-│   ├── kubeconfig-fsp202.yaml
-│   └── kubeconfig-fsp203.yaml
-└── k8s-access.txt  # Access instructions
-```
-
-## Kubeconfig with ProxyCommand
-
-All generated kubeconfigs use SSH ProxyCommand for transparent access through the bastion:
-
-```yaml
-clusters:
-- cluster:
-    server: https://10.110.2.x:16443
-    proxy-command: ssh -W %h:%p -q ubuntu@<bastion-ip>
-```
-
-This means you can use `kubectl` from your local machine without manual port forwarding!
 
 ## Troubleshooting
 
-### Check Connectivity
 ```bash
-make ping
+# Ad-hoc command against a specific node
+cd ansible
+ansible -i ../<scenario-dir>/artifacts/inventory.yaml sw1-n1 -m shell -a "microk8s status" --become
+ansible -i ../<scenario-dir>/artifacts/inventory.yaml fsp201 -m shell -a "microk8s kubectl get pods -A" --become
 ```
 
-### Check Cluster Status
-```bash
-make status
-```
-
-### View Ansible Logs
-```bash
-ansible-playbook playbooks/deploy-k8s.yml -vvv
-```
-
-### Manual MicroK8s Commands
-```bash
-# On switch primary node
-ansible sw1-n1 -m shell -a "microk8s status" --become
-ansible sw1-n1 -m shell -a "microk8s kubectl get nodes" --become
-
-# On FSP node
-ansible fsp201 -m shell -a "microk8s kubectl get pods -A" --become
-```
-
-## Clean Up
-
-To completely remove MicroK8s from all nodes:
-```bash
-make uninstall  # WARNING: Destructive!
-```
+Requires the bastion tunnel from `make tunnel` and the scenario's
+`artifacts/ssh-config` appended to your local SSH config — see
+[Setup once](../README.md#setup-once) in the root README.

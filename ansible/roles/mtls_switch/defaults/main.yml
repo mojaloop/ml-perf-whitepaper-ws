@@ -89,10 +89,3 @@ mtls_sidecar_rollout_timeout: 1200s
 # Retire the egress-gateway resources superseded by sidecar mode (safe no-op if
 # they were never installed). Set false to leave a prior gateway install in place.
 mtls_cleanup_egressgateway: true
-
-# Retired egress-gateway artifacts (referenced only by the cleanup + the manual
-# rollback runbook at manifests/mtls/sidecar-runbook.md).
-mtls_switch_outbound:   "{{ repo_root }}/manifests/mtls/switch-outbound.yaml"
-mtls_egressgw_service:  "{{ repo_root }}/manifests/mtls/egressgateway-service.yaml"
-egressgateway_values:   "{{ common_dir }}/istio-egressgateway.yaml"
-egressgateway_pinned_ip: 10.152.183.253

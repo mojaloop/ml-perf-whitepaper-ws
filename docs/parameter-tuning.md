@@ -5,7 +5,7 @@ Per-scenario tuning lives under the scenario's `overrides/` and
 scenario's overrides ratchet up partitions, replicas, JVM heaps, and
 connection pools. For adding a new scenario or the full directory layout,
 see [benchmarks/README.md](../benchmarks/README.md) (§ Extending, §
-Directory layout) and the root [README.md](../README.md#scenario-customization).
+Directory layout) and the root [README.md](../README.md#selecting-a-scenario).
 
 ## What lives where
 

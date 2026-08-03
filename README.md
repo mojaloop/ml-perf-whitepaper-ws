@@ -127,8 +127,9 @@ across scenarios, so they don't coexist on the same infrastructure):
 make terraform-destroy SCENARIO=$SLUG
 ```
 
-`make clean SCENARIO=$SLUG` removes a scenario's generated artifacts
-(kubeconfigs, rendered manifests) without touching Terraform state — run
+`make clean SCENARIO=$SLUG` removes a scenario's regenerated config files
+(rendered CoreDNS/hosts config, TTK onboarding Job artifacts, the saved
+Terraform plan) — it doesn't touch kubeconfigs or Terraform state; run
 `terraform-destroy` first if the goal is a full teardown.
 
 ## Creating a new scenario

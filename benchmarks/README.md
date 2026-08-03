@@ -107,3 +107,21 @@ New scenario (version, mode, or TPS): copy an existing scenario dir, drop its
 and add a row to the Scenarios/Results tables above. The directory path must
 follow `benchmarks/<version>/<mtls>/<N>tps/` — that's what the `SCENARIO`
 name resolves to.
+
+### Sizing: keep replica and partition counts to multiples of the node count
+
+When setting replica counts in `overrides/mojaloop.yaml` and matching Kafka
+partition counts in `overrides/backend.yaml`, round to a multiple of the
+switch cluster's generic-node count (the nodes carrying
+`node-role: generic` in `overrides/aws.yaml`). `topologySpreadConstraints`
+distributes each Deployment's replicas round-robin across those nodes; a
+replica count that isn't an exact multiple leaves a remainder pod, and
+Kubernetes' tie-break for that remainder isn't coordinated across separate
+Deployments — several handlers' remainder pods can land on the same node
+even though each Deployment's own spread looks balanced, producing a
+sustained node-CPU hotspot that isn't visible from replica counts alone.
+
+Keep each Kafka topic's partition count 1:1 with its consumer's replica
+count, and scale both together — a replica count higher than the topic's
+partition count leaves replicas permanently idle with no partition to
+consume.
