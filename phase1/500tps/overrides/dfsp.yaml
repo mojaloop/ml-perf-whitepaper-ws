@@ -1,0 +1,74 @@
+# Per-scenario DFSP simulator overrides — layered on top of
+# common/dfsp/values-fspNNN.yaml by the dfsp role's per_fsp loop.
+#
+#   - enables switch<->DFSP mTLS (OUTBOUND/INBOUND_MUTUAL_TLS_ENABLED=true)
+#   - ENABLE_TEST_FEATURES=false for all FSPs (base values set it to true)
+#   - scheme-adapter replica scaling is done imperatively via kubectl scale
+#     in the dfsp role (fsp201/202 → high, fsp203-208 → low); replicaCount is
+#     NOT set here because the chart applies it to all components (backend,
+#     cache, scheme-adapter), not just scheme-adapter.
+#
+# NOTE: the scheme-adapter image is intentionally NOT pinned here — the chart's
+# default image carries the JWS fix that the old v24.19.6 pin worked around, so
+# the workaround was removed. Pin an `image:` block again only if a future
+# regression requires it.
+#
+# One block per FSP because the values structure is keyed by simulator name.
+
+simulators:
+  fsp201:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"
+  fsp202:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"
+  fsp203:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"
+  fsp204:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"
+  fsp205:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"
+  fsp206:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"
+  fsp207:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"
+  fsp208:
+    config:
+      schemeAdapter:
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: "true"
+          INBOUND_MUTUAL_TLS_ENABLED: "true"
+          ENABLE_TEST_FEATURES: "false"

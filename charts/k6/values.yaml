@@ -1,0 +1,51 @@
+
+# Default values for mojaloop-k6-operator
+# k6Operator:
+#   enabled: true
+#   watchNamespace: ""
+
+image:
+  repository: grafana/k6
+  tag: "0.49.0"
+  pullPolicy: IfNotPresent
+
+# Note on parallelism
+# The `parallelism` value controls how many k6 runner pods are created by the k6 Operator.
+# The configured `targetTps` is applied **per pod**, so the effective total TPS is:
+# total TPS = targetTps × parallelism
+parallelism: 1
+
+k6:
+  targetTxnCount: 10
+  targetTps: 1
+  abortOnError: true
+  transferAmount: "1"
+  currency: "USD"
+  fspPairs:
+    - source: fsp201
+      dest: fsp202
+      weight: 1.0
+  fspConfig: |
+    {
+      "fsp201": { "id": "fsp201", "msisdn": "17039811918", "baseUrl": "http://sim-fsp201.local/sim/fsp201/outbound", "startMsisdn": "17039811918", "endMsisdn": "17039811918" },
+      "fsp202": { "id": "fsp202", "msisdn": "17039811919", "baseUrl": "http://sim-fsp202.local/sim/fsp202/outbound", "startMsisdn": "17039811929", "endMsisdn": "17039812928" }
+    }
+
+prometheus:
+  rwUrl: http://promfana-prometheus.local:30090/api/v1/write
+  rwTrendAsNativeHistogram: true
+
+resources:
+  limits:
+    cpu: "2"
+    memory: "1Gi"
+  requests:
+    cpu: "1"
+    memory: "500Mi"
+
+# Optional: InfluxDB output configuration
+# output:
+#   enabled: false
+#   type: "influxdb"
+#   url: "http://influxdb:8086"
+#   db: "k6"

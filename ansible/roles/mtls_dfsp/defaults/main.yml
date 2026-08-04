@@ -1,0 +1,25 @@
+---
+dfsp_chart: mojaloop/mojaloop-simulator
+dfsp_release: dfsp
+dfsp_version: "{{ chart_versions.mojaloop_simulator }}"
+
+mtls_shared_secret_name: mtls-shared-creds
+dfsp_tls_secret:       "{{ repo_root }}/certs/dfsp-tls-secret.yaml"
+dfsp_passthrough_tmpl: "{{ repo_root }}/manifests/mtls/dfsp-passthrough.yaml.j2"
+
+# scheme-adapter replica counts, per FSP. Must match the dfsp role, which is
+# the source of truth (ansible/roles/dfsp/defaults/main.yml) — both load the
+# same scenario override (overrides/dfsp.yaml, see tasks/main.yml). Duplicated
+# here because the mTLS helm upgrade in this role runs with --reuse-values
+# --take-ownership and resets .spec.replicas to the chart default (1), wiping
+# the dfsp role's imperative scale — so we re-apply it after the overlay.
+dfsp_sdk_replicas_default: 4
+dfsp_sdk_replicas:
+  fsp201: 16
+  fsp202: 16
+
+# sim backend replica counts, per FSP. Same duplication reason as above — the
+# mTLS helm upgrade resets .spec.replicas on ALL chart-managed deployments
+# (scheme-adapter, backend, cache), not just scheme-adapter.
+dfsp_backend_replicas_default: 1
+dfsp_backend_replicas: {}

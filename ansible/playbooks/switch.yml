@@ -1,0 +1,6 @@
+---
+- name: Deploy Mojaloop switch + per-scenario tuning
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: switch

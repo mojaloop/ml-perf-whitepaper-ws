@@ -1,0 +1,6 @@
+---
+- name: Ship per-DFSP host + container metrics to central Prometheus (agent remote_write)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: dfsp_monitoring

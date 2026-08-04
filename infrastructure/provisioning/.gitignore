@@ -1,6 +1,0 @@
-# Terraform generated artifacts
-artifacts/*
-
-# Old generated files (if any)
-inventory-generated.yaml
-ssh-config.generated

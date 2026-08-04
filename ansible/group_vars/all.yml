@@ -1,0 +1,5 @@
+---
+# Global variables for K8s deployment
+# Config is loaded dynamically in each playbook - these are just defaults
+
+artifacts_dir: "{{ playbook_dir }}/../../{{ scenario_path | default('scenarios/' ~ (scenario | default('base', true))) }}/artifacts"

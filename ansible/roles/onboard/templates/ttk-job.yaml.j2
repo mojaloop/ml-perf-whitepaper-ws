@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ _job_k8s }}
+  namespace: {{ ttk_job_ns }}
+spec:
+  ttlSecondsAfterFinished: 1800
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: cli
+          image: {{ ttk_cli_image }}
+          command:
+            - sh
+            - -c
+            - |
+              set -eux
+              cd /collections
+              node /opt/app/src/client.js \
+                -u {{ ttk_backend_url }} \
+                -e env.json \
+                -i {{ _job_inputs_csv }}
+          volumeMounts:
+            - name: collection
+              mountPath: /collections
+      volumes:
+        - name: collection
+          configMap:
+            name: {{ _job_cm }}

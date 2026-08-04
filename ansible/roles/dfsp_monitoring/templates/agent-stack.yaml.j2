@@ -1,0 +1,248 @@
+# Per-DFSP metrics agent stack for {{ fsp_name }} — rendered by the
+# dfsp_monitoring role. Self-contained: namespace, RBAC, node-exporter
+# DaemonSet (host metrics incl. softirq) and a Prometheus running in
+# AGENT mode that remote_writes to the central switch Prometheus.
+# DO NOT edit in artifacts/ — change the role template and re-run.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ dfsp_mon_namespace }}
+  labels:
+    app.kubernetes.io/part-of: dfsp-monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dfsp-prometheus-agent
+  namespace: {{ dfsp_mon_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dfsp-prometheus-agent
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "nodes/metrics", "services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dfsp-prometheus-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dfsp-prometheus-agent
+subjects:
+  - kind: ServiceAccount
+    name: dfsp-prometheus-agent
+    namespace: {{ dfsp_mon_namespace }}
+---
+# ---- node-exporter (host CPU incl. softirq, network/PPS, load, conntrack) ----
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dfsp-node-exporter
+  namespace: {{ dfsp_mon_namespace }}
+  labels:
+    app: dfsp-node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: dfsp-node-exporter
+  template:
+    metadata:
+      labels:
+        app: dfsp-node-exporter
+    spec:
+      hostNetwork: true
+      hostPID: true
+      # single-node fsp clusters may carry a control-plane taint; tolerate all.
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: node-exporter
+          image: {{ dfsp_mon_node_exporter_image }}
+          args:
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --path.rootfs=/host/root
+            - --web.listen-address=:9100
+            - --collector.softnet
+            - --collector.netdev
+            - --collector.netstat
+          ports:
+            - name: metrics
+              containerPort: 9100
+              hostPort: 9100
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          volumeMounts:
+            - {name: proc, mountPath: /host/proc, readOnly: true}
+            - {name: sys, mountPath: /host/sys, readOnly: true}
+            - {name: root, mountPath: /host/root, mountPropagation: HostToContainer, readOnly: true}
+      volumes:
+        - {name: proc, hostPath: {path: /proc}}
+        - {name: sys, hostPath: {path: /sys}}
+        - {name: root, hostPath: {path: /}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dfsp-node-exporter
+  namespace: {{ dfsp_mon_namespace }}
+  labels:
+    app: dfsp-node-exporter
+spec:
+  clusterIP: None
+  selector:
+    app: dfsp-node-exporter
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+---
+# ---- Prometheus AGENT config ----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dfsp-prometheus-agent
+  namespace: {{ dfsp_mon_namespace }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ dfsp_mon_scrape_interval }}
+      external_labels:
+        cluster: {{ fsp_name }}
+
+    scrape_configs:
+      # host metrics from the node-exporter DaemonSet (this single node)
+      - job_name: node-exporter
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: [{{ dfsp_mon_namespace }}]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            regex: dfsp-node-exporter
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+
+      # kubelet cAdvisor — per-container CPU/mem/net (scheme-adapter + sim).
+      # honor_timestamps:false — cAdvisor stamps samples with its own
+      # housekeeping-cycle time, which jitters backwards between 15s scrapes
+      # and gets dropped as "out-of-order". Use scrape time instead (this is
+      # exactly what kube-prometheus-stack does for its cadvisor job).
+      - job_name: kubelet-cadvisor
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        honor_timestamps: false
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+
+      # kubelet itself (runtime/pod counts)
+      - job_name: kubelet
+        scheme: https
+        metrics_path: /metrics
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+
+      # sdk-scheme-adapter / sim app metrics — opt-in via pod annotation
+      # prometheus.io/scrape=true (no-op until the SDK /metrics is enabled).
+      - job_name: dfsp-app-pods
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [{{ dfsp_mon_app_namespace }}]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            regex: "true"
+            action: keep
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            regex: (.+)
+            target_label: __metrics_path__
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+
+    remote_write:
+      - url: {{ dfsp_mon_remote_write_url }}
+        write_relabel_configs:
+          - source_labels: [__name__]
+            regex: "{{ dfsp_mon_keep_metrics_regex }}"
+            action: keep
+        queue_config:
+          max_samples_per_send: 2000
+          capacity: 20000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dfsp-prometheus-agent
+  namespace: {{ dfsp_mon_namespace }}
+  labels:
+    app: dfsp-prometheus-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dfsp-prometheus-agent
+  template:
+    metadata:
+      labels:
+        app: dfsp-prometheus-agent
+      annotations:
+        checksum/config: "{{ dfsp_mon_keep_metrics_regex | hash('md5') }}"
+    spec:
+      serviceAccountName: dfsp-prometheus-agent
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: prometheus-agent
+          image: {{ dfsp_mon_agent_image }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --enable-feature=agent
+            - --storage.agent.path=/data
+            - --web.listen-address=:9090
+            - --web.enable-lifecycle
+          ports:
+            - {name: web, containerPort: 9090}
+          readinessProbe:
+            httpGet: {path: /-/ready, port: 9090}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          volumeMounts:
+            - {name: config, mountPath: /etc/prometheus}
+            - {name: data, mountPath: /data}
+      volumes:
+        - name: config
+          configMap:
+            name: dfsp-prometheus-agent
+        - name: data
+          emptyDir: {}

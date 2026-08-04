@@ -1,0 +1,30 @@
+{
+  "version": "v17.1.0",
+  "mtls": "wireguard",
+  "tps": 500,
+  "run_id": "20260710T223654",
+  "status": "FAIL",
+  "actual_tps": 499.79380165289257,
+  "success_pct": 99.99545287692342,
+  "p99_ms": { "discovery": 71, "quote": 296, "transfer": 851, "e2e": 1077 },
+  "notes": "Scenario #2 — mTLS + Kafka-TLS + MySQL-TLS + Cilium WireGuard (double encryption on datastore traffic, WireGuard has no per-workload exclusion). e2e p99 is the STEADY-STATE figure (authoritative), exceeds the 1s goal. See the 450tps run (20260710T235901) in this same directory for the passing rate under this configuration.",
+  "scenario": "2 — mTLS + full encryption (edge mTLS + Kafka/MySQL protocol TLS + WireGuard)",
+  "slug": "v17.1.0-mtls-wireguard-500tps",
+  "run_utc": "2026-07-11T04:38:17Z",
+  "results": {
+    "completed_transactions": 1209501,
+    "success_rate": 99.99545287692342,
+    "actual_tps": 499.79380165289257,
+    "e2e_time_p95": 989,
+    "e2e_time_p99": 1936,
+    "http_req_duration_p95": 671.8649012999999,
+    "http_req_duration_p99": 838.8004945400006
+  },
+  "steady_state": {
+    "window": "start+300s .. end-120s (2160s)",
+    "transfers_measured": 1079992,
+    "e2e_p50_ms": 724, "e2e_p95_ms": 963, "e2e_p99_ms": 1077, "e2e_stddev_ms": 128,
+    "transfer_p99_ms": 851, "quote_p99_ms": 296, "discovery_p99_ms": 71,
+    "validity_gate": "PASS (fulfil/prepare=1.000, notif/prepare=2.000)"
+  }
+}

@@ -1,0 +1,51 @@
+# ============================================================================
+# istiod control-plane values — ECDSA workload certs + TLS hardening.
+# Consumed by the mtls_switch role's istiod helm install (-f this file).
+# ============================================================================
+#
+# (b) ECC_SIGNATURE_ALGORITHM=ECDSA
+#   istiod issues ECDSA P-256 SPIFFE workload certs instead of the default
+#   RSA-2048, matching the external switch<->DFSP mTLS bundle
+#   (certs/regen-certs.sh). Takes effect on newly issued / rotated certs;
+#   existing pods keep their RSA cert until they restart or the cert rotates
+#   (default 24h). The mtls_switch role restarts the egress deployments, so
+#   they pick up ECDSA immediately. Safe rolling change — no traffic impact.
+#
+# (a) meshConfig.tlsDefaults — the TLS floor for NON-istio-mutual TLS, i.e. the
+#   TLS that Gateways TERMINATE (Leg A) and DestinationRules ORIGINATE (Leg B).
+#   This is the ONLY place the Leg B client/origination side can be pinned:
+#   Istio's ClientTLSSettings (DestinationRule .tls) has no cipherSuites /
+#   minProtocolVersion field, so per-DR pinning is not possible — the mesh-wide
+#   default governs it.
+#
+#   - minProtocolVersion: TLSV1_2 — 1.2 floor; 1.3 is negotiated automatically
+#     when both peers support it. Deliberately NOT pinned to TLSV1_3: the DFSP
+#     scheme-adapter TLS stack is not verified to support 1.3, and a 1.3-only
+#     CLIENT floor would break the Leg B handshake. 1.2 floor + 1.3-preferred is
+#     the production-grade, interop-safe posture.
+#   - cipherSuites: ECDSA + AES-GCM only (AES-NI accelerated on the m7i/c7i
+#     nodes), AES-128-GCM first for throughput; drops CBC / 3DES / RSA-kx /
+#     SHA-1 legacy. NOTE: this list governs the TLS 1.2 fallback ONLY — TLS 1.3
+#     AEAD selection is fixed inside BoringSSL and already prefers AES-128-GCM
+#     on AES-NI hardware, so "pin AES-128-GCM" under 1.3 is automatic, not a
+#     config knob.
+#   - ecdhCurves: X25519 (fastest, constant-time key exchange) then P-256.
+#
+#   meshMTLS (the istio SPIFFE sidecar-to-sidecar mutual TLS) is intentionally
+#   left at defaults so in-mesh mTLS keeps accepting both RSA and ECDSA suites
+#   during the RSA->ECDSA workload-cert rotation. Restricting it here could drop
+#   not-yet-rotated RSA peers mid-roll.
+# ============================================================================
+pilot:
+  env:
+    ECC_SIGNATURE_ALGORITHM: ECDSA
+
+meshConfig:
+  tlsDefaults:
+    minProtocolVersion: TLSV1_2
+    cipherSuites:
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+    ecdhCurves:
+      - X25519
+      - P-256

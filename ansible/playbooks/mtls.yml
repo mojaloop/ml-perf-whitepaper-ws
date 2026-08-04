@@ -1,0 +1,7 @@
+---
+- name: mTLS — switch-side (Istio + Leg A/B) then DFSP-side (certs + overlay)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: mtls_switch
+    - role: mtls_dfsp

@@ -1,0 +1,48 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure mojaloop helm repo is present
+  ansible.builtin.shell: |
+    helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
+    helm repo update mojaloop
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# switch_lb_ip is wired through terraform → inventory.yaml (all.vars.switch_lb_ip).
+# Fail loud if it isn't set — a fallback to "first generic switch node" silently
+# bypasses the NLB and was the bug we fixed in May 2026.
+- name: Assert switch_lb_ip is set (inventory should carry NLB private IP)
+  ansible.builtin.assert:
+    that:
+      - switch_lb_ip is defined
+      - switch_lb_ip | length > 0
+    fail_msg: >-
+      switch_lb_ip is empty. It should be set in inventory.yaml from the
+      terraform output `nlb_private_ip`. Re-run `make terraform-apply` to
+      regenerate the inventory.
+
+# overrides/dfsp.yaml carries both the per-FSP Helm overlay (under
+# `simulators:`, filtered per-FSP in per_fsp.yml) and scenario-wide replica
+# counts, sized to the scenario's hardware/TPS. Loaded once here so the
+# per-FSP loop just reads dfsp_sdk_replicas/dfsp_backend_replicas.
+- name: Stat scenario dfsp.yaml override
+  ansible.builtin.stat:
+    path: "{{ scenario_overrides_dir }}/dfsp.yaml"
+  register: _scenario_dfsp_stat
+
+- name: Load scenario replica counts from dfsp.yaml
+  when: _scenario_dfsp_stat.stat.exists
+  vars:
+    _dfsp_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
+  ansible.builtin.set_fact:
+    dfsp_sdk_replicas_default: "{{ _dfsp_override.dfsp_sdk_replicas_default | default(dfsp_sdk_replicas_default) }}"
+    dfsp_sdk_replicas: "{{ _dfsp_override.dfsp_sdk_replicas | default(dfsp_sdk_replicas) }}"
+    dfsp_backend_replicas: "{{ _dfsp_override.dfsp_backend_replicas | default(dfsp_backend_replicas) }}"
+
+- name: Per-DFSP loop
+  ansible.builtin.include_tasks: per_fsp.yml
+  loop: "{{ dfsp_indices }}"
+  loop_control:
+    loop_var: fsp_idx

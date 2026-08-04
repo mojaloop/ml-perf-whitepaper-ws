@@ -1,0 +1,185 @@
+---
+mojaloop_chart: mojaloop/mojaloop
+mojaloop_release: moja
+mojaloop_version: "{{ chart_versions.mojaloop }}"
+
+# Base values are version-specific (each mojaloop chart version has its own file);
+# scenario override layers on top. mojaloop_version = chart_versions.mojaloop.
+mojaloop_values_base: "{{ common_dir }}/mojaloop/{{ mojaloop_version }}.yaml"
+mojaloop_values_files:
+  - "{{ mojaloop_values_base }}"
+  - "{{ scenario_overrides_dir }}/mojaloop.yaml"
+
+# Helm skip-if-unchanged: re-running helm with identical inputs still strips
+# and re-applies every kubectl-patched field (--take-ownership) → TWO full
+# rollouts of the whole switch (~15 min) for a no-op. So helm only runs when
+# its inputs (chart version + values files) changed since the stamp, when the
+# release is missing, or when forced. All kubectl patch tasks below still run
+# every time (they no-op on unchanged content). Force: -e switch_helm_force=true
+# or delete the stamp file.
+switch_helm_force: false
+switch_helm_stamp: "{{ scenario_artifacts_dir }}/switch-helm.sum"
+
+# NODE_OPTIONS (V8 young-gen tuning) injected via `kubectl set env` after helm.
+# Required because the ml-api-adapter / central-ledger subcharts expose NO `env`
+# values key (only ALS/quoting do, as a map) — so there is no uniform helm-values
+# way to set a raw env var. Applied before the topology Recreate patch so a single
+# rollout picks it up. Empty value disables (set switch_node_options: "").
+switch_node_options: "--max-semi-space-size=64"
+switch_node_options_deployments:
+  - moja-account-lookup-service
+  - moja-quoting-service
+  - moja-quoting-service-handler
+  - moja-ml-api-adapter-service
+  - moja-ml-api-adapter-handler-notification
+  - moja-centralledger-service
+  - moja-centralledger-handler-transfer-prepare
+  - moja-handler-pos-batch   # rendered deploy name differs from the values key (centralledger-handler-transfer-position-batch)
+  - moja-centralledger-handler-transfer-fulfil
+  - moja-centralledger-handler-timeout
+
+# CPU requests ≈ measured steady-state usage. The chart sets no resources, so
+# every pod requests 0 CPU and the scheduler places heavy singletons blind —
+# on a fresh provision one can land on an already-loaded node and starve
+# on-path pods (p99 tail blowout). With honest requests + the topology spread
+# below, least-allocated scoring sends each pod to the least-loaded node on
+# every provision. Requests only (no limits — never throttle on-path work);
+# the RELATIVE weights drive placement. Empty map disables.
+mojaloop_cpu_requests:
+  moja-centralsettlement-handler-rules:           600m
+  moja-account-lookup-service:                    500m
+  moja-centralledger-handler-transfer-prepare:    225m
+  moja-quoting-service-handler:                   200m
+  moja-centralledger-handler-transfer-fulfil:     200m
+  moja-ml-api-adapter-service:                    175m
+  moja-ml-api-adapter-handler-notification:       175m
+  moja-quoting-service:                           175m
+  moja-handler-pos-batch:                         175m
+  # The oracle uses little CPU on average but sits on the discovery path:
+  # with no request it gets almost no CFS share during load-start peaks, its
+  # health endpoint misses the probe deadline, and kubelet kills it. A small
+  # request guarantees it breathes at full node saturation.
+  moja-als-msisdn-oracle:                         100m
+
+# CPU limits — ONLY for off-path pods whose demand is unbounded by design.
+# The rules handler is a single-replica consumer of topic-notification-event
+# (2× the transfer rate): it cannot keep up under load, so uncapped it burns
+# whatever CPU its node has for the whole run, stealing from on-path pods.
+# Capping at its request (Guaranteed QoS) makes node load deterministic; its
+# consumer lag grows during a run and self-drains once load stops. Never cap
+# on-path deployments.
+mojaloop_cpu_limits:
+  moja-centralsettlement-handler-rules:           600m
+
+# Probe relaxation for load-fragile deployments. The chart ships
+# timeoutSeconds:1 / failureThreshold:3 — a service that is merely CPU-starved
+# for under a minute gets killed, turning a briefly slow pod into an outage.
+# Applied to both liveness and readiness.
+mojaloop_probe_relax_deployments:
+  - moja-als-msisdn-oracle
+mojaloop_probe_timeout_seconds: 5
+mojaloop_probe_failure_threshold: 5
+
+# hostAliases JSON emitted by playbooks/06-generate-hostaliases.yml.
+# Patched onto the four ALS / Quoting / ML-API-Adapter / TTK-backend
+# Deployments before mTLS is applied; the mtls_switch role later re-patches
+# the callback deployments with the same real DFSP IPs alongside sidecar
+# injection.
+mojaloop_hostaliases_json: "{{ scenario_artifacts_dir }}/hostaliases.json"
+
+# Pre-mTLS hostAliases targets (DFSP node IPs, scenario-specific). The
+# mtls_switch role later re-patches these same deployments.
+mojaloop_hostalias_deployments:
+  - moja-account-lookup-service
+  - moja-quoting-service-handler
+  - moja-ml-api-adapter-handler-notification
+
+mojaloop_hostalias_statefulsets:
+  - moja-ml-testing-toolkit-backend
+
+# ConfigMap overrides — keys map to ConfigMap names; values to JSON files
+# under the scenario's configmaps/ dir.
+mojaloop_configmap_patches:
+  moja-account-lookup-service-config:                    account-lookup-service-config.json
+  moja-quoting-service-config:                           quoting-service-config.json
+  moja-quoting-service-handler-config:                   quoting-service-handler-config.json
+  moja-ml-api-adapter-service-config:                    ml-api-adapter-service-config.json
+  moja-ml-api-adapter-handler-notification-config:       ml-api-adapter-handler-notification-config.json
+  moja-centralledger-handler-transfer-prepare-config:    centralledger-handler-transfer-prepare-config.json
+  moja-handler-pos-batch-config:                         handler-pos-batch-config.json
+  moja-centralledger-handler-transfer-fulfil-config:     centralledger-handler-transfer-fulfil-config.json
+  # These two run a knex migration init container that reads its config from
+  # the configmap. The chart renders db_ssl_verify:false as the STRING "false"
+  # (truthy in JS) → migration verifies the self-signed cert → crashloop.
+  # Patch a real boolean rejectUnauthorized:false here instead.
+  moja-als-msisdn-oracle-config:                         als-msisdn-oracle-config.json
+  moja-account-lookup-service-admin-config:              account-lookup-service-admin-config.json
+  # Kafka protocol TLS: every rdkafka client needs security.protocol=ssl.
+  # These services' configmaps are otherwise helm-rendered, so they join the
+  # patch list to carry the setting. Files absent in a scenario are skipped,
+  # so plaintext-kafka scenarios simply omit them.
+  moja-centralledger-service-config:                     centralledger-service-config.json
+  moja-centralledger-handler-timeout-config:             centralledger-handler-timeout-config.json
+  moja-centralledger-handler-admin-transfer-config:      centralledger-handler-admin-transfer-config.json
+  moja-centralledger-handler-transfer-get-config:        centralledger-handler-transfer-get-config.json
+  moja-centralsettlement-service-config:                 centralsettlement-service-config.json
+  moja-centralsettlement-handler-rules-config:           centralsettlement-handler-rules-config.json
+  moja-centralsettlement-handler-deferredsettlement-config: centralsettlement-handler-deferredsettlement-config.json
+
+# Multi-replica callback deployments: Recreate + topologySpreadConstraints + hostAliases.
+# app is the app.kubernetes.io/name label value used in the topology labelSelector.
+mojaloop_callback_topology_deployments:
+  - deploy: moja-account-lookup-service
+    app: account-lookup-service
+  - deploy: moja-ml-api-adapter-handler-notification
+    app: ml-api-adapter-handler-notification
+  - deploy: moja-quoting-service-handler
+    app: quoting-service-handler
+
+# Multi-replica non-callback deployments: Recreate + topologySpreadConstraints only.
+mojaloop_topology_deployments:
+  - deploy: moja-als-msisdn-oracle
+    app: als-msisdn-oracle
+  - deploy: moja-centralledger-handler-transfer-fulfil
+    app: centralledger-handler-transfer-fulfil
+  - deploy: moja-centralledger-handler-transfer-prepare
+    app: centralledger-handler-transfer-prepare
+  - deploy: moja-centralledger-service
+    app: centralledger-service
+  - deploy: moja-handler-pos-batch
+    app: handler-pos-batch
+  - deploy: moja-ml-api-adapter-service
+    app: ml-api-adapter-service
+  - deploy: moja-quoting-service
+    app: quoting-service
+
+# Single-replica deployments: soft anti-affinity to spread across switch nodes.
+# Skipped silently if the deployment does not exist.
+mojaloop_singleton_deployments:
+  - moja-centralsettlement-handler-deferredsettlement
+  - moja-centralsettlement-handler-rules
+  - moja-centralsettlement-service
+  - moja-account-lookup-service-admin
+  - moja-centralledger-handler-admin-transfer
+  - moja-centralledger-handler-transfer-get
+  - moja-transaction-requests-service
+  - moja-ml-testing-toolkit-frontend
+  - moja-bulk-api-adapter
+
+# Deployments to wait on after all patches are applied.
+mojaloop_restart_deployments:
+  - moja-account-lookup-service
+  - moja-centralledger-handler-transfer-fulfil
+  - moja-centralledger-handler-transfer-prepare
+  - moja-handler-pos-batch
+  - moja-ml-api-adapter-handler-notification
+  - moja-ml-api-adapter-service
+  - moja-quoting-service
+  - moja-quoting-service-handler
+
+# NetworkPolicy that constrains mojaloop ingress (optional).
+mojaloop_network_policy: "{{ repo_root }}/manifests/mojaloop/network-policy.yaml"
+apply_network_policy: false
+
+# nginx ingress :80 exposed on NodePort 30080 (Cilium has no hostPort).
+switch_nginx_nodeport: "{{ repo_root }}/manifests/mtls/nginx-nodeport.yaml"

@@ -1,0 +1,14 @@
+---
+# Single end-to-end transfer through the SDK outbound flow on the source
+# DFSP. Mirrors the original smoke-transfer.sh, run from curl-k6-test in
+# the k6 cluster.
+
+smoke_src_fsp:    fsp201
+smoke_dest_fsp:   fsp202
+smoke_src_msisdn:  17039811918
+smoke_dest_msisdn: 17039811929
+smoke_amount:   "1"
+smoke_currency: XXX
+smoke_curl_timeout: 60
+smoke_curl_pod:    curl-k6-test
+smoke_curl_ns:     "{{ ns_k6_test }}"

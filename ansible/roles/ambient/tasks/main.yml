@@ -1,0 +1,227 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure istio helm repo is present
+  ansible.builtin.shell: |
+    helm repo add istio {{ helm_repos.istio }} 2>/dev/null || true
+    helm repo update istio
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Assert istiod is installed (run make mtls first)
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} status istiod
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# istio-cni: the per-node agent that programs ambient traffic redirection in
+# each enrolled pod's netns. Chains after Cilium in the MicroK8s CNI conf dir.
+- name: Helm install istio-cni (ambient node agent)
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
+      istio-cni istio/cni --version {{ istio_version }} --wait \
+      --timeout {{ ambient_helm_timeout }} \
+      --force-conflicts --take-ownership \
+      --set profile=ambient \
+      --set cni.cniConfDir={{ ambient_cni_conf_dir }} \
+      --set cni.cniBinDir={{ ambient_cni_bin_dir }}
+  register: _h_cni
+  changed_when: "'has been upgraded' in _h_cni.stdout or 'has been deployed' in _h_cni.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Upgrade istiod with the ambient profile overlay
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
+      istiod istio/istiod --version {{ istio_version }} --wait \
+      --timeout {{ ambient_helm_timeout }} \
+      --force-conflicts --take-ownership \
+      -f {{ istiod_values }} -f {{ ambient_istiod_overlay }}
+  register: _h_istiod
+  changed_when: "'has been upgraded' in _h_istiod.stdout or 'has been deployed' in _h_istiod.stdout"
+  environment: "{{ kubectl_env }}"
+
+# ztunnel: the per-node L4 proxy DaemonSet that carries HBONE mTLS for all
+# enrolled pods on its node. No resource limits — measure, then bound.
+- name: Helm install ztunnel
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ns_istio }} upgrade --install \
+      ztunnel istio/ztunnel --version {{ istio_version }} --wait \
+      --timeout {{ ambient_helm_timeout }} \
+      --force-conflicts --take-ownership
+  register: _h_ztunnel
+  changed_when: "'has been upgraded' in _h_ztunnel.stdout or 'has been deployed' in _h_ztunnel.stdout"
+  environment: "{{ kubectl_env }}"
+
+# Enrollment is live: istio-cni programs redirection for RUNNING pods — no
+# restarts. Pods carrying an injected sidecar are skipped automatically
+# (mixed mode), so the DFSP-edge deployments keep their file-cert sidecars.
+- name: Enroll namespaces in the ambient dataplane
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} label namespace {{ item }} \
+      istio.io/dataplane-mode=ambient --overwrite
+  loop: "{{ ambient_namespaces }}"
+  register: _enroll
+  changed_when: "'labeled' in (_enroll.stdout | default(''))"
+  environment: "{{ kubectl_env }}"
+
+# STRICT: enrolled pods accept only mesh mTLS. Enforced at ztunnel (ambient
+# pods) and Envoy (sidecar pods); pods without either are unaffected.
+- name: Apply STRICT PeerAuthentication
+  when: ambient_strict
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f - <<'EOF'
+    apiVersion: security.istio.io/v1
+    kind: PeerAuthentication
+    metadata:
+      name: default
+      namespace: {{ item }}
+    spec:
+      mtls:
+        mode: STRICT
+    EOF
+  loop: "{{ ambient_strict_namespaces }}"
+  register: _pa
+  changed_when: "'created' in _pa.stdout or 'configured' in _pa.stdout"
+  environment: "{{ kubectl_env }}"
+
+# HBONE rides port 15008 pod-to-pod, and ambient rewrites kubelet probes to
+# source 169.254.7.127 — workloads guarded by a NetworkPolicy (the Bitnami
+# datastore charts ship one allowing only their service ports) drop both:
+# ztunnel reports "connection timed out ... 15008" and probes fail. This
+# additive policy admits HBONE + the probe source for those workloads.
+# It MUST NOT select unguarded pods: selecting a pod flips it to
+# default-deny, so a namespace-wide selector would cut kubelet probes off
+# from every app pod. Scope strictly to the policy-guarded datastores.
+- name: Allow ambient HBONE and health probes through datastore NetworkPolicies
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f - <<'EOF'
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-ambient-hbone
+      namespace: {{ ns_mojaloop }}
+    spec:
+      podSelector:
+        matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values: [{{ ambient_permissive_workloads | join(', ') }}]
+      policyTypes: [Ingress]
+      ingress:
+        - ports:
+            - protocol: TCP
+              port: 15008
+        - from:
+            - ipBlock:
+                cidr: 169.254.7.127/32
+    EOF
+  register: _np_hbone
+  changed_when: "'created' in _np_hbone.stdout or 'configured' in _np_hbone.stdout"
+  environment: "{{ kubectl_env }}"
+
+# Selector PERMISSIVE for datastores — must be in place BEFORE the app
+# restarts below: chart init containers (wait-for-mysql) talk plaintext to
+# the enrolled datastores before their pod joins the mesh, and hang forever
+# under bare namespace STRICT. The DFSP-edge sidecar pods likewise reach the
+# datastores outside the mesh (their interception is scoped to DFSP egress).
+# Enrolled↔enrolled traffic still gets ztunnel mTLS automatically — PERMISSIVE
+# permits the plaintext fallback, it never downgrades mesh-capable peers.
+- name: Apply PERMISSIVE PeerAuthentication for datastore workloads
+  when: ambient_strict
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f - <<'EOF'
+    apiVersion: security.istio.io/v1
+    kind: PeerAuthentication
+    metadata:
+      name: permissive-{{ item }}
+      namespace: {{ ns_mojaloop }}
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: {{ item }}
+      mtls:
+        mode: PERMISSIVE
+    EOF
+  loop: "{{ ambient_permissive_workloads }}"
+  register: _pa_perm
+  changed_when: "'created' in _pa_perm.stdout or 'configured' in _pa_perm.stdout"
+  environment: "{{ kubectl_env }}"
+
+# Widen the edge sidecars' outbound interception so their app↔app calls ride
+# sidecar mTLS (their default DFSP-IP scoping would deliver those calls
+# plaintext to STRICT-enrolled pods → connection reset). Runs BEFORE the app
+# restart below so a single rollout applies it. The mtls role applies the
+# same widened scope itself when the namespace is ambient-enrolled; this
+# task converges the annotations regardless of stage order.
+- name: Widen edge-sidecar interception for mesh mode
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} patch deployment {{ item }} \
+      --type merge -p '{"spec":{"template":{"metadata":{"annotations":{
+        "traffic.sidecar.istio.io/includeOutboundIPRanges": "*",
+        "traffic.sidecar.istio.io/excludeOutboundPorts": "{{ ambient_sidecar_exclude_outbound_ports }}"
+      }}}}}'
+  loop: "{{ ambient_sidecar_deployments }}"
+  register: _widen
+  changed_when: "'patched' in (_widen.stdout | default(''))"
+  environment: "{{ kubectl_env }}"
+
+# Enrollment captures NEW connections only — long-lived flows opened before
+# enrollment (Kafka consumers, MySQL pools) stay outside the mesh. Restart the
+# app deployments so every connection re-establishes through ztunnel. This is
+# required on fresh deployments too: pods connect to Kafka/MySQL the moment
+# they start, before this role enrolls them. Datastores are NOT restarted:
+# they hold only inbound conns (renewed by the app restarts), and a Kafka pod
+# recreation would wipe its emptyDir (topics reset to 1 partition).
+- name: Restart app deployments so all connections enter the mesh
+  when: ambient_restart_workloads
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployments -o name \
+      | grep '/moja-' \
+      | xargs -n1 kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout restart
+  register: _restart
+  changed_when: true
+  environment: "{{ kubectl_env }}"
+
+- name: Wait for app deployment rollouts
+  when: ambient_restart_workloads
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get deployments -o name \
+      | grep '/moja-' \
+      | xargs -n1 kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} rollout status --timeout={{ ambient_restart_timeout }}
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+# ---- Verification ----
+
+- name: Wait for ztunnel + istio-cni DaemonSets
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} -n {{ ns_istio }} rollout status daemonset/{{ item }} --timeout=300s
+  loop:
+    - ztunnel
+    - istio-cni-node
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Verify ambient redirection is active on the app pods
+  ansible.builtin.shell: |
+    total=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get pods --field-selector=status.phase=Running -o json \
+      | jq '[.items[] | select(.spec.hostNetwork != true)] | length')
+    enrolled=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get pods -o json \
+      | jq '[.items[] | select(.metadata.annotations["ambient.istio.io/redirection"] == "enabled")] | length')
+    sidecars=$(kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} get pods -o json \
+      | jq '[.items[] | select(.spec.containers[].name == "istio-proxy")] | length')
+    echo "pods=$total ambient-enrolled=$enrolled sidecar (mixed-mode edge)=$sidecars"
+    [ "$enrolled" -gt 0 ] || { echo "ERROR: no pods enrolled in ambient"; exit 1; }
+  register: _verify
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+
+- name: Ambient summary
+  ansible.builtin.debug:
+    msg: |
+      Ambient mesh active: {{ _verify.stdout_lines | last }}
+      STRICT PeerAuthentication: {{ ambient_strict }} (namespaces: {{ ambient_strict_namespaces | join(', ') }})
+
+      Gate before load:  make smoke SCENARIO={{ scenario }}

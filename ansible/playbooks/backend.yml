@@ -1,0 +1,6 @@
+---
+- name: Deploy Mojaloop backend (Kafka, MySQL, MongoDB, Redis)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: backend

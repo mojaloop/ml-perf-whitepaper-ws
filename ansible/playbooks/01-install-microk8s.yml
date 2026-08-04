@@ -1,0 +1,156 @@
+---
+- name: Install MicroK8s on all K8s nodes
+  hosts: switch:dfsps
+  become: yes
+  gather_facts: yes
+  vars:
+    config_file: >-
+      {{ (playbook_dir ~ '/../../' ~ (scenario_path | default('scenarios/' ~ scenario)) ~ '/overrides/aws.yaml')
+         if (scenario | default('', true) | length > 0)
+         else (playbook_dir ~ '/../../common/aws.yaml') }}
+    config: "{{ lookup('file', config_file) | from_yaml }}"
+
+  tasks:
+    - name: Wait for system to be ready
+      wait_for_connection:
+        timeout: 300
+
+    # High-TPS network tuning. Widens ephemeral port range and accept/syn
+    # queues so the gateway + sidecars + DFSP nginx don't run out of
+    # source ports or drop SYNs under sustained load. Persists across
+    # reboots via /etc/sysctl.d/.
+    - name: High-TPS network tuning — write /etc/sysctl.d/99-perf.conf
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/99-perf.conf
+        mode: '0644'
+        content: |
+          # Mojaloop perf-lab — high-TPS networking tuning.
+          # Managed by ansible/playbooks/01-install-microk8s.yml.
+          net.ipv4.ip_local_port_range = 1024 65535
+          net.core.somaxconn = 16384
+          net.ipv4.tcp_max_syn_backlog = 16384
+          net.core.netdev_max_backlog = 65535
+          net.core.netdev_budget = 600
+      register: sysctl_perf
+
+    - name: Reload sysctl if perf tuning changed
+      ansible.builtin.command: sysctl --system
+      when: sysctl_perf.changed
+      changed_when: false
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - snapd
+          - curl
+          - wget
+          - net-tools
+        state: present
+
+    # Pin an HWE kernel with lower softirq overhead under load than the AMI's
+    # GA kernel. Done before the MicroK8s install so the (parallel) reboot is
+    # safe — no cluster exists yet to lose quorum. Gated by
+    # config.k8s.app_node_kernel (empty/unset = skip); switch nodes only.
+    - name: Pin app-node HWE kernel
+      when:
+        - (config.k8s.app_node_kernel | default('')) | length > 0
+        - inventory_hostname in groups['switch']
+      block:
+        - name: "Install pinned kernel {{ config.k8s.app_node_kernel }}"
+          apt:
+            name:
+              - "linux-image-{{ config.k8s.app_node_kernel }}"
+              - "linux-modules-{{ config.k8s.app_node_kernel }}"
+              - "linux-modules-extra-{{ config.k8s.app_node_kernel }}"
+            state: present
+            update_cache: yes
+
+        - name: Make the newest (pinned) kernel the default GRUB entry
+          ansible.builtin.command: update-grub
+          changed_when: false
+
+        - name: Reboot into the pinned kernel (only if not already running it)
+          ansible.builtin.reboot:
+            reboot_timeout: 600
+          when: ansible_kernel != config.k8s.app_node_kernel
+
+    - name: Check if MicroK8s is already installed
+      shell: snap list microk8s 2>/dev/null | grep -q microk8s
+      register: microk8s_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install MicroK8s via snap command
+      shell: |
+        snap install microk8s --classic --channel={{ config.k8s.microk8s_version | default('1.30/stable') }}
+      when: microk8s_check.rc != 0
+      register: microk8s_install
+
+    - name: Refresh MicroK8s if already installed
+      shell: |
+        snap refresh microk8s --channel={{ config.k8s.microk8s_version | default('1.30/stable') }}
+      when: microk8s_check.rc == 0
+      register: microk8s_refresh
+      changed_when: "'has no updates available' not in microk8s_refresh.stderr"
+
+    # Raise the per-container fd ceiling that snap-microk8s's containerd
+    # wrapper sets via `ulimit -n` in /var/snap/microk8s/.../args/containerd-env.
+    # The default is too low for the istio-ingressgateway Envoy under
+    # sustained load (downstream DFSP TLS conns + xDS + upstream pool can
+    # exceed it, causing EMFILE storms). fs.nr_open on these AMIs already
+    # allows 1048576, so the ulimit call won't be silently capped. Idempotent:
+    # regex matches any current digit value.
+    - name: Raise per-container fd ceiling (1048576) in containerd-env
+      ansible.builtin.replace:
+        path: /var/snap/microk8s/current/args/containerd-env
+        regexp: '^(\s*ulimit -n) \d+(.*)$'
+        replace: '\g<1> 1048576\g<2>'
+      register: containerd_ulimit
+
+    - name: Restart microk8s containerd if ulimit changed
+      ansible.builtin.systemd:
+        name: snap.microk8s.daemon-containerd
+        state: restarted
+      when: containerd_ulimit.changed
+
+    - name: Add ubuntu user to microk8s group
+      user:
+        name: ubuntu
+        groups: microk8s
+        append: yes
+
+    - name: Create .kube directory
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Wait for MicroK8s to be ready
+      shell: microk8s status --wait-ready
+      changed_when: false
+      retries: 10
+      delay: 30
+      register: microk8s_status
+      until: microk8s_status.rc == 0
+
+    - name: Configure MicroK8s permissions
+      shell: |
+        chown -f -R ubuntu:ubuntu /home/ubuntu/.kube || true
+        chmod 600 /home/ubuntu/.kube/config || true
+      changed_when: false
+
+    - name: Verify MicroK8s installation
+      shell: microk8s version
+      register: microk8s_version_output
+      changed_when: false
+
+    - name: Display MicroK8s version
+      debug:
+        msg: "MicroK8s version installed: {{ microk8s_version_output.stdout }}"

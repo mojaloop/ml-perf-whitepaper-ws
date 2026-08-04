@@ -1,0 +1,91 @@
+---
+# Switch-side mTLS — Leg A (inbound, ingress GW) + Leg B (outbound, SIDECAR mode).
+# This role:
+#  - Installs Gateway API CRDs + istio-base + istiod + istio-ingressgateway
+#  - Patches nginx (frees :443 for the Istio ingress gateway)
+#  - Applies Leg A inbound resources (cert + Gateway + VirtualServices + upstream pool)
+#  - Leg B: copies the mTLS cert into the mojaloop namespace, renders+applies the
+#    sidecar ServiceEntry/VirtualService/DestinationRule set, injects an istio-proxy
+#    sidecar into the 3 egress deployments (scoped to the DFSP IP ranges, certs
+#    file-mounted), points their hostAliases at the real DFSP node IPs, and retires
+#    the old egress gateway.
+#
+# Why sidecar over egress gateway: a centralized gateway forces a switch-pod ->
+# egress-GW-pod -> DFSP double-hop, costing kernel softirq under load. Sidecar
+# mTLS origination removes that hop.
+
+istio_version: "{{ chart_versions.istio }}"
+gateway_api_url: >-
+  https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+
+# Istio helm install resilience. The base/istiod/ingress installs run large
+# server-side-apply operations over the bastion SOCKS tunnel; a transient API
+# stall can blow the request deadline and leave the release in `pending-upgrade`.
+# Retry the whole helm op (the 2nd attempt is fast once CRDs are established).
+istio_helm_timeout: 10m
+istio_helm_retries: 3
+istio_helm_retry_delay: 20
+
+istiod_values:         "{{ common_dir }}/istiod-values.yaml"
+ingressgateway_values: "{{ common_dir }}/istio-ingressgateway.yaml"
+
+# Leg A (inbound) static manifests — unchanged from gateway mode.
+mtls_switch_inbound:        "{{ repo_root }}/manifests/mtls/switch-inbound.yaml"
+mtls_switch_upstream_pool:  "{{ repo_root }}/manifests/mtls/switch-upstream-pool.yaml"
+mtls_switch_tls_secret:     "{{ repo_root }}/certs/switch-tls-secret.yaml"
+
+# DFSP node IPs / hostAliases emitted fresh each run by playbook 06.
+# Used to (a) render the sidecar Leg B manifest with the live endpoint IPs and
+# (b) re-point the egress deployments' hostAliases at the real DFSP nodes.
+mojaloop_hostaliases_json:  "{{ scenario_artifacts_dir }}/hostaliases.json"
+
+# Leg B (sidecar mode). The mTLS client cert/key/CA — applied to istio-system
+# for Leg A (Gateway credentialName) and copied into mojaloop so the sidecars
+# can file-mount it.
+mtls_certs_secret_name: switch-mtls-creds
+mtls_certs_mount_path:  /etc/istio/mtls-certs
+
+# Rendered sidecar Leg B manifest (SE/VS/DR x8), built from the template.
+mtls_sidecar_outbound_manifest: "{{ scenario_artifacts_dir }}/switch-outbound-sidecar.yaml"
+
+# DestinationRule / VirtualService tunables.
+mtls_sidecar_route_timeout:      30s
+mtls_sidecar_max_connections:    500
+mtls_sidecar_http2_max_requests: 500
+# Per-pod Envoy sidecar memory limit. Default 1Gi OOMKills under sustained load
+# (Envoy per-connection stats grow unbounded); 2Gi is safe on the 32GB app nodes.
+mtls_sidecar_proxy_memory_limit: "2Gi"
+
+# Outbound ports kept OUT of Envoy when interception is widened for an
+# ambient-enrolled namespace (Kafka/MySQL/Mongo/Redis): datastore traffic is
+# never proxied — it goes direct, protected by protocol TLS where enabled.
+# Keep in sync with the ambient role's exclude list.
+mtls_sidecar_ambient_exclude_ports: "9092,3306,27017,6379"
+
+# istiod ambient-profile overlay, applied when the namespace runs an ambient
+# dataplane so sidecar↔ztunnel interop survives istiod reinstalls by this role.
+istiod_ambient_overlay: "{{ common_dir }}/istiod-ambient.yaml"
+
+# Egress deployments that originate Leg B mTLS via their own injected sidecar.
+#  egress_only: true  -> pure Kafka-consumer handler (no ingress traffic). Disable
+#                        inbound interception (includeInboundPorts:"") — nothing to
+#                        terminate, and it keeps the sidecar's job to egress only.
+#  egress_only: false -> dual-role (also receives ingress-GW Leg A traffic). KEEP
+#                        inbound interception so the ingress GW's auto-mTLS is
+#                        terminated by this sidecar — disabling it yields a Leg A
+#                        503 TLS WRONG_VERSION_NUMBER.
+# (These three match the switch role's mojaloop_hostalias_deployments.)
+mtls_sidecar_deployments:
+  - name: moja-account-lookup-service
+    egress_only: false
+  - name: moja-quoting-service-handler
+    egress_only: true
+  - name: moja-ml-api-adapter-handler-notification
+    egress_only: true
+
+# Per-deployment rollout wait — Kafka-consuming handlers rejoin their group slowly.
+mtls_sidecar_rollout_timeout: 1200s
+
+# Retire the egress-gateway resources superseded by sidecar mode (safe no-op if
+# they were never installed). Set false to leave a prior gateway install in place.
+mtls_cleanup_egressgateway: true

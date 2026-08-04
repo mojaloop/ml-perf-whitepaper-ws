@@ -1,0 +1,18 @@
+# Example Terraform Variables File
+#
+# Only needed for a manual `terraform plan`/`apply` run outside the root
+# Makefile — `make terraform-plan`/`terraform-apply` set config_file_path,
+# artifacts_dir, and ssh_key_name via TF_VAR_* env vars instead.
+# Copy this file to terraform.tfvars and customize as needed.
+
+# Path to configuration file (relative to terraform directory)
+# config_file_path = "../common/aws.yaml"
+
+# Override AMI ID from the config file
+# override_ami_id = "ami-12345678"
+
+# Whether to create bastion host
+# create_bastion = true
+
+# Override allowed SSH CIDR blocks for bastion
+# allowed_ssh_cidr_blocks = ["203.0.113.0/24", "198.51.100.0/24"]

@@ -1,0 +1,14 @@
+# ============================================================================
+# istiod ambient-mode overlay — layered ON TOP of istiod-values.yaml by the
+# ambient role (helm -f istiod-values.yaml -f istiod-ambient.yaml).
+#
+# profile: ambient switches istiod into ambient mode (enables the ambient
+# controllers and HBONE support) while remaining fully compatible with the
+# existing sidecar workloads (mixed mode): the DFSP-edge deployments keep
+# their injected sidecars and interoperate with ztunnel-enrolled pods.
+#
+# The mtls_switch role also applies this overlay automatically whenever the
+# application namespace is ambient-enrolled, so istiod keeps the ambient
+# profile across `make mtls` re-runs.
+# ============================================================================
+profile: ambient

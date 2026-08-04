@@ -1,0 +1,23 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+# remote_write target is the switch monitoring node. If the inventory
+# doesn't carry its private_ip the agents would silently fail to ship — so
+# fail loud here, same philosophy as the dfsp role's switch_lb_ip assert.
+- name: Assert switch monitoring node IP is resolvable from inventory
+  ansible.builtin.assert:
+    that:
+      - dfsp_mon_monitoring_node_ip is defined
+      - dfsp_mon_monitoring_node_ip | length > 0
+    fail_msg: >-
+      Could not resolve sw1-monitoring private_ip from inventory.yaml.
+      Re-run `make terraform-apply SCENARIO={{ scenario }}` to regenerate
+      the inventory, then `make dfsp-monitoring`.
+
+- name: Per-DFSP loop
+  ansible.builtin.include_tasks: per_fsp.yml
+  loop: "{{ dfsp_indices }}"
+  loop_control:
+    loop_var: fsp_idx

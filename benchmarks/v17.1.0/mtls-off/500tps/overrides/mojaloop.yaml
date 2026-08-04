@@ -1,0 +1,187 @@
+# Default values for central.
+# This is a YAML-formatted file.
+# Declare global configurations
+global: {}
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+#  minAvailable: 20%
+## Only one key should be set
+
+# Declare variables to be passed into your templates.
+
+account-lookup-service:
+  enabled: true
+
+  # Service image versions from the passing 500tps mtls-wireguard run (accec4e).
+  # Base 17.1.0.yaml ships v17.12.2; bump to v17.16.1 (ALS histogram-memory fix).
+  account-lookup-service:
+    enabled: true
+    replicaCount: 10
+    image:
+      tag: v17.16.1
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+      db_ssl_enabled: true    # DB TLS (encrypt-only; verify off until CA wired)
+      db_ssl_verify: false
+
+  account-lookup-service-admin:
+    image:
+      tag: v17.16.1
+    # DB TLS via configmap patch (account-lookup-service-admin-config.json), not helm
+    # (migration init container + chart string-bool bug — see als-msisdn-oracle).
+
+  account-lookup-service-handler-timeout:
+    image:
+      tag: v17.16.1
+
+quoting-service:
+  quoting-service:
+    enabled: true
+    replicaCount: 12
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+      db_ssl_enabled: true    # DB TLS (encrypt-only; verify off until CA wired)
+      db_ssl_verify: false
+
+  quoting-service-handler:
+    enabled: true
+    replicaCount: 12
+    config:
+      cache:
+        participant_data_expires_in_ms: 60000
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+
+ml-api-adapter:
+  enabled: true
+  # Service image versions from the passing 500tps mtls-wireguard run (accec4e).
+  # Base 17.1.0.yaml ships v16.5.9; bump to v16.10.1 (bounded http.Agent build
+  # that keeps notification-handler callback delivery from stalling).
+  ml-api-adapter-service:
+    enabled: true
+    replicaCount: 12
+    resources: {}
+    image:
+      tag: v16.10.1
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+
+  ml-api-adapter-handler-notification:
+    enabled: true
+    replicaCount: 18
+    resources: {}
+    image:
+      tag: v16.10.1
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+
+
+centralledger:
+  enabled: true
+  centralledger-service:
+    enabled: true
+    replicaCount: 8
+    resources: {}
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+      db_ssl_enabled: true    # DB TLS (encrypt-only; verify off until CA wired)
+      db_ssl_verify: false
+
+  centralledger-handler-transfer-prepare:
+    enabled: true
+    replicaCount: 12
+    resources: {}
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+      db_ssl_enabled: true    # DB TLS (encrypt-only; verify off until CA wired)
+      db_ssl_verify: false
+
+  centralledger-handler-transfer-position-batch:
+    enabled: true
+    replicaCount: 8
+    resources: {}
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+      db_ssl_enabled: true    # DB TLS (encrypt-only; verify off until CA wired)
+      db_ssl_verify: false
+
+  centralledger-handler-transfer-position:
+    enabled: false
+
+  centralledger-handler-transfer-fulfil:
+    enabled: true
+    replicaCount: 12
+    resources: {}
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+      db_ssl_enabled: true    # DB TLS (encrypt-only; verify off until CA wired)
+      db_ssl_verify: false
+
+  centralledger-handler-timeout:
+    enabled: true
+    resources: {}
+    config:
+      # Log config
+      log_level: info
+      event_log_filter: 'log:info, log:warn, log:error'
+      db_ssl_enabled: true    # DB TLS (encrypt-only; verify off until CA wired)
+      db_ssl_verify: false
+
+  # DB TLS on off-path CL singletons (helm values; not configmap-patched)
+  centralledger-handler-transfer-get:
+    config:
+      db_ssl_enabled: true
+      db_ssl_verify: false
+  centralledger-handler-admin-transfer:
+    config:
+      db_ssl_enabled: true
+      db_ssl_verify: false
+
+# DB TLS on central-settlement services (off-path singletons; not configmap-patched)
+centralsettlement:
+  centralsettlement-service:
+    config:
+      db_ssl_enabled: true
+      db_ssl_verify: false
+  centralsettlement-handler-deferredsettlement:
+    config:
+      db_ssl_enabled: true
+      db_ssl_verify: false
+  centralsettlement-handler-grosssettlement:
+    config:
+      db_ssl_enabled: true
+      db_ssl_verify: false
+  centralsettlement-handler-rules:
+    config:
+      db_ssl_enabled: true
+      db_ssl_verify: false
+
+als-msisdn-oracle:
+  enabled: true
+  replicaCount: 8
+  # DB TLS applied via configmap patch (als-msisdn-oracle-config.json), NOT helm:
+  # helm renders db_ssl_verify as a truthy string "false" which breaks the knex
+  # migration init container. Keep helm plaintext so `helm --wait` passes.
+simulator:
+  enabled: false
+
+mojaloop-simulator:
+  enabled: false

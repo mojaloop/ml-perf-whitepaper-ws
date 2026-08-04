@@ -1,0 +1,91 @@
+# Rendered by the ansible mtls_switch role — do not edit by hand. DFSP
+# endpoint IPs come from {{ mojaloop_hostaliases_json }} (emitted each run),
+# so this file stays in sync with the live nodes.
+#
+# Switch outbound mTLS via Istio sidecars (Leg B): mTLS origination happens
+# in each calling pod's own Envoy sidecar rather than a centralized gateway.
+#
+# Path: switch pod -> http://sim-fspNNN.local/sim/fspNNN/inbound/... (plain
+# HTTP :80) -> hostAliases resolves to the real DFSP node IP -> the pod's own
+# sidecar intercepts (includeOutboundIPRanges = DFSP /32s) -> VirtualService
+# rewrites /sim/fspNNN/inbound/ -> / -> DestinationRule originates MUTUAL TLS
+# to :443 using file-mounted certs ({{ mtls_certs_mount_path }}/{tls.crt,tls.key,ca.crt}
+# — sidecar SDS doesn't load a DestinationRule credentialName secret the way
+# gateways do, so the role mounts the secret into istio-proxy instead) ->
+# DFSP nginx ssl-passthrough -> scheme-adapter (validates client cert).
+{% for entry in dfsp_host_entries %}
+{% set host  = entry.hostnames[0] %}
+{% set short = host | regex_replace('\.local$', '') %}
+{% set fsp   = short | regex_replace('^sim-', '') %}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_mojaloop }}
+spec:
+  hosts: [{{ host }}]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }    # port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }   # TLS-origination target
+  endpoints:
+    - address: {{ entry.ip }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_mojaloop }}
+spec:
+  hosts: [{{ host }}]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
+  http:
+    - match:
+        - uri: { prefix: /sim/{{ fsp }}/inbound/ }
+      rewrite:
+        uri: /
+      timeout: {{ mtls_sidecar_route_timeout }}
+      route:
+        - destination:
+            host: {{ host }}
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_mojaloop }}
+spec:
+  host: {{ host }}
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: {{ mtls_sidecar_max_connections }}
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: {{ mtls_sidecar_http2_max_requests }}
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        # NB: TLS version + cipher suites are NOT set here — ClientTLSSettings
+        # has no cipherSuites/minProtocolVersion field. The Leg B client floor
+        # (TLS 1.2 min, ECDSA AES-GCM, X25519/P-256) is enforced mesh-wide via
+        # meshConfig.tlsDefaults in common/istiod-values.yaml.
+        tls:
+          mode: MUTUAL
+          clientCertificate: {{ mtls_certs_mount_path }}/tls.crt
+          privateKey: {{ mtls_certs_mount_path }}/tls.key
+          caCertificates: {{ mtls_certs_mount_path }}/ca.crt
+          sni: {{ host }}
+{% endfor %}

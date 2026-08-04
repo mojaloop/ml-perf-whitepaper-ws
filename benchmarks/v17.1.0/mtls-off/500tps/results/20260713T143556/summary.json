@@ -1,0 +1,30 @@
+{
+  "version": "v17.1.0",
+  "mtls": "off",
+  "tps": 650,
+  "run_id": "20260713T143556",
+  "status": "PASS",
+  "actual_tps": 649.572741194487,
+  "success_pct": 99.96802627030765,
+  "p99_ms": { "discovery": 79, "quote": 249, "transfer": 755, "e2e": 946 },
+  "notes": "Plaintext baseline (no edge mTLS, no DB/Kafka TLS, no pod-pod encryption). Run at 650 TPS — the verified maximum for this hardware with p99<1s; the 500 TPS design target passes with ~30% node-CPU margin. e2e p99 is the STEADY-STATE figure (authoritative). 700 TPS sustains cleanly but misses p99<1s (~1.06s).",
+  "scenario": "1 — plaintext baseline",
+  "slug": "v17.1.0-mtls-off-500tps",
+  "run_utc": "2026-07-13T20:35:47Z",
+  "results": {
+    "completed_transactions": 1272513,
+    "success_rate": 99.96802627030765,
+    "actual_tps": 649.572741194487,
+    "e2e_time_p95": 859,
+    "e2e_time_p99": 1008,
+    "http_req_duration_p95": 602.2842191499998,
+    "http_req_duration_p99": 713.1949530999999
+  },
+  "steady_state": {
+    "window": "start+300s .. end-120s (1558s)",
+    "transfers_measured": 1012461,
+    "e2e_p50_ms": 630, "e2e_p95_ms": 846, "e2e_p99_ms": 946, "e2e_stddev_ms": 122,
+    "transfer_p99_ms": 755, "quote_p99_ms": 249, "discovery_p99_ms": 79,
+    "validity_gate": "PASS (fulfil/prepare=1.000, notif/prepare=2.000)"
+  }
+}

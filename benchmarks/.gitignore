@@ -1,0 +1,7 @@
+# infra artifacts, provisioned once per cell (kubeconfigs, inventory, tf-state,
+# rendered coredns) — never commit; contain cluster certs/tokens/IPs.
+*/*/*/artifacts/
+
+# per-run snapshots — the Results table in benchmarks/README.md is
+# hand-maintained instead; don't check new run directories back in.
+*/*/*/results/
