@@ -1,0 +1,56 @@
+# DFSP-side Istio IngressGateway overrides (istio_dfsp role). Counterpart to
+# common/istio-ingressgateway.yaml (switch side) — separate file because the
+# deploy shape differs: single-node MicroK8s clusters (no CORE-API-ADAPTERS
+# node-affinity label to select on) on smaller c7i.xlarge/2xlarge/4xlarge
+# instances, and no NLB in front (the switch dials each DFSP node's real IP
+# directly), so exposure is a NodePort with no matching LB target-group
+# config to keep in sync here.
+#
+# Port 443 exposure: NodePort 30443 (see
+# ansible/roles/_common/defaults/main.yml: dfsp_istio_gateway_nodeport —
+# keep the literal nodePort below in sync with that value), NOT hostPort.
+# DFSP clusters run Calico (not Cilium — the cilium role only
+# targets the switch cluster), so hostPort *would* work here unlike on the
+# switch, but nginx-ingress already owns hostPort 443 on these single-node
+# clusters. Rather than evict it (as the switch role does to its own nginx),
+# this gateway claims a distinct NodePort so nginx and Istio coexist on the
+# same node without a port conflict. The switch's outbound ServiceEntry
+# dials this NodePort directly on the DFSP node IP in place of literal :443.
+
+kind: DaemonSet
+
+service:
+  type: NodePort
+  ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+      nodePort: 30443
+
+# Security: chart defaults are used — the pod-level sysctl
+# net.ipv4.ip_unprivileged_port_start=0 already lets the non-root container
+# (uid 1337) bind to :443.
+
+# Single-node cluster: this pod shares the node with 4-32 scheme-adapter
+# replicas plus sim-backend/cache. Sized down from the switch's gateway
+# (4 vCPU limit on an 8-vCPU-node fleet) to fit the smallest DFSP instance
+# (c7i.xlarge, fsp203-208) with headroom left for the app pods — verify
+# against real load before trusting this on fsp201/fsp202's larger 4xlarge
+# nodes, where a higher limit may be worth it given their ~70%/49% traffic
+# share (see dfsp-ssl-passthrough-connection-pinning.md).
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi

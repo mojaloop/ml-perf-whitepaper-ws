@@ -27,9 +27,29 @@ dfsp_mon_scrape_interval: "15s"
 # cardinality bounded across 8 extra clusters. host softirq is carried by
 # node_cpu_seconds_total{mode="softirq"} + node_softnet_stat_*; container
 # CPU by container_cpu_usage_seconds_total; sdk-scheme-adapter app metrics
-# (if/when its /metrics is enabled) by moja_*/nodejs_*.
+# by moja_*/nodejs_*/sdk_*/mojaloop_connector_* — these prefixes vary by
+# which custom-instrumented image (if any) a scenario runs; each is a
+# no-op for scenarios not using that particular image. istio_requests_total
+# / istio_request_duration_milliseconds.* (dfsp-istio-proxy job, added for
+# the istio_dfsp build's overhead analysis) are the derived per-request
+# metrics, NOT the much higher-cardinality raw envoy_*/cluster.* stats —
+# deliberately excluded here even though the scrape job pulls them in
+# locally, same reasoning as the switch's own istio-telemetry setup. See
+# the drop step in agent-stack.yaml.j2 for a known-bad metric excluded
+# ahead of this regex regardless of what's kept here.
 dfsp_mon_keep_metrics_regex: >-
-  node_cpu_seconds_total|node_softnet_stat.*|node_load.*|node_memory_(MemTotal|MemAvailable)_bytes|node_network_(receive|transmit)_(bytes|packets|drop)_total|node_nf_conntrack_entries.*|container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_network_(receive|transmit)_(bytes|packets)_total|nodejs_eventloop_lag.*|nodejs_.*|moja_.*|up
+  node_cpu_seconds_total|node_softnet_stat.*|node_load.*|node_memory_(MemTotal|MemAvailable)_bytes|node_network_(receive|transmit)_(bytes|packets|drop)_total|node_nf_conntrack_entries.*|container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_network_(receive|transmit)_(bytes|packets)_total|nodejs_eventloop_lag.*|nodejs_.*|moja_.*|sdk_.*|mojaloop_connector_.*|istio_requests_total|istio_request_duration_milliseconds.*|up
 
 # Namespace whose pods we scrape for app metrics (sdk-scheme-adapter + sim).
 dfsp_mon_app_namespace: "{{ ns_dfsps }}"
+
+# prometheus-agent resources. Fallback only, matching the current 500tps
+# scenarios' lower per-FSP replica/traffic counts — override per-scenario
+# (per-FSP) for FSPs carrying enough scheme-adapter replicas/traffic share
+# that scrape+buffer+remote_write volume exceeds this. Undersizing this
+# causes the agent to OOMKill under load, which silently blacks out every
+# metric for that FSP (node-exporter included) for the duration.
+dfsp_mon_agent_memory_limit_default: 512Mi
+dfsp_mon_agent_memory_limit: {}
+dfsp_mon_agent_cpu_limit_default: 500m
+dfsp_mon_agent_cpu_limit: {}

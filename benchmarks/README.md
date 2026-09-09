@@ -32,6 +32,7 @@ dashboard screenshots.
 | v17.1.0 | mtls-wireguard | FSPIOP | 450 | PASS | 449.8 | 99.99 | 918 | ~1M | [README](v17.1.0/mtls-wireguard/500tps/README.md) |
 | v17.1.0 | mtls-mesh | FSPIOP | 500 | PASS | 499.9 | 99.93 | 910 | ~1M | [README](v17.1.0/mtls-mesh/500tps/README.md) |
 | v17.1.0 | mtls-mesh | ISO20022 | 500 | PASS | 499.7 | 99.96 | 951 | ~1M | [README](v17.1.0/mtls-mesh/500tps-iso20022/README.md) |
+| v17.1.0 | mtls-mesh | FSPIOP | 1000 (HA) | PASS | 999.6 | 99.96 | 944 | ~1M | [README](v17.1.0/mtls-mesh/1000tps/README.md) |
 
 The e2e p99 goal is **<1s at the steady-state percentile** (the k6 full-run
 aggregate is also recorded but is inflated by ramp edges). Note the "Run TPS"
@@ -39,6 +40,14 @@ column: each scenario is recorded at the highest rate it sustains under the
 goal on this hardware, so the TPS differences between rows are themselves a
 finding — plaintext holds 650, the ambient mesh holds the 500 design target,
 and WireGuard-with-datastore-TLS (double encryption) needs to back off to 450.
+
+Rows marked **(HA)** in the Run TPS column are a separate, harder durability
+posture, not a direct throughput-scaling comparison to the non-HA rows above
+them. Every non-HA row in this table runs Kafka RF=1 on a single broker with
+no MySQL replication (a throughput benchmark, not a production posture); an
+HA row runs Kafka RF=3 with `min.insync.replicas=2` and a MySQL secondary
+under semi-sync replication — the durability a production deployment would
+actually run — and is still held to the same <1s steady-state p99 goal.
 
 ## How to run a scenario
 

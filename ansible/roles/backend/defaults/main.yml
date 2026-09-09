@@ -10,9 +10,25 @@ backend_values_files:
   - "{{ backend_values_base }}"
   - "{{ scenario_overrides_dir }}/backend.yaml"
 
-# Replication mode requires Rancher local-path-provisioner instead of
-# the default microk8s-hostpath. Set true via scenario override file.
+# Swaps the default StorageClass to Rancher local-path-provisioner instead
+# of microk8s-hostpath. Set true via this scenario's versions.yml (the
+# _common role's include_vars target — overrides/backend.yaml is a pure
+# Helm values file and is never read by ansible). Scenarios using real
+# EBS-backed persistence (explicit storageClassName per volume) should
+# leave this false — see backend_mysql_service_alias below for the
+# separate, decoupled toggle those scenarios need instead.
 backend_replication_mode: false
+
+# Applies manifests/mojaloop/mysqldb-service-alias.yaml — a headless
+# `mysqldb` Service aliasing to the primary, needed whenever
+# mysql.architecture: replication is set (the chart then only creates
+# mysqldb-primary/mysqldb-secondary Services, not a plain `mysqldb` one,
+# but every mojoloop service's db_host config still expects `mysqldb`).
+# Deliberately separate from backend_replication_mode: that flag also
+# swaps the cluster default StorageClass to local-path-provisioner, which
+# EBS-backed replication scenarios (explicit storageClassName per volume)
+# don't want. Set true via this scenario's versions.yml.
+backend_mysql_service_alias: false
 
 local_path_provisioner_url: >-
   https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.32/deploy/local-path-storage.yaml

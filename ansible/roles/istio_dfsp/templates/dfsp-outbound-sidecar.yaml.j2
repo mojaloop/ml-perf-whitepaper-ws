@@ -1,0 +1,93 @@
+# Rendered by the ansible istio_dfsp role — do not edit by hand.
+#
+# DFSP outbound mTLS (the switch's own Leg A inbound, originated here),
+# mirroring the STRUCTURE (not the direction) of
+# ansible/roles/mtls_switch/templates/switch-outbound-sidecar.yaml.j2 (the
+# switch's Leg B): the scheme-adapter's own sidecar originates mTLS toward
+# the switch's inbound Gateway, replacing the app's
+# OUTBOUND_MUTUAL_TLS_ENABLED https.Agent client.
+#
+# Path: scheme-adapter pod -> http://account-lookup-service.local/... (plain
+# HTTP, same 3 hostnames the app already dials today — see
+# ansible/roles/dfsp/templates/dfsp-coredns.j2 and dfsp/tasks/per_fsp.yml's
+# hostAliases patch) -> the pod's own sidecar intercepts (outbound
+# interception scoped to switch_lb_ip/32 only) -> VirtualService routes to
+# port 443 -> DestinationRule originates MUTUAL TLS using the file-mounted
+# shared cert ({{ mtls_certs_mount_path }}/{outbound-cert.pem,outbound-key.pem,outbound-cacert.pem}
+# — sidecar SDS doesn't load a DestinationRule credentialName secret the way
+# Gateways do, so this role mounts the secret into istio-proxy instead, same
+# as mtls_switch's Leg B) -> switch_lb_ip:443 (the switch's own NLB, already
+# reachable from every DFSP node today) -> switch's istio-ingressgateway ->
+# switch-mtls-gateway (validates this same shared cert) -> plain HTTP to the
+# switch's ALS/quoting/ml-api-adapter Services.
+#
+# Applied by: ansible/roles/istio_dfsp/tasks/per_fsp.yml
+{% for host in ['account-lookup-service.local', 'quoting-service.local', 'ml-api-adapter.local'] %}
+{% set short = host | regex_replace('\.local$', '') %}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_dfsps }}
+spec:
+  hosts: [{{ host }}]
+  location: MESH_EXTERNAL
+  resolution: STATIC
+  ports:
+    - { number: 80,  name: http,  protocol: HTTP }    # port the app connects on
+    - { number: 443, name: https, protocol: HTTPS }   # TLS-origination target
+  endpoints:
+    - address: {{ switch_lb_ip }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_dfsps }}
+spec:
+  hosts: [{{ host }}]
+  gateways: [mesh]            # sidecar-local routing, not a named Gateway resource
+  http:
+    - timeout: 30s
+      route:
+        - destination:
+            host: {{ host }}
+            port: { number: 443 }
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ short }}
+  namespace: {{ ns_dfsps }}
+spec:
+  host: {{ host }}
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500
+        connectTimeout: 10s
+        tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 1000
+        idleTimeout: 35s
+        h2UpgradePolicy: DO_NOT_UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 50
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    portLevelSettings:
+      - port: { number: 443 }
+        # TLS version/cipher floor enforced mesh-wide via meshConfig.tlsDefaults
+        # (common/istiod-values.yaml) — same reasoning as switch Leg B: a
+        # DestinationRule's ClientTLSSettings has no cipherSuites field.
+        tls:
+          mode: MUTUAL
+          clientCertificate: {{ mtls_certs_mount_path }}/outbound-cert.pem
+          privateKey: {{ mtls_certs_mount_path }}/outbound-key.pem
+          caCertificates: {{ mtls_certs_mount_path }}/outbound-cacert.pem
+          sni: {{ host }}
+{% endfor %}

@@ -32,6 +32,12 @@ dfsp_sdk_replicas:
 dfsp_backend_replicas_default: 1
 dfsp_backend_replicas: {}
 
+# Redis cache maxmemory (allkeys-lru, no persistence — see per_fsp.yml).
+# Fallback only, matching the current 500tps scenarios' smaller nodes —
+# override per-scenario in overrides/dfsp.yaml for scenarios with more
+# node headroom and/or higher write throughput into this cache.
+dfsp_cache_maxmemory: 200mb
+
 # switch_lb_ip is provided by inventory.yaml (all.vars.switch_lb_ip), which
 # terraform populates from the NLB ENI private IP. No default here — main.yml
 # asserts it's set.

@@ -1,0 +1,1474 @@
+{
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Leg Latency \u2014 by Phase",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Leg latency \u2014 avg: discovery / quote / transfer",
+          "description": "How much time is spent in each phase \u2014 discovery (party lookup), quote, and transfer. Means are additive across stages (unlike the p50/p95/p99 panels below), so this is also the reference line every composition/hop-breakdown panel in the sections below is measured against.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_avg(sum(rate(k6_discovery_time_seconds[$__rate_interval])))",
+              "legendFormat": "discovery avg",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_avg(sum(rate(k6_quote_time_seconds[$__rate_interval])))",
+              "legendFormat": "quote avg",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_avg(sum(rate(k6_transfer_time_seconds[$__rate_interval])))",
+              "legendFormat": "transfer avg",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Leg latency \u2014 p50: discovery / quote / transfer",
+          "description": "",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.50, sum(rate(k6_discovery_time_seconds[$__rate_interval])))",
+              "legendFormat": "discovery p50",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.50, sum(rate(k6_quote_time_seconds[$__rate_interval])))",
+              "legendFormat": "quote p50",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.50, sum(rate(k6_transfer_time_seconds[$__rate_interval])))",
+              "legendFormat": "transfer p50",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Leg latency \u2014 p95: discovery / quote / transfer",
+          "description": "",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.95, sum(rate(k6_discovery_time_seconds[$__rate_interval])))",
+              "legendFormat": "discovery p95",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.95, sum(rate(k6_quote_time_seconds[$__rate_interval])))",
+              "legendFormat": "quote p95",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.95, sum(rate(k6_transfer_time_seconds[$__rate_interval])))",
+              "legendFormat": "transfer p95",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Leg latency \u2014 p99: discovery / quote / transfer",
+          "description": "Duplicates the phase-p99 panel on the k6 dashboard, kept here too so this dashboard is self-contained for a full leg breakdown.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 24
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.99, sum(rate(k6_discovery_time_seconds[$__rate_interval])))",
+              "legendFormat": "discovery p99",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.99, sum(rate(k6_quote_time_seconds[$__rate_interval])))",
+              "legendFormat": "quote p99",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_quantile(0.99, sum(rate(k6_transfer_time_seconds[$__rate_interval])))",
+              "legendFormat": "transfer p99",
+              "refId": "C"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Discovery Phase \u2014 Breakdown",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Discovery leg \u2014 payer FSP -> switch -> payee FSP -> back (mean)",
+          "description": "One line per hop along the physical path: payer FSP's request enters the switch (1), the account-lookup-service handles it (2), the switch calls out to an FSP \u2014 both the forward-to-payee lookup and the relay-back-to-payer share the same Istio destination label so line 3 is the two combined, not separable further (3), the payee FSP's own round trip including its backend call (4), and the payee's callback landing back on the switch (5). Aggregated across all 8 FSPs \u2014 a single slow FSP is averaged in, not broken out.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"destination\",namespace=\"mojaloop\",destination_service_name=\"moja-account-lookup-service\",source_workload=\"istio-ingressgateway\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"destination\",namespace=\"mojaloop\",destination_service_name=\"moja-account-lookup-service\",source_workload=\"istio-ingressgateway\"}[$__rate_interval])) / 1000",
+              "legendFormat": "1. payer FSP -> switch (ingress)",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval]))",
+              "legendFormat": "2. switch: ALS handler",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "3. switch -> payee FSP (forward) / switch -> payer FSP (relay)",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"parties\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"parties\"}[$__rate_interval]))",
+              "legendFormat": "4. payee FSP round trip",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"account-lookup-service.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"account-lookup-service.local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "5. payee FSP -> switch (callback)",
+              "refId": "E"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Discovery leg \u2014 switch-side internal steps (mean)",
+          "description": "What line 2 ('switch: ALS handler') on the panel above is actually made of, plus the switch-side step that processes the payee's callback (which that panel's line 5 hands off to). Ordered roughly as the code executes: GET ingress -> participant-endpoint cache lookup -> participant registry lookup(s) -> the outbound oracle/DFSP call -> PUT ingress handling the callback. getEndpoint/getParticipant near zero means the participant cache is doing its job; fetchParticipant/fetchParticipants and sendRequest carry the real internal cost.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval]))",
+              "legendFormat": "GET ingress handler",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_getEndpoint_sum[$__rate_interval])) / sum(rate(moja_getEndpoint_count[$__rate_interval]))",
+              "legendFormat": "getEndpoint (participant cache)",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_fetchParticipant_sum[$__rate_interval])) / sum(rate(moja_fetchParticipant_count[$__rate_interval]))",
+              "legendFormat": "fetchParticipant",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_fetchParticipants_sum[$__rate_interval])) / sum(rate(moja_fetchParticipants_count[$__rate_interval]))",
+              "legendFormat": "fetchParticipants",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_getParticipant_sum[$__rate_interval])) / sum(rate(moja_getParticipant_count[$__rate_interval]))",
+              "legendFormat": "getParticipant",
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_sendRequest_sum[$__rate_interval])) / sum(rate(moja_sendRequest_count[$__rate_interval]))",
+              "legendFormat": "sendRequest (oracle call to DFSP)",
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_ing_putPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_putPartiesByTypeAndID_count[$__rate_interval]))",
+              "legendFormat": "PUT ingress handler (callback processing)",
+              "refId": "G"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Discovery leg composition (mean): handler time vs. inter-stage",
+          "description": "ALS ingress handler mean vs. everything else in the discovery leg (oracle lookup, Kafka-adjacent hops, DFSP round trip).",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval]))",
+              "legendFormat": "ALS party-lookup handler",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_avg(sum(rate(k6_discovery_time_seconds[$__rate_interval]))) - (sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval])))",
+              "legendFormat": "inter-stage (derived remainder)",
+              "refId": "B"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Quote Phase \u2014 Breakdown",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Quote leg \u2014 payer FSP -> switch -> payee FSP -> back (mean)",
+          "description": "Same physical-path shape as discovery: payer FSP's POST /quotes enters the switch (1), quoting-service handles it (2), the switch calls out to an FSP \u2014 forward-to-payee and relay-back-to-payer share the same Istio destination label, not separable further (3), the payee FSP's own round trip including its backend call (4), and the payee's PUT /quotes/id callback landing back on the switch (5). Aggregated across all 8 FSPs.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"istio-system\",destination_service_name=\"moja-quoting-service\",source_workload=\"istio-ingressgateway\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"istio-system\",destination_service_name=\"moja-quoting-service\",source_workload=\"istio-ingressgateway\"}[$__rate_interval])) / 1000",
+              "legendFormat": "1. payer FSP -> switch (ingress)",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))",
+              "legendFormat": "2. switch: quoting-service handler",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "3. switch -> payee FSP (forward) / switch -> payer FSP (relay)",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"quotes\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"quotes\"}[$__rate_interval]))",
+              "legendFormat": "4. payee FSP round trip",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"quoting-service.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"quoting-service.local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "5. payee FSP -> switch (callback)",
+              "refId": "E"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Quote leg \u2014 switch-side internal steps (mean)",
+          "description": "What lines 2 and 5 on the panel above are actually made of, in code order: POST ingress -> validate -> handle -> forward-to-payee (line 3's app-level view) -> [payee round trip] -> PUT ingress -> handle-update -> forward-to-payer (also line 3's app-level view, other direction). quoting-service runs SIMPLE_ROUTING_MODE \u2014 no DB query anywhere in this leg, moja_model_quote here is application function time, not database time despite the metric name.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))",
+              "legendFormat": "POST ingress handler",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_model_quote_sum{queryName=\"quote_validateQuoteRequest\"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName=\"quote_validateQuoteRequest\"}[$__rate_interval]))",
+              "legendFormat": "validateQuoteRequest",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_model_quote_sum{queryName=\"quote_handleQuoteRequest\"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName=\"quote_handleQuoteRequest\"}[$__rate_interval]))",
+              "legendFormat": "handleQuoteRequest",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_model_quote_sum{queryName=\"quote_forwardQuoteRequest\"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName=\"quote_forwardQuoteRequest\"}[$__rate_interval]))",
+              "legendFormat": "forwardQuoteRequest (send to payee)",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_quotes_id_put_sum[$__rate_interval])) / sum(rate(moja_quotes_id_put_count[$__rate_interval]))",
+              "legendFormat": "PUT/id ingress handler (callback processing)",
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_model_quote_sum{queryName=\"quote_handleQuoteUpdate\"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName=\"quote_handleQuoteUpdate\"}[$__rate_interval]))",
+              "legendFormat": "handleQuoteUpdate",
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_model_quote_sum{queryName=\"quote_forwardQuoteUpdate\"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName=\"quote_forwardQuoteUpdate\"}[$__rate_interval]))",
+              "legendFormat": "forwardQuoteUpdate (relay to payer)",
+              "refId": "G"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Quote leg composition (mean): handler time vs. inter-stage",
+          "description": "quoting-service runs SIMPLE_ROUTING_MODE (validate + forward, no persistence, no DB query) \u2014 expect the handler lines near zero and inter-stage to account for almost the entire leg. group-quotes-handler-post/-put export no Kafka lag data in this cluster, so inter-stage can't be broken out into a queueing estimate the way transfer's can below.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))",
+              "legendFormat": "quotes-post handler",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_quotes_id_put_sum[$__rate_interval])) / sum(rate(moja_quotes_id_put_count[$__rate_interval]))",
+              "legendFormat": "quotes-put handler",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_avg(sum(rate(k6_quote_time_seconds[$__rate_interval]))) - (sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))) - (sum(rate(moja_quotes_id_put_sum[$__rate_interval])) / sum(rate(moja_quotes_id_put_count[$__rate_interval])))",
+              "legendFormat": "inter-stage (derived remainder)",
+              "refId": "C"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Transfer Phase \u2014 Breakdown",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Transfer leg \u2014 payer FSP -> switch -> payee FSP -> back (mean)",
+          "description": "Same physical-path shape as discovery/quote, extended for transfer's genuine two-phase prepare/fulfil flow: payer FSP's POST /transfers enters the switch (1), the prepare handler commits it (2), the switch forwards PREPARE to the payee (3, blended with the later notify call on the same Istio label), the payee's own round trip including its backend call (4), the payee's PUT /transfers fulfil callback landing back on the switch (5), and the fulfil handler committing it (6). Aggregated across all 8 FSPs. Position-batch and notification \u2014 real costs, but not on this direct path \u2014 are broken out in the internal-steps panel below.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"istio-system\",destination_service_name=\"moja-ml-api-adapter-service\",source_workload=\"istio-ingressgateway\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"istio-system\",destination_service_name=\"moja-ml-api-adapter-service\",source_workload=\"istio-ingressgateway\"}[$__rate_interval])) / 1000",
+              "legendFormat": "1. payer FSP -> switch (ingress)",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_transfer_prepare_count[$__rate_interval]))",
+              "legendFormat": "2. switch: prepare handler",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "3. switch -> payee FSP (PREPARE forward + notify)",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"transfers\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"transfers\"}[$__rate_interval]))",
+              "legendFormat": "4. payee FSP round trip",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"ml-api-adapter.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"ml-api-adapter.local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "5. payee FSP -> switch (fulfil callback)",
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval]))",
+              "legendFormat": "6. switch: fulfil handler",
+              "refId": "F"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Transfer leg \u2014 switch-side internal steps (mean)",
+          "description": "How much of lines 2 and 6 on the panel above is actually MySQL commit time (prepare/fulfil DB commit \u2014 a subset of those handler means, not additional), plus the two off-path switch steps every transfer also pays for: the position-batch commit and the notification fan-out, each firing once on the prepare side and once on the fulfil side (means shown here are per-firing; the composition panel below doubles them to get each one's true contribution to the leg).",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "none"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_model_transfer_sum{queryName=\"facade_saveTransferPrepared_transaction\"}[$__rate_interval])) / sum(rate(moja_model_transfer_count{queryName=\"facade_saveTransferPrepared_transaction\"}[$__rate_interval]))",
+              "legendFormat": "prepare DB commit",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_model_transfer_sum{queryName=\"facade_savePayeeTransferResponse\"}[$__rate_interval])) / sum(rate(moja_model_transfer_count{queryName=\"facade_savePayeeTransferResponse\"}[$__rate_interval]))",
+              "legendFormat": "fulfil DB commit",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval]))",
+              "legendFormat": "position-batch commit (fires x2/transfer)",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval]))",
+              "legendFormat": "notification handler (fires x2/transfer)",
+              "refId": "D"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Transfer leg composition (mean): handler time vs. inter-stage",
+          "description": "Stacked mean components of the transfer leg. position-batch and notification are each doubled \u2014 both fire once on the prepare side and once on the fulfil side per transfer. 'inter-stage' is not a real metric: it's the k6-measured transfer mean minus the four handler means, i.e. time spent queued in Kafka between stages. If this goes negative, a handler mean has drifted above its actual share (check for a metric-name/label mismatch before trusting the other lines).",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_transfer_prepare_count[$__rate_interval]))",
+              "legendFormat": "prepare handler",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval]))",
+              "legendFormat": "fulfil handler",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "2 * (sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval])))",
+              "legendFormat": "position-batch handler (x2/transfer)",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "2 * (sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval])))",
+              "legendFormat": "notification handler (x2/transfer)",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_avg(sum(rate(k6_transfer_time_seconds[$__rate_interval]))) - (sum(rate(moja_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_transfer_prepare_count[$__rate_interval]))) - (sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval]))) - 2 * (sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval]))) - 2 * (sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval])))",
+              "legendFormat": "inter-stage (derived remainder)",
+              "refId": "E"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Transfer leg \u2014 Kafka inter-stage queueing (estimated: lag / consumption rate)",
+          "description": "Crude produce-to-consume delay estimate (lag messages / consumption rate) for the three transfer-path topics whose consumer groups actually export lag. topic-transfer-fulfil (cl-group-transfer-fulfil) exports no lag data in this cluster and is missing from this panel entirely \u2014 do not read its absence as zero queueing. Assumes roughly steady-state draining; treat as directional, not exact.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 24
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(kafka_consumergroup_lag_sum{consumergroup=\"cl-group-transfer-prepare\"}) / sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_count{topic=\"topic-transfer-prepare\"}[$__rate_interval]))",
+              "legendFormat": "topic-transfer-prepare queueing",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(kafka_consumergroup_lag_sum{consumergroup=\"cl-group-transfer-position-batch\"}) / sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_count{topic=\"topic-transfer-position-batch\"}[$__rate_interval]))",
+              "legendFormat": "topic-transfer-position-batch queueing (both firings)",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(kafka_consumergroup_lag_sum{consumergroup=\"ml-group-notification-event\"}) / sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_count{topic=\"topic-notification-event\"}[$__rate_interval]))",
+              "legendFormat": "topic-notification-event queueing (both firings)",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Transfer leg \u2014 wide-span closure",
+          "description": "tx_transfer_prepare/tx_transfer_fulfil are wide-span app histograms that already CONTAIN every hop in the panels above (including their Kafka inter-stage time) plus their own commit cost \u2014 they are not additional legs. Summed with the DFSP round trip that sits between them, this should stack to within a few percent of the k6 transfer mean: the cleanest available proof that the transfer leg is fully accounted for end to end.",
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 32
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 20,
+                "spanNulls": true,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_tx_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_prepare_count[$__rate_interval]))",
+              "legendFormat": "tx_transfer_prepare (wide span)",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"transfers\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"transfers\"}[$__rate_interval]))",
+              "legendFormat": "DFSP round trip",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_tx_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_fulfil_count[$__rate_interval]))",
+              "legendFormat": "tx_transfer_fulfil (wide span)",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "histogram_avg(sum(rate(k6_transfer_time_seconds[$__rate_interval]))) - (sum(rate(moja_tx_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_prepare_count[$__rate_interval]))) - (sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"transfers\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"transfers\"}[$__rate_interval]))) - (sum(rate(moja_tx_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_fulfil_count[$__rate_interval])))",
+              "legendFormat": "residual (closure check)",
+              "refId": "D"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "latency",
+    "leg-breakdown",
+    "whitepaper"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "refresh": 1,
+        "current": {
+          "selected": false,
+          "text": "Prometheus",
+          "value": "Prometheus"
+        },
+        "options": []
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "Transfer / Quote / Discovery \u2014 Leg Breakdown",
+  "uid": "leg-breakdown",
+  "version": 1
+}

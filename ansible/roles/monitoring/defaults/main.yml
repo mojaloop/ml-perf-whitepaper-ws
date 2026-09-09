@@ -33,6 +33,7 @@ monitoring_custom_dashboards:
   - mysql-overview-v2.json
   - fsp-capacity.json
   - kafka-overview.json
+  - leg-breakdown.json
 
 monitoring_custom_dashboards_configmap: whitepaper-dashboards
 monitoring_custom_dashboards_folder: "Whitepaper"

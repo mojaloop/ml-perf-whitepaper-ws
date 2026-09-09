@@ -9,10 +9,23 @@
 # HTTP :80) -> hostAliases resolves to the real DFSP node IP -> the pod's own
 # sidecar intercepts (includeOutboundIPRanges = DFSP /32s) -> VirtualService
 # rewrites /sim/fspNNN/inbound/ -> / -> DestinationRule originates MUTUAL TLS
-# to :443 using file-mounted certs ({{ mtls_certs_mount_path }}/{tls.crt,tls.key,ca.crt}
+# using file-mounted certs ({{ mtls_certs_mount_path }}/{tls.crt,tls.key,ca.crt}
 # — sidecar SDS doesn't load a DestinationRule credentialName secret the way
 # gateways do, so the role mounts the secret into istio-proxy instead) ->
-# DFSP nginx ssl-passthrough -> scheme-adapter (validates client cert).
+# DFSP's own istio-ingressgateway (istio_dfsp role), which terminates mTLS
+# and L7-load-balances across the DFSP's scheme-adapter pods — this replaced
+# nginx ssl-passthrough specifically to fix its per-TCP-connection pinning
+# (see dfsp-ssl-passthrough-connection-pinning.md).
+#
+# The ServiceEntry endpoint targets port {{ dfsp_istio_gateway_nodeport }}, NOT
+# literal 443: DFSP clusters are single-node with no NLB in front (the switch
+# dials the real node IP directly), and nginx-ingress already owns hostPort
+# 443 there, so the DFSP's istio-ingressgateway claims this NodePort instead
+# of contending for :443 — see _common/defaults/main.yml for the full
+# rationale. The DestinationRule/VirtualService below still address the
+# service logically as port 443 (SNI, TLS settings, routing all unchanged);
+# only the physical wire-level connection port differs, via this endpoint
+# port override.
 {% for entry in dfsp_host_entries %}
 {% set host  = entry.hostnames[0] %}
 {% set short = host | regex_replace('\.local$', '') %}
@@ -29,9 +42,11 @@ spec:
   resolution: STATIC
   ports:
     - { number: 80,  name: http,  protocol: HTTP }    # port the app connects on
-    - { number: 443, name: https, protocol: HTTPS }   # TLS-origination target
+    - { number: 443, name: https, protocol: HTTPS }   # TLS-origination target (logical)
   endpoints:
     - address: {{ entry.ip }}
+      ports:
+        https: {{ dfsp_istio_gateway_nodeport }}       # actual wire port (DFSP istio-ingressgateway NodePort)
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -68,7 +83,7 @@ spec:
       http:
         http1MaxPendingRequests: 1000
         http2MaxRequests: {{ mtls_sidecar_http2_max_requests }}
-        maxRequestsPerConnection: 1000
+        maxRequestsPerConnection: {{ mtls_sidecar_max_requests_per_connection }}
         idleTimeout: 35s
         h2UpgradePolicy: DO_NOT_UPGRADE
     outlierDetection:

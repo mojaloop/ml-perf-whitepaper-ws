@@ -90,6 +90,7 @@
     helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
     helm repo update prometheus-community
   changed_when: false
+  environment: "{{ helm_repo_env }}"
 
 - name: Build promfana chart dependencies
   ansible.builtin.shell: |

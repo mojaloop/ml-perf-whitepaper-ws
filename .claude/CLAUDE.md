@@ -106,6 +106,17 @@ details belong in a scenario's results/README, not in inline comments.
 - Reaching the private VPC (kubectl/curl to cluster-internal IPs) requires
   `HTTPS_PROXY=socks5://127.0.0.1:1080` after `make tunnel` — this proxy
   var must be *unset* for Terraform/AWS API calls, which go direct.
+- Do **not** include `--kubeconfig=.../kubeconfig-*.yaml` in kubectl commands
+  for the switch cluster or a single DFSP cluster — the user's shell already
+  has the tunnel/proxy env and kubeconfig context set persistently (prompt
+  shows the active `☸️` context). Plain `kubectl -n <namespace> ...`. Only
+  include `--kubeconfig=` when a command loops across multiple DFSPs (no
+  single ambient context covers that case).
+- Never put `\G` in a MySQL command given to this user (e.g.
+  `SHOW REPLICA STATUS\G`) — it gets silently stripped/mishandled however
+  they paste it, producing confusing failures. Use `--vertical` on the
+  `mysql` CLI invocation instead for the same labeled-row-output effect, or
+  drop it and let plain `SHOW ... STATUS;` output stand.
 
 ## Credentials and accountability
 
@@ -171,3 +182,13 @@ For any investigation: state likely causes ranked by probability, explain
 how to verify each, and recommend the specific metric or experiment that
 would confirm or rule it out — don't jump straight to a fix without a
 verification step.
+
+Before tracing a leg hop-by-hop from scratch, check this project's saved
+memory (`MEMORY.md` index, then the relevant file) for an existing tracing
+methodology or metric-name catalog — this campaign has already worked out
+non-obvious specifics (which Prometheus metric per hop, k6-native-histogram
+query syntax, Kafka consumer-group lag gotchas) more than once, and
+re-deriving them from scratch is slower and risks reintroducing an already-
+fixed mistake. This applies generally, not just to latency tracing: skim
+`MEMORY.md` before starting non-trivial work in an unfamiliar area of this
+repo.
