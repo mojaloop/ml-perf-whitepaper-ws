@@ -1,0 +1,25 @@
+# Per-scenario chart versions (merged onto ansible _common chart_versions_default).
+# Loaded by the _common role from this scenario's own versions.yml.
+scenario_chart_versions:
+  mojaloop: "17.1.0"
+  mojaloop_backend: "17.1.0"
+  mojaloop_simulator: "15.10.0"
+
+# mysql.architecture: replication (overrides/backend.yaml) means the mysql
+# chart only creates mysqldb-primary/mysqldb-secondary Services, not a
+# plain `mysqldb` one — every mojoloop service's db_host config still
+# expects `mysqldb`. See ansible/roles/backend/defaults/main.yml for why
+# this is intentionally decoupled from backend_replication_mode.
+backend_mysql_service_alias: true
+
+# 100 is a genuine local optimum for this scenario's load, not an
+# arbitrary middle value — both looser (1000, the untouched role default
+# and the value the passing 500tps mtls-mesh cell uses) and tighter (20)
+# make the hot-pod concentration worse. 500tps never needed this tuning
+# because its lower per-pod request rate never saturates a single pod
+# under the same pinning mechanism (root cause still believed to be
+# Envoy's HTTP/1.1 connection-pool reuse preference interacting with
+# ssl-passthrough's permanent connection-to-pod pinning, not yet
+# root-caused further). 100 is confirmed for this scenario, not carried
+# over from 500tps.
+mtls_sidecar_max_requests_per_connection: 100

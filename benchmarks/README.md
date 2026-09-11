@@ -33,6 +33,7 @@ dashboard screenshots.
 | v17.1.0 | mtls-mesh | FSPIOP | 500 | PASS | 499.9 | 99.93 | 910 | ~1M | [README](v17.1.0/mtls-mesh/500tps/README.md) |
 | v17.1.0 | mtls-mesh | ISO20022 | 500 | PASS | 499.7 | 99.96 | 951 | ~1M | [README](v17.1.0/mtls-mesh/500tps-iso20022/README.md) |
 | v17.1.0 | mtls-mesh | FSPIOP | 1000 (HA) | PASS | 999.6 | 99.96 | 944 | ~1M | [README](v17.1.0/mtls-mesh/1000tps/README.md) |
+| v17.1.0 | mtls-mesh | ISO20022 | 1000 (HA) | PASS | 999.6 | 99.96 | 997 | ~1M | [README](v17.1.0/mtls-mesh/1000tps-iso20022/README.md) |
 
 The e2e p99 goal is **<1s at the steady-state percentile** (the k6 full-run
 aggregate is also recorded but is inflated by ramp edges). Note the "Run TPS"

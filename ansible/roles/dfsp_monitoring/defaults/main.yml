@@ -32,11 +32,11 @@ dfsp_mon_scrape_interval: "15s"
 # no-op for scenarios not using that particular image. istio_requests_total
 # / istio_request_duration_milliseconds.* (dfsp-istio-proxy job, added for
 # the istio_dfsp build's overhead analysis) are the derived per-request
-# metrics, NOT the much higher-cardinality raw envoy_*/cluster.* stats —
-# deliberately excluded here even though the scrape job pulls them in
-# locally, same reasoning as the switch's own istio-telemetry setup. See
-# the drop step in agent-stack.yaml.j2 for a known-bad metric excluded
-# ahead of this regex regardless of what's kept here.
+# metrics, NOT the much higher-cardinality raw envoy_*/cluster.* stats,
+# same reasoning as the switch's own istio-telemetry setup. This regex is
+# applied as a scrape-time metric_relabel_configs keep on every job (the
+# &keep_only anchor in agent-stack.yaml.j2), so the discarded bulk never
+# reaches the agent's WAL — it is not just a remote_write filter.
 dfsp_mon_keep_metrics_regex: >-
   node_cpu_seconds_total|node_softnet_stat.*|node_load.*|node_memory_(MemTotal|MemAvailable)_bytes|node_network_(receive|transmit)_(bytes|packets|drop)_total|node_nf_conntrack_entries.*|container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_network_(receive|transmit)_(bytes|packets)_total|nodejs_eventloop_lag.*|nodejs_.*|moja_.*|sdk_.*|mojaloop_connector_.*|istio_requests_total|istio_request_duration_milliseconds.*|up
 

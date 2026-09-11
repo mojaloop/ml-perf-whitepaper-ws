@@ -1,0 +1,207 @@
+# Per-scenario DFSP simulator overrides — layered on top of
+# common/dfsp/values-fspNNN.yaml by the dfsp role's per_fsp loop.
+
+# scheme-adapter image pin: adds Prometheus latency/event-loop-lag/backend-
+# call-duration instrumentation the stock image doesn't expose.
+
+# Sim backend replicas per FSP (single-threaded process, ~1 core each).
+# Backend CPU load is driven by the DESTINATION role only (payee-side
+# party/quote/transfer lookups) — source-only FSPs measure ~0 backend
+# CPU regardless of traffic share, so only fsp202 (destination under the
+# skewed fsp201->fsp202 pairing) needs more than 1. Every backend pod is
+# seeded individually by `make provision`.
+dfsp_backend_replicas_default: 1
+dfsp_backend_replicas:
+  fsp202: 4
+
+# scheme-adapter replicas per FSP. fsp201/fsp202 carry the skewed
+# fsp201->fsp202 pairing's traffic concentration (up to 70%/49% of total
+# volume) and need headroom above the flat-weight baseline; both nodes are
+# sized c7i.4xlarge (16 vCPU, see aws.yaml). fsp203-208 run above the role
+# default too (c7i.2xlarge, 8 vCPU each).
+dfsp_sdk_replicas_default: 4
+dfsp_sdk_replicas:
+  fsp201: 32
+  fsp202: 32
+  fsp203: 12
+  fsp204: 12
+  fsp205: 12
+  fsp206: 12
+  fsp207: 12
+  fsp208: 12
+
+# Cache maxmemory (role default 200mb, sized for the smaller 500tps nodes).
+# At 200mb, caches evict continuously (allkeys-lru) under steady 1000tps
+# load rather than as occasional housekeeping; nodes here have 15-30GB
+# with 6.8GB+ available even on the smallest FSP, so 2gb is comfortable
+# headroom.
+dfsp_cache_maxmemory: 2gb
+
+# dfsp-prometheus-agent resources (role default 512Mi/500m, sized for the
+# smaller 500tps scenarios' lower per-FSP replica counts). fsp201/fsp202
+# run 32 scheme-adapter replicas on 32-core nodes — roughly 4x the series
+# volume of the other six — and their agents OOMKill at the default under
+# 1000tps load: remote_write can't drain fast enough, so the WAL grows
+# until replaying it on restart exceeds the limit again, blacking out that
+# FSP's metrics for the duration. Only these two are bumped; the other six
+# run fine at the default.
+dfsp_mon_agent_memory_limit:
+  fsp201: 2Gi
+  fsp202: 2Gi
+dfsp_mon_agent_cpu_limit:
+  fsp201: "2"
+  fsp202: "2"
+
+simulators:
+  fsp201:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"
+  fsp202:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"
+  fsp203:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"
+  fsp204:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"
+  fsp205:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"
+  fsp206:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"
+  fsp207:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"
+  fsp208:
+    config:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4004"
+        prometheus.io/path: "/"
+      schemeAdapter:
+        env:
+          ENABLE_TEST_FEATURES: "false"
+          LOG_LEVEL: "info"
+          API_TYPE: "iso20022"
+          ILP_VERSION: "4"
+        image:
+          repository: shashi165/sdk-scheme-adapter
+          tag: "24.19.8-2"
+          pullPolicy: Always
+      backend:
+        env:
+          LOG_LEVEL: "info"

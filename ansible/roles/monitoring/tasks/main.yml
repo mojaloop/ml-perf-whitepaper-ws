@@ -73,15 +73,24 @@
          | join(' ') }}
 
 - name: Apply custom dashboards ConfigMap (own Grafana folder, no chart changes)
+  # Server-side apply: client-side `apply` stores the whole rendered manifest in
+  # the last-applied-configuration annotation, which the combined dashboard set
+  # overflows (256KB annotation ceiling). pipefail + &&-chain so a failure here
+  # surfaces instead of being masked by the trailing label/annotate commands.
   ansible.builtin.shell: |
+    set -euo pipefail
     kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
       create configmap {{ monitoring_custom_dashboards_configmap }} \
       {{ _mon_dash_args }} \
-      --dry-run=client -o yaml | kubectl --kubeconfig={{ kc_switch }} apply -f -
-    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
-      label configmap {{ monitoring_custom_dashboards_configmap }} grafana_dashboard=1 --overwrite
-    kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      --dry-run=client -o yaml \
+      | kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+          apply --server-side --force-conflicts -f - \
+    && kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
+      label configmap {{ monitoring_custom_dashboards_configmap }} grafana_dashboard=1 --overwrite \
+    && kubectl --kubeconfig={{ kc_switch }} -n {{ monitoring_namespace }} \
       annotate configmap {{ monitoring_custom_dashboards_configmap }} grafana_folder="{{ monitoring_custom_dashboards_folder }}" --overwrite
+  args:
+    executable: /bin/bash
   changed_when: false
   environment: "{{ kubectl_env }}"
 

@@ -388,7 +388,7 @@
         {
           "type": "timeseries",
           "title": "Discovery leg \u2014 payer FSP -> switch -> payee FSP -> back (mean)",
-          "description": "One line per hop along the physical path: payer FSP's request enters the switch (1), the account-lookup-service handles it (2), the switch calls out to an FSP \u2014 both the forward-to-payee lookup and the relay-back-to-payer share the same Istio destination label so line 3 is the two combined, not separable further (3), the payee FSP's own round trip including its backend call (4), and the payee's callback landing back on the switch (5). Aggregated across all 8 FSPs \u2014 a single slow FSP is averaged in, not broken out.",
+          "description": "Full physical-path walk of the discovery round trip, mean per hop. Payer FSP's GET /parties enters the switch (1); the ALS GET handler runs (2), resolving the payee's DFSP - served from the ALS participant cache on ~84% of lookups, the rest a real GET to the msisdn-oracle (3, shown amortized per lookup: the call itself is ~3 ms but fires on only ~16% of lookups); the switch forwards the lookup to the payee (4); the payee's own round trip (5); the payee's PUT /parties callback lands back on the switch (6), the ALS PUT handler processes it (7) and the switch relays it to the payer (8) - whose arrival releases the payer sim's HTTP response that k6 is timing. Hops 4 and 8 share one Istio label (account-lookup-service to sim), split by destination: this campaign's payers are the odd-numbered sims (fsp201/203/205/207), payees the even (fsp202/204/206/208). Not shown: the payer sim's own processing of hop 8, and the per-lookup cache reads (getParticipant/getEndpoint) which are in the internal-steps panel below - both fall into the inter-stage remainder in the composition panel.",
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
@@ -452,32 +452,56 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval]))",
-              "legendFormat": "2. switch: ALS handler",
+              "legendFormat": "2. switch: GET handler (getPartiesByTypeAndID)",
               "refId": "B"
             },
             {
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / 1000",
-              "legendFormat": "3. switch -> payee FSP (forward) / switch -> payer FSP (relay)",
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=\"moja-als-msisdn-oracle\"}[$__rate_interval])) / histogram_count(sum(rate(k6_discovery_time_seconds[$__rate_interval]))) / 1000",
+              "legendFormat": "3. switch: ALS -> msisdn-oracle (amortized, ~16% cache miss)",
               "refId": "C"
             },
             {
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"parties\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"parties\"}[$__rate_interval]))",
-              "legendFormat": "4. payee FSP round trip",
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp20[2468][.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp20[2468][.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "4. switch -> payee FSP (forward)",
               "refId": "D"
             },
             {
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"account-lookup-service.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"account-lookup-service.local\"}[$__rate_interval])) / 1000",
-              "legendFormat": "5. payee FSP -> switch (callback)",
+              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"parties\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"parties\"}[$__rate_interval]))",
+              "legendFormat": "5. payee FSP round trip",
               "refId": "E"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"account-lookup-service.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"account-lookup-service.local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "6. payee FSP -> switch (callback)",
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_ing_putPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_putPartiesByTypeAndID_count[$__rate_interval]))",
+              "legendFormat": "7. switch: PUT handler (callback processing)",
+              "refId": "G"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp20[1357][.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-account-lookup-service\",destination_service_name=~\"sim-fsp20[1357][.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "8. switch -> payer FSP (relay)",
+              "refId": "H"
             }
           ]
         },
@@ -681,7 +705,7 @@
         {
           "type": "timeseries",
           "title": "Quote leg \u2014 payer FSP -> switch -> payee FSP -> back (mean)",
-          "description": "Same physical-path shape as discovery: payer FSP's POST /quotes enters the switch (1), quoting-service handles it (2), the switch calls out to an FSP \u2014 forward-to-payee and relay-back-to-payer share the same Istio destination label, not separable further (3), the payee FSP's own round trip including its backend call (4), and the payee's PUT /quotes/id callback landing back on the switch (5). Aggregated across all 8 FSPs.",
+          "description": "Full physical-path walk of the quote round trip, mean per hop. Payer FSP's POST /quotes enters the switch (1); the quotes-post handler validates it (2) and the quoting-service-handler forwards it to the payee (3); the payee's own round trip incl. its backend call (4); the payee's PUT /quotes callback lands back on the switch (5), the quotes-put handler processes it (6) and the quoting-service-handler relays it to the payer (7) - whose arrival releases the payer sim's HTTP response that k6 is timing. Hops 3 and 7 share one Istio label (quoting-service-handler to sim), split by destination: this campaign's payers are the odd-numbered sims (fsp201/203/205/207), payees the even (fsp202/204/206/208). Quoting runs SIMPLE_ROUTING_MODE (no persistence), so hops 2 and 6 are sub-millisecond; the bulk of the leg is the two Kafka hops (its own panel) and hop 4. Not shown: the payer sim's own processing of hop 7 - it falls into the inter-stage remainder in the composition panel below.",
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
@@ -745,15 +769,15 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))",
-              "legendFormat": "2. switch: quoting-service handler",
+              "legendFormat": "2. switch: quotes-post handler",
               "refId": "B"
             },
             {
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / 1000",
-              "legendFormat": "3. switch -> payee FSP (forward) / switch -> payer FSP (relay)",
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp20[2468][.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp20[2468][.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "3. switch -> payee FSP (forward)",
               "refId": "C"
             },
             {
@@ -771,6 +795,22 @@
               "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"quoting-service.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"quoting-service.local\"}[$__rate_interval])) / 1000",
               "legendFormat": "5. payee FSP -> switch (callback)",
               "refId": "E"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_quotes_id_put_sum[$__rate_interval])) / sum(rate(moja_quotes_id_put_count[$__rate_interval]))",
+              "legendFormat": "6. switch: quotes-put handler (callback processing)",
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp20[1357][.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-quoting-service-handler\",destination_service_name=~\"sim-fsp20[1357][.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "7. switch -> payer FSP (relay)",
+              "refId": "G"
             }
           ]
         },
@@ -982,7 +1022,7 @@
         {
           "type": "timeseries",
           "title": "Transfer leg \u2014 payer FSP -> switch -> payee FSP -> back (mean)",
-          "description": "Same physical-path shape as discovery/quote, extended for transfer's genuine two-phase prepare/fulfil flow: payer FSP's POST /transfers enters the switch (1), the prepare handler commits it (2), the switch forwards PREPARE to the payee (3, blended with the later notify call on the same Istio label), the payee's own round trip including its backend call (4), the payee's PUT /transfers fulfil callback landing back on the switch (5), and the fulfil handler committing it (6). Aggregated across all 8 FSPs. Position-batch and notification \u2014 real costs, but not on this direct path \u2014 are broken out in the internal-steps panel below.",
+          "description": "Full physical-path walk of the transfer round trip, mean per hop, every on-path step. Payer FSP's POST /transfers enters the switch (1); the prepare handler commits it (2), the position-batch handler applies the prepare-side position (3), the notification handler emits the PREPARE event (4) and the switch forwards it to the payee (5); the payee's own round trip incl. its backend call (6); the payee's PUT /transfers fulfil callback lands back on the switch (7), the fulfil handler commits it (8), the position-batch handler applies the fulfil-side position (9), the notification handler emits the COMMIT event (10) and the switch sends it to the payer (11) \u2014 whose arrival releases the payer sim's HTTP response that k6 is timing. Hops 3\u22619 and 4\u226110 by construction: moja_transfer_position_batch and moja_notification_event are not phase-split, so each firing reads the same mean. Hops 5 and 11 share one Istio label (notification-handler \u2192 sim), split by destination: this campaign's payers are the odd-numbered sims (fsp201/203/205/207), payees the even (fsp202/204/206/208). Not shown: the payer sim's own processing of hop 11 before it replies to k6 (no DFSP-side reporter=destination series) and the Kafka queueing between every stage (its own panel) \u2014 both fall into the inter-stage remainder in the composition panel below.",
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
@@ -1053,33 +1093,73 @@
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp.*[.]local\"}[$__rate_interval])) / 1000",
-              "legendFormat": "3. switch -> payee FSP (PREPARE forward + notify)",
+              "expr": "sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval]))",
+              "legendFormat": "3. switch: position-batch handler (prepare side)",
               "refId": "C"
             },
             {
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"transfers\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"transfers\"}[$__rate_interval]))",
-              "legendFormat": "4. payee FSP round trip",
+              "expr": "sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval]))",
+              "legendFormat": "4. switch: notification handler (PREPARE event)",
               "refId": "D"
             },
             {
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"ml-api-adapter.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"ml-api-adapter.local\"}[$__rate_interval])) / 1000",
-              "legendFormat": "5. payee FSP -> switch (fulfil callback)",
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp20[2468][.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp20[2468][.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "5. switch -> payee FSP (PREPARE forward)",
               "refId": "E"
             },
             {
               "datasource": {
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval]))",
-              "legendFormat": "6. switch: fulfil handler",
+              "expr": "sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation=\"transfers\"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation=\"transfers\"}[$__rate_interval]))",
+              "legendFormat": "6. payee FSP round trip",
               "refId": "F"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"ml-api-adapter.local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=~\"dfsps|\",source_workload=~\"dfsp-sim-fsp.*-scheme-adapter\",destination_service_name=\"ml-api-adapter.local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "7. payee FSP -> switch (fulfil callback)",
+              "refId": "G"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval]))",
+              "legendFormat": "8. switch: fulfil handler",
+              "refId": "H"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval]))",
+              "legendFormat": "9. switch: position-batch handler (fulfil side)",
+              "refId": "I"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval]))",
+              "legendFormat": "10. switch: notification handler (COMMIT event)",
+              "refId": "J"
+            },
+            {
+              "datasource": {
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "sum(rate(istio_request_duration_milliseconds_sum{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp20[1357][.]local\"}[$__rate_interval])) / sum(rate(istio_request_duration_milliseconds_count{reporter=\"source\",namespace=\"mojaloop\",source_workload=\"moja-ml-api-adapter-handler-notification\",destination_service_name=~\"sim-fsp20[1357][.]local\"}[$__rate_interval])) / 1000",
+              "legendFormat": "11. switch -> payer FSP (COMMIT notification)",
+              "refId": "K"
             }
           ]
         },
