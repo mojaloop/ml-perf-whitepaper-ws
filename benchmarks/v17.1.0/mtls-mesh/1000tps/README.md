@@ -515,10 +515,11 @@ path to a shared control plane, so each runs its own istiod.
 single point of failure and a latency contributor for a cluster resolving
 cross-cluster DFSP hostnames on every outbound callback at this request rate.
 
-**3. Custom central-ledger and ml-api-adapter builds on the transfer path.**
-`shashi165/central-ledger:v19.16.1` runs the prepare and fulfil handlers, and
-`shashi165/ml-api-adapter:v16.12.0` runs the notification handler and the
-API service. These carry an asynchronous Kafka offset-commit path
+**3. central-ledger and ml-api-adapter pinned above the chart default on the
+transfer path.** `mojaloop/central-ledger:v20.1.0` runs the prepare and
+fulfil handlers, and `mojaloop/ml-api-adapter:v16.11.0` runs the
+notification handler and the API service. These carry an asynchronous Kafka
+offset-commit path
 (`central-services-shared` 18.39.0-snapshot.1 / `central-services-stream`
 11.19.4-snapshot.1) that the stock images do not have. Stock behaviour calls
 `commitMessageSync`, which blocks the Node event loop on every message: with

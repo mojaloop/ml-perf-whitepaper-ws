@@ -69,8 +69,8 @@ ml-api-adapter:
     replicaCount: 12
     resources: {}
     image:
-      repository: shashi165/ml-api-adapter
-      tag: v16.12.0
+      repository: mojaloop/ml-api-adapter
+      tag: v16.11.0
     config:
       # Log config
       log_level: info
@@ -82,8 +82,8 @@ ml-api-adapter:
     replicaCount: 30
     resources: {}
     image:
-      repository: shashi165/ml-api-adapter
-      tag: v16.12.0
+      repository: mojaloop/ml-api-adapter
+      tag: v16.11.0
     config:
       # Log config
       log_level: info
@@ -109,8 +109,8 @@ centralledger:
     replicaCount: 12
     resources: {}
     image:
-      repository: shashi165/central-ledger
-      tag: v19.16.1
+      repository: mojaloop/central-ledger
+      tag: v20.1.0
     command: '["node", "dist/handlers/index.js", "handler", "--prepare"]'
     config:
       # Log config
@@ -138,8 +138,8 @@ centralledger:
     replicaCount: 12
     resources: {}
     image:
-      repository: shashi165/central-ledger
-      tag: v19.16.1
+      repository: mojaloop/central-ledger
+      tag: v20.1.0
     command: '["node", "dist/handlers/index.js", "handler", "--fulfil"]'
     config:
       # Log config

@@ -64,8 +64,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -81,8 +81,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -98,8 +98,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -115,8 +115,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -132,8 +132,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -149,8 +149,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -166,8 +166,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -183,8 +183,8 @@ simulators:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:

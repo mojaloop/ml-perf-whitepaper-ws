@@ -66,8 +66,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -85,8 +85,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -104,8 +104,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -123,8 +123,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -142,8 +142,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -161,8 +161,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -180,8 +180,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:
@@ -199,8 +199,8 @@ simulators:
           API_TYPE: "iso20022"
           ILP_VERSION: "4"
         image:
-          repository: shashi165/sdk-scheme-adapter
-          tag: "24.19.8-2"
+          repository: mojaloop/sdk-scheme-adapter
+          tag: "v24.20.0"
           pullPolicy: Always
       backend:
         env:

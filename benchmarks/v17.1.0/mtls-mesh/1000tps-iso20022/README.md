@@ -103,11 +103,12 @@ each with its own control plane.
   - `overrides/k6.yaml` — 1000 TPS target, 1,420,000 transaction count
   - `overrides/dfsp.yaml` — `API_TYPE: iso20022` + `ILP_VERSION: 4` on all eight scheme-adapters; per-FSP replica and backend counts
   - `configmaps/` — `API_TYPE: iso20022` in the account-lookup-service, quoting-service, ml-api-adapter service and notification-handler configmap patches
-- **Custom images** carry ISO 20022 support built in and select it by
-  `API_TYPE`: `shashi165/central-ledger:v19.16.1` (prepare + fulfil
-  handlers), `shashi165/ml-api-adapter:v16.12.0` (notification handler + API
-  service), `shashi165/sdk-scheme-adapter:24.19.8-2` (DFSP scheme-adapters).
-  The async Kafka offset-commit path these builds add is described in §15.
+- **Images pinned above the chart default** carry ISO 20022 support built in
+  and select it by `API_TYPE`: `mojaloop/central-ledger:v20.1.0` (prepare +
+  fulfil handlers), `mojaloop/ml-api-adapter:v16.11.0` (notification handler
+  + API service), `mojaloop/sdk-scheme-adapter:v24.20.0` (DFSP
+  scheme-adapters). The async Kafka offset-commit path these builds add is
+  described in §15.
 
 ## 7. Pod distribution & replica counts
 
@@ -543,10 +544,11 @@ path to a shared control plane, so each runs its own istiod.
 single point of failure and a latency contributor for a cluster resolving
 cross-cluster DFSP hostnames on every outbound callback at this request rate.
 
-**3. Custom central-ledger and ml-api-adapter builds on the transfer path.**
-`shashi165/central-ledger:v19.16.1` runs the prepare and fulfil handlers, and
-`shashi165/ml-api-adapter:v16.12.0` runs the notification handler and the
-API service. These carry an asynchronous Kafka offset-commit path
+**3. central-ledger and ml-api-adapter pinned above the chart default on the
+transfer path.** `mojaloop/central-ledger:v20.1.0` runs the prepare and
+fulfil handlers, and `mojaloop/ml-api-adapter:v16.11.0` runs the
+notification handler and the API service. These carry an asynchronous Kafka
+offset-commit path
 (`central-services-shared` 18.39.0-snapshot.1 / `central-services-stream`
 11.19.4-snapshot.1) that the stock images do not have. Stock behaviour calls
 `commitMessageSync`, which blocks the Node event loop on every message: with
