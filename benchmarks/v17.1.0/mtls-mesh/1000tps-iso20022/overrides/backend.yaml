@@ -486,6 +486,14 @@ mysql:
         value: "oracle_msisdn"
       - name: MSISDN_ORACLE_USER
         value: "oracle_msisdn"
+      # Without this, a fresh secondary's local root user never gets a
+      # valid credential (see common/backend/17.1.0.yaml's mysql.secondary
+      # comment) and the startup probe CrashLoopBackOffs forever. This
+      # override's own extraEnvVars list fully replaces the base file's —
+      # Helm doesn't merge arrays across -f values files — so it has to be
+      # repeated here too.
+      - name: MYSQL_REPLICATION_SLAVE_DUMP
+        value: "true"
     # Same io2 switch as primary — see primary's persistence comment above.
     persistence:
       enabled: true
@@ -501,11 +509,16 @@ mysql:
         cpu: '6'
         ephemeral-storage: 50Gi
         memory: 22Gi
-    # server-id must be unique per node. read_only/super_read_only prevent
-    # accidental direct writes — app traffic points at the `mysqldb`
-    # service alias (primary only), but super_read_only also closes the
-    # gap read_only leaves: a connection holding SUPER could otherwise
-    # write directly and diverge the replica silently. Buffer pool/IO/
+    # server-id must be unique per node. read_only prevents accidental
+    # direct writes — app traffic points at the `mysqldb` service alias
+    # (primary only). NOT super_read_only: bitnami's own entrypoint
+    # bootstraps a fresh secondary as root (which holds SUPER) and runs a
+    # housekeeping DELETE against mysql.user before replication is even
+    # configured — super_read_only blocks SUPER-privileged writes too, so
+    # that DELETE fails with ERROR 1290 and the container aborts before it
+    # ever gets to cloning from the primary. read_only alone still blocks
+    # ordinary (non-SUPER) application connections, which is what this is
+    # actually guarding against. Buffer pool/IO/
     # connection/performance_schema tuning matches primary throughout —
     # sized identically, not as a smaller backup box, since semi-sync means
     # an undersized secondary throttles the primary's commit latency too.
@@ -539,7 +552,6 @@ mysql:
       --relay_log_recovery=ON
       --log_slow_replica_statements=ON
       --read_only=ON
-      --super_read_only=ON
       --replica_parallel_type=LOGICAL_CLOCK
       --replica_parallel_workers=7
       --innodb_buffer_pool_size=8G

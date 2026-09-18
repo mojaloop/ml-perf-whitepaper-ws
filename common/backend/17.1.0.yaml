@@ -243,6 +243,32 @@ mysql:
 
     extraFlags: |
       --max_connections=1000
+
+  ## MySQL Secondary parameters
+  secondary:
+    # Without this, a fresh secondary's local root user is deleted during
+    # bootstrap and never recreated (bitnami skips root setup in slave mode,
+    # expecting it to arrive via replication) — but the bare
+    # CHANGE REPLICATION SOURCE path this chart uses otherwise never
+    # transfers the primary's mysql.user table, so root has no valid local
+    # credential and the startup/liveness probes CrashLoopBackOff forever.
+    # This flag makes bitnami run a full mysqldump --all-databases from the
+    # primary before wiring up replication, which restores it.
+    extraEnvVars:
+      - name: MYSQL_REPLICATION_SLAVE_DUMP
+        value: "true"
+    # The dump above only runs once, on a genuinely fresh (empty-datadir)
+    # boot, and can take well over the chart's default ~165s startup-probe
+    # budget (15s delay + 10s x 15 failures) once the primary has any real
+    # data — the container gets killed mid-dump, before root's credentials
+    # are restored, permanently freezing that half-initialized state on
+    # every subsequent restart. Every restart AFTER the first one hits the
+    # fast "persisted data" path and succeeds in seconds regardless, so
+    # this only widens the one-time worst case, not normal steady-state
+    # restarts.
+    startupProbe:
+      failureThreshold: 180
+
   ## Initialize databases
   initdbScripts:
     accountLookupInit.sh: |
