@@ -85,10 +85,12 @@ export const options = {
       rate: TARGET_TPS,
       timeUnit: '1s',
       duration: testDuration + 's',
-      // preAllocatedVUs: Math.max(Math.ceil(TARGET_TPS * 2), 100),
-      preAllocatedVUs: 1000,
-      // maxVUs: Math.max(Math.ceil(TARGET_TPS * 4), 200),
-      maxVUs: 2000,
+      // VU pool scales with target rate so the pool itself never becomes the
+      // throughput cap: at 1000 TPS a 2s tail already needs 2000 in-flight
+      // VUs, and dropped_iterations from an exhausted pool masks the real
+      // bottleneck signal.
+      preAllocatedVUs: Math.max(Math.ceil(TARGET_TPS * 2), 1000),
+      maxVUs: Math.max(Math.ceil(TARGET_TPS * 5), 2000),
     },
   },
   thresholds: {

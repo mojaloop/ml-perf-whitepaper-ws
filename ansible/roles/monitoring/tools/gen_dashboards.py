@@ -24,6 +24,23 @@ def text_panel(title, markdown, h=3, y=0):
         "options": {"mode": "markdown", "content": markdown},
     }
 
+def row(title, panels, collapsed=True):
+    """A real collapsible row: its panels are nested inside it (Grafana's own
+    representation for a collapsed row), not left as top-level siblings — so the
+    dashboard loads with every section collapsed and each panel's y is normalized
+    relative to its own row, independent of the others."""
+    y = 0
+    for p in panels:
+        p["gridPos"]["y"] = y
+        y += p["gridPos"]["h"]
+    return {
+        "type": "row",
+        "title": title,
+        "collapsed": collapsed,
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+        "panels": panels,
+    }
+
 def panel(title, targets, unit="s", desc="", h=8, y=0, fill=20, thresholds=None, stack=False, legend_calcs=("mean","max")):
     thresholds = thresholds or [{"color": "green", "value": None}]
     for i, t in enumerate(targets):

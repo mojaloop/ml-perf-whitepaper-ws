@@ -12,6 +12,7 @@ Host perf-jump-host
     ForwardAgent yes
     StrictHostKeyChecking no
     UserKnownHostsFile=/dev/null
+    GSSAPIAuthentication no
 
 # Switch Nodes
 %{ for name, node in switch_nodes ~}
@@ -22,6 +23,7 @@ Host ${name}
     ProxyJump perf-jump-host
     StrictHostKeyChecking no
     UserKnownHostsFile=/dev/null
+    GSSAPIAuthentication no
 
 %{ endfor ~}
 # DFSP Nodes
@@ -33,6 +35,7 @@ Host ${name}
     ProxyJump perf-jump-host
     StrictHostKeyChecking no
     UserKnownHostsFile=/dev/null
+    GSSAPIAuthentication no
 
 %{ endfor ~}
 # Wildcard for all private subnet hosts
@@ -42,3 +45,4 @@ Host ${vpc_wildcard}
     ProxyJump perf-jump-host
     StrictHostKeyChecking no
     UserKnownHostsFile=/dev/null
+    GSSAPIAuthentication no

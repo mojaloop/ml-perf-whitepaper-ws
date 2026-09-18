@@ -1,0 +1,6 @@
+---
+- name: Install the AWS EBS CSI driver + gp3-encrypted StorageClass
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: ebs_csi

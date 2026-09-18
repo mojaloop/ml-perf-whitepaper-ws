@@ -1,0 +1,30 @@
+# MicroK8s doesn't use the vanilla /var/lib/kubelet (the chart's default) —
+# kubelet's real root dir is snap-confined. Without this override, the node
+# plugin's hostPath volume mounts point at a location that doesn't match
+# where kubelet is actually registering plugins/staging volumes, and
+# NodeStageVolume fails with "mkdir /var/snap: read-only file system" (the
+# container has no host mount covering that path at all, so the write hits
+# its own read-only image layer). Same class of MicroK8s-snap-path gotcha
+# this campaign already hit with Cilium's CNI conf/bin paths.
+node:
+  kubeletPath: /var/snap/microk8s/common/var/lib/kubelet
+
+  # The node plugin DaemonSet must run on every node that could mount a
+  # CSI-backed volume — that includes the kafka/mysql/monitoring nodes,
+  # which are otherwise tainted NoSchedule to keep ordinary app pods off
+  # them (see aws.yaml). The controller (does the AWS API calls, not the
+  # mount itself) doesn't need these — it's fine on any untainted generic
+  # node.
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: kafka
+      effect: NoSchedule
+    - key: dedicated
+      operator: Equal
+      value: mysql
+      effect: NoSchedule
+    - key: dedicated
+      operator: Equal
+      value: monitoring
+      effect: NoSchedule

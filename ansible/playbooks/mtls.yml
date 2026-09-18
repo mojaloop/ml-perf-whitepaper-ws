@@ -1,7 +1,15 @@
 ---
-- name: mTLS — switch-side (Istio + Leg A/B) then DFSP-side (certs + overlay)
+# mTLS — switch-side (Istio + Leg A/B), then DFSP-side Istio control plane +
+# Gateway/sidecar wiring, then the DFSP mTLS overlay that disables the app's
+# inbuilt TLS (istio_dfsp must run first: it patches sidecar injection onto
+# the scheme-adapter deployment that mtls_dfsp's helm upgrade then rolls).
+- name: mTLS — switch-side (Istio + Leg A/B) then DFSP-side (Istio + overlay)
   hosts: localhost
   gather_facts: false
   roles:
     - role: mtls_switch
+      tags: mtls_switch
+    - role: istio_dfsp
+      tags: istio_dfsp
     - role: mtls_dfsp
+      tags: mtls_dfsp

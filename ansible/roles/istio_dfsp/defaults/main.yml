@@ -1,0 +1,100 @@
+---
+# DFSP-side Istio control plane + sidecar mTLS. Mirrors mtls_switch's
+# structure (istio install + inbound Gateway + outbound sidecar) but scoped
+# to ONE DFSP cluster per loop iteration, since each fspNNN is an independent
+# single-node MicroK8s cluster with its own kubeconfig — there is no shared
+# or remote control-plane option here (no cross-cluster network path to a
+# central istiod), so each cluster gets its own full istiod install, same as
+# the switch gets its own.
+#
+# Naming note: docs/mtls.md defines "Leg A" = DFSP->switch inbound (on the
+# switch) and "Leg B" = switch->DFSP egress (from the switch), anchored to
+# the SWITCH's perspective. This role, being DFSP-side, avoids the Leg A/B
+# letters entirely and just says "inbound"/"outbound" (from the DFSP's own
+# perspective) to prevent exactly the mislabeling risk of picking a side —
+# DFSP inbound = the switch's Leg B; DFSP outbound = the switch's Leg A.
+#
+# Replaces the scheme-adapter's inbuilt mTLS (nginx ssl-passthrough on the
+# inbound side, the app's own https.Agent on the outbound side) with Istio
+# sidecar termination/origination — see dfsp-ssl-passthrough-connection-pinning.md
+# for why the passthrough inbound path caused single-pod overload.
+#
+# Run AFTER `make dfsp` (scheme-adapter deployment must exist) and BEFORE
+# mtls_dfsp (which disables the app's inbuilt TLS and rolls the pods that
+# pick up sidecar injection).
+
+istio_version: "{{ chart_versions.istio }}"
+
+istio_helm_timeout: 10m
+istio_helm_retries: 3
+istio_helm_retry_delay: 20
+
+istiod_values:            "{{ common_dir }}/istiod-values.yaml"
+ingressgateway_dfsp_values: "{{ common_dir }}/istio-ingressgateway-dfsp.yaml"
+
+# DFSP inbound (switch's Leg B) — Gateway + VirtualService, one per FSP
+# cluster. Rendered manifests (SE/VS/DR use real Jinja, so they live in this
+# role's own templates/ dir and are rendered via the `template` module — same
+# convention as mtls_switch/templates/switch-outbound-sidecar.yaml.j2 — NOT
+# in the shared manifests/mtls/ dir, which is reserved for either static
+# manifests or the one sed-substituted exception (dfsp-passthrough.yaml.j2).
+mtls_dfsp_inbound_tmpl: dfsp-inbound.yaml.j2
+
+# DFSP outbound (switch's Leg A) — scheme-adapter sidecar originates mTLS to
+# the switch's own inbound Gateway, replacing the app's
+# OUTBOUND_MUTUAL_TLS_ENABLED client. Same 3 switch hostnames/target the
+# scheme-adapter already dials today (see
+# ansible/roles/dfsp/templates/dfsp-coredns.j2 and per_fsp.yml's hostAliases
+# patch) — switch_lb_ip is a single stable NLB IP, already reachable from
+# every DFSP node, so no per-node IP-range juggling is needed here.
+mtls_dfsp_outbound_tmpl: dfsp-outbound-sidecar.yaml.j2
+
+# The shared lab cert bundle (regen-certs.sh). This role applies it itself
+# (see per_fsp.yml) rather than relying on mtls_dfsp's identical apply of the
+# same file — mtls.yml runs istio_dfsp BEFORE mtls_dfsp, so this role can't
+# assume mtls_dfsp has already created it. mtls_dfsp's own apply later is a
+# harmless no-op re-apply of the same manifest. dfsp_tls_secret/
+# dfsp_shared_secret_name are kept as their own literals here (rather than
+# referencing mtls_dfsp's vars) so this role doesn't implicitly depend on
+# mtls_dfsp's role-default load order — the values must stay in sync across
+# both roles; see the build-status doc.
+dfsp_tls_secret: "{{ repo_root }}/certs/dfsp-tls-secret.yaml"
+dfsp_shared_secret_name: mtls-shared-creds
+# This role imports the SAME secret's inbound-*/outbound-*.pem keys into
+# istio-system (Gateway credentialName, DFSP inbound) and file-mounts it into
+# the scheme-adapter sidecar (DFSP outbound origination) — no separate cert
+# scheme.
+dfsp_mtls_creds_secret_name: dfsp-mtls-creds
+mtls_certs_mount_path: /etc/istio/mtls-certs
+
+# scheme-adapter deployment + Service (source of truth: the existing nginx
+# passthrough Ingress this replaces — manifests/mtls/dfsp-passthrough.yaml.j2
+# — and the vendored chart values under
+# benchmarks/*/artifacts/mojaloop-helm/mojaloop-simulator/values.yaml, which
+# confirm INBOUND_LISTEN_PORT stays 4000 regardless of the TLS flags).
+dfsp_sdk_deploy_prefix: dfsp-sim-
+dfsp_sdk_deploy_suffix: -scheme-adapter
+dfsp_sdk_inbound_port: 4000
+
+# PeerAuthentication STRICT for the dfsps namespace. Namespace-wide is safe
+# even though injection below is scoped to just the scheme-adapter deployment
+# (sim-backend/cache stay uninjected): PeerAuthentication is enforced BY the
+# sidecar, so it's a no-op for pods that never got one — same reasoning the
+# ambient role documents for its own namespace-wide STRICT policy.
+dfsp_peer_auth_strict: true
+
+# Per-pod sidecar injection annotations on the scheme-adapter deployment.
+# Outbound interception is scoped to switch_lb_ip/32 ONLY (mirrors the
+# switch's own DFSP /32 scoping) so the scheme-adapter's local calls to
+# sim-backend/cache are never touched by Envoy — only its calls to the
+# switch get sidecar-originated mTLS. Inbound interception is scoped to
+# ONLY dfsp_sdk_inbound_port (4000) — NOT left at chart default. The same
+# pod also exposes OUTBOUND_LISTEN_PORT (4001, reached directly by nginx's
+# separate plain-HTTP dfsp-sim-simulators Ingress) and TEST_LISTEN_PORT
+# (4002); with namespace-wide PeerAuthentication STRICT, leaving those
+# unscoped meant the sidecar demanded mesh mTLS on them too and rejected
+# nginx's plain-HTTP calls outright — caught via a live smoke-test failure,
+# not local review.
+dfsp_sidecar_proxy_memory_limit: "512Mi"
+
+dfsp_sidecar_rollout_timeout: 1200s

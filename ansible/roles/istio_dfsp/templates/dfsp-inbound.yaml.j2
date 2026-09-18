@@ -1,0 +1,59 @@
+# Rendered by the ansible istio_dfsp role — do not edit by hand.
+#
+# DFSP inbound mTLS (the switch's own Leg B egress, terminated here),
+# mirroring manifests/mtls/switch-inbound.yaml (the switch's Leg A):
+#   - Gateway: binds to this cluster's istio-ingressgateway (NodePort
+#     {{ dfsp_istio_gateway_nodeport }} — see _common/defaults/main.yml for
+#     why a NodePort rather than literal :443), terminates mTLS
+#     (tls.mode: MUTUAL), validates the switch's client cert against the
+#     shared CA in {{ dfsp_mtls_creds_secret_name }}.
+#   - VirtualService: routes to the local scheme-adapter Service on plain
+#     HTTP :{{ dfsp_sdk_inbound_port }} — Istio's per-request L7 load
+#     balancing across all ready scheme-adapter endpoints is what replaces
+#     nginx ssl-passthrough's per-TCP-connection L4 pinning (see
+#     dfsp-ssl-passthrough-connection-pinning.md).
+#
+# Applied by: ansible/roles/istio_dfsp/tasks/per_fsp.yml
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ fsp_name }}-mtls-gateway
+  namespace: {{ ns_istio }}
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https-mtls
+        protocol: HTTPS
+      tls:
+        mode: MUTUAL
+        credentialName: {{ dfsp_mtls_creds_secret_name }}
+        # Matches the switch's own Leg A floor (common/istiod-values.yaml /
+        # manifests/mtls/switch-inbound.yaml) — same shared cert, same lab-wide
+        # TLS posture on both sides of the connection.
+        minProtocolVersion: TLSV1_2
+        cipherSuites:
+          - ECDHE-ECDSA-AES128-GCM-SHA256
+          - ECDHE-ECDSA-AES256-GCM-SHA384
+      hosts:
+        - sim-{{ fsp_name }}.local
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ fsp_name }}-mtls
+  namespace: {{ ns_istio }}
+spec:
+  hosts:
+    - sim-{{ fsp_name }}.local
+  gateways:
+    - {{ fsp_name }}-mtls-gateway
+  http:
+    - timeout: 30s
+      route:
+        - destination:
+            host: {{ dfsp_sdk_deploy_prefix }}{{ fsp_name }}{{ dfsp_sdk_deploy_suffix }}.{{ ns_dfsps }}.svc.cluster.local
+            port:
+              number: {{ dfsp_sdk_inbound_port }}

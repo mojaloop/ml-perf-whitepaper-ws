@@ -8,7 +8,7 @@
     helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
     helm repo update mojaloop
   changed_when: false
-  environment: "{{ kubectl_env }}"
+  environment: "{{ helm_repo_env }}"
 
 # switch_lb_ip is wired through terraform → inventory.yaml (all.vars.switch_lb_ip).
 # Fail loud if it isn't set — a fallback to "first generic switch node" silently

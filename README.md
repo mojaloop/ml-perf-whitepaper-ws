@@ -88,14 +88,14 @@ make terraform-plan   SCENARIO=$SLUG              # always plan fresh — a left
 make terraform-apply  SCENARIO=$SLUG              # ~10 min   AWS infra
 make tunnel           SCENARIO=$SLUG              # SOCKS5 via bastion. To stop: lsof -ti :1080 | xargs kill
 make k8s              SCENARIO=$SLUG              # ~15 min   MicroK8s clusters + kubeconfigs
-make cilium           SCENARIO=$SLUG              # ~3 min    swap Calico for Cilium eBPF (run on the empty cluster, before app stages)
+make cilium           SCENARIO=$SLUG              # ~3 min    swap Calico for Cilium eBPF + scale CoreDNS (run on the empty cluster, before app stages)
 
 # 2. Application stack — order matters (mtls patches the already-deployed sims, so it runs AFTER dfsp)
 make monitoring       SCENARIO=$SLUG              # ~5 min    Prometheus + Grafana (promfana)
 make backend          SCENARIO=$SLUG              # ~5 min    Kafka / MySQL / MongoDB / Redis
 make switch           SCENARIO=$SLUG              # ~3 min    Mojaloop core services (+ NODE_OPTIONS, configmap, and topology patches)
 make dfsp             SCENARIO=$SLUG              # ~5 min    8 DFSP simulators (plain HTTP)
-make mtls             SCENARIO=$SLUG              # ~2 min    sidecar mTLS: mtls_switch + mtls_dfsp (skip for mtls-off scenarios)
+make mtls             SCENARIO=$SLUG              # longest stage  sidecar mTLS: mtls_switch + istio_dfsp + mtls_dfsp (skip for mtls-off scenarios; see Optional security layers for the safer two-phase form on a fresh cluster)
 make dfsp-monitoring  SCENARIO=$SLUG              #           per-DFSP node/container metrics, remote-written to the switch Prometheus
 make istio-telemetry  SCENARIO=$SLUG              #           scrape Istio sidecar/proxy metrics (skip for mtls-off scenarios)
 make k6               SCENARIO=$SLUG              #           k6 operator + CoreDNS
@@ -196,6 +196,45 @@ and run `make load` after each to isolate its cost.
   the shared CA/leaf certificate Secrets once per clone with
   `./certs/regen-certs.sh` (output is git-ignored, since it's private key
   material). Re-run any time to rotate certificates or change the SAN list.
+
+  Runs three Ansible roles in sequence: `mtls_switch` (Istio on the switch,
+  both legs), `istio_dfsp` (per-DFSP Istio control plane + sidecar mTLS —
+  each `fspNNN` cluster gets its own full istiod install, no shared control
+  plane), then `mtls_dfsp` (disables the scheme-adapter's inbuilt TLS once
+  Istio is ready to take over). `istio_dfsp` replaces the app's own
+  ssl-passthrough-based inbound TLS, which load-balanced once per TCP
+  connection instead of per request and could pin load onto a single pod.
+
+  **On a fresh cluster, run it as two phases instead of one bare `make
+  mtls`** — `istio_dfsp`'s per-cluster istiod isn't CPU/memory sized down,
+  so checking node headroom before the cutover matters, and both phases are
+  independently idempotent/re-runnable:
+
+  ```bash
+  # Phase 1 — install Istio on all 8 DFSP clusters, zero traffic impact.
+  # nginx ssl-passthrough keeps serving live traffic unchanged throughout.
+  make mtls SCENARIO=$SLUG EXTRA='--tags istio_dfsp'
+
+  # Check node headroom on every DFSP cluster before cutting over —
+  # istiod's default footprint is the single biggest sizing risk here,
+  # especially on the smallest DFSP instance types.
+  for i in 201 202 203 204 205 206 207 208; do
+    KC=<scenario-dir>/artifacts/kubeconfigs/kubeconfig-fsp$i.yaml
+    echo "== fsp$i =="; kubectl --kubeconfig=$KC top node
+  done
+
+  # Phase 2 — the actual cutover: switch dial target flips to the new
+  # Gateway, DFSP inbuilt TLS is disabled. Do this against an idle cluster,
+  # not during a load test.
+  make mtls  SCENARIO=$SLUG
+  make smoke SCENARIO=$SLUG
+  ```
+
+  If a node is tight on CPU/memory after phase 1, size down
+  `common/istio-ingressgateway-dfsp.yaml` /
+  `dfsp_sidecar_proxy_memory_limit` (`ansible/roles/istio_dfsp/defaults/main.yml`)
+  before phase 2. Rollback to the legacy nginx ssl-passthrough path:
+  `EXTRA='-e dfsp_mtls_mode=nginx-passthrough --tags mtls_dfsp'`.
 - **Database TLS (MySQL)** — controlled by `db_ssl_enabled` in the Mojaloop
   overrides plus the `ADDITIONAL_CONNECTION_OPTIONS.ssl` block in the
   patched configmaps.
@@ -230,11 +269,16 @@ and run `make load` after each to isolate its cost.
 Deploy automation lives under `ansible/roles/`:
 
 - `_common` — shared scenario-resolution logic
-- `cilium` — CNI swap (Calico to Cilium eBPF)
+- `cilium` — CNI swap (Calico to Cilium eBPF); also scales CoreDNS off the MicroK8s default of 1 replica (`coredns_replicas`, default 3)
 - `backend` — Kafka / MySQL / MongoDB / Redis
 - `switch` — Mojaloop core services
 - `dfsp` — DFSP simulators
-- `mtls_switch` / `mtls_dfsp` — sidecar mTLS, switch side and DFSP side
+- `mtls_switch` — sidecar mTLS, switch side
+- `istio_dfsp` — per-DFSP Istio control plane + sidecar mTLS (replaces
+  ssl-passthrough); runs before `mtls_dfsp`
+- `mtls_dfsp` — disables the scheme-adapter's inbuilt TLS once `istio_dfsp`
+  is ready (`dfsp_mtls_mode: istio`, default) or manages the legacy nginx
+  ssl-passthrough rollback path (`dfsp_mtls_mode: nginx-passthrough`)
 - `ambient` — Istio ambient mesh enrollment
 - `monitoring` — Prometheus / Grafana
 - `dfsp_monitoring` — per-DFSP metrics

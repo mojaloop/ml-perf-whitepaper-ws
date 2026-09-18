@@ -1,3 +1,12 @@
+# SUPERSEDED by Istio-managed mTLS (ansible/roles/istio_dfsp) — this nginx
+# ssl-passthrough Ingress load-balances once per TCP connection, not per HTTP
+# request, causing probabilistic single-pod overload under the switch's
+# connection-reused outbound traffic (see
+# dfsp-ssl-passthrough-connection-pinning.md). Not applied by
+# ansible/roles/mtls_dfsp when dfsp_mtls_mode=istio (the default). Kept here,
+# unmodified, only so dfsp_mtls_mode=nginx-passthrough (legacy rollback) still
+# works — see ansible/roles/mtls_dfsp/tasks/per_fsp_nginx_passthrough.yml.
+#
 # Per-DFSP passthrough Ingress for :443 -> SDK scheme-adapter :4000.
 # `fspNNN` is substituted per cluster by the mtls_dfsp role (per_fsp.yml).
 apiVersion: networking.k8s.io/v1

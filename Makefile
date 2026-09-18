@@ -75,8 +75,8 @@ export TF_VAR_artifacts_dir := ../$(ARTIFACTS_DIR)
 export ANSIBLE_SSH_ARGS := -o ControlMaster=auto -o ControlPersist=30m -o ServerAliveInterval=60 -F $(CURDIR)/$(ARTIFACTS_DIR)/ssh-config
 
 .PHONY: help tunnel \
-        terraform-init terraform-plan terraform-apply terraform-destroy \
-        k8s cilium backend monitoring switch mtls ambient dfsp dfsp-monitoring istio-telemetry k6 onboard provision smoke load \
+        terraform-init terraform-plan terraform-apply terraform-destroy terraform-replace \
+        k8s cilium ebs-csi backend monitoring switch mtls ambient dfsp dfsp-monitoring istio-telemetry k6 onboard provision smoke load \
         deploy clean
 
 # Tunnel
@@ -112,7 +112,20 @@ terraform-apply: _tf-workspace ## Apply the saved plan (or create+apply if missi
 	fi
 
 terraform-destroy: _tf-workspace ## Destroy AWS infra for the active scenario
+	# CSI-provisioned PVC volumes (mysql/kafka) are outside Terraform's view —
+	# deleting them first lets the CSI driver reclaim the EBS volumes while
+	# the cluster that runs it still exists, instead of leaking them onto the
+	# account's IOPS quota permanently.
+	-kubectl -n mojaloop delete pvc --all --ignore-not-found --timeout=120s
 	cd $(TF_DIR) && terraform destroy
+
+# Force-recreate one resource without touching any saved plan file — always
+# computes a fresh plan and requires interactive `yes`, so scope is visible
+# before anything is destroyed. Usage:
+#   make terraform-replace SCENARIO=<s> RESOURCE='aws_instance.dfsp["fsp201"]'
+terraform-replace: _tf-workspace ## Force-recreate one resource: RESOURCE='aws_instance.dfsp["name"]'
+	@echo "DEBUG config_file_path=$(TF_VAR_config_file_path) artifacts_dir=$(TF_VAR_artifacts_dir) scenario_dir=$(SCENARIO_DIR)"
+	cd $(TF_DIR) && terraform apply -replace='$(RESOURCE)'
 
 # k8s — bootstrap MicroK8s clusters (playbooks 01-06)
 k8s: ## Install MicroK8s, form clusters, generate kubeconfigs + hostaliases
@@ -124,6 +137,13 @@ k8s: ## Install MicroK8s, form clusters, generate kubeconfigs + hostaliases
 cilium: ## Swap switch cluster CNI to Cilium eBPF (run right after `make k8s`)
 	$(ANS) playbooks/cilium-cni.yml
 
+# Only needed by scenarios whose backend.yaml references a storageClass
+# (real Kafka/MySQL persistence instead of ephemeral). Run after `make
+# cilium`, before `make deploy` — `backend` will fail to bind its PVCs
+# without this having run first.
+ebs-csi: ## Install the AWS EBS CSI driver + gp3-encrypted StorageClass (only scenarios using real persistence need this)
+	$(ANS) playbooks/ebs-csi.yml
+
 # App-layer deployment (one role per stage)
 backend: ## Deploy mojaloop backend (Kafka, MySQL, MongoDB, Redis)
 	$(ANS) playbooks/backend.yml
@@ -134,7 +154,7 @@ monitoring: ## Deploy promfana stack (prometheus + grafana + alertmanager)
 switch: ## Deploy mojaloop switch + per-scenario configmap patches
 	$(ANS) playbooks/switch.yml
 
-mtls: ## mTLS switch-side (Istio + Leg A/B) + DFSP-side certs/overlay (run AFTER dfsp)
+mtls: ## mTLS switch-side (Istio + Leg A/B) + DFSP-side (Istio + overlay) (run AFTER dfsp)
 	$(ANS) playbooks/mtls.yml
 
 ambient: ## Istio ambient mesh: pod-pod mTLS via ztunnel + STRICT (run AFTER mtls)

@@ -148,6 +148,14 @@
       register: _egress_apply
       changed_when: "'created' in _egress_apply.stdout or 'configured' in _egress_apply.stdout"
 
+    - name: Scale CoreDNS off the single default replica
+      # MicroK8s ships one CoreDNS replica — a SPOF and a bottleneck under the
+      # per-connection DNS volume this stack generates at load. Idempotent.
+      ansible.builtin.shell: |
+        microk8s kubectl -n kube-system scale deployment coredns --replicas={{ coredns_replicas }}
+      register: _coredns_scale
+      changed_when: "'scaled' in _coredns_scale.stdout"
+
 - name: Summary
   run_once: true
   ansible.builtin.debug:
