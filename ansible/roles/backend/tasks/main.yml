@@ -38,7 +38,7 @@
     helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
     helm repo update mojaloop
   changed_when: false
-  environment: "{{ kubectl_env }}"
+  environment: "{{ helm_repo_env }}"
 
 - name: Switch storage class to local-path (replication mode only)
   when: backend_replication_mode
@@ -101,13 +101,13 @@
       {{ backend_release }} {{ backend_chart }} \
       --version {{ backend_version }} \
       {{ _backend_values_args }} \
-      --wait --timeout 10m
+      --wait --timeout 5m
   register: _backend_helm
   changed_when: "'has been upgraded' in _backend_helm.stdout or 'has been deployed' in _backend_helm.stdout"
   environment: "{{ kubectl_env }}"
 
 - name: Apply MySQL service alias (replication mode only)
-  when: backend_replication_mode
+  when: backend_mysql_service_alias
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} apply -f \
       {{ repo_root }}/manifests/mojaloop/mysqldb-service-alias.yaml
@@ -119,7 +119,7 @@
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} \
       wait --for=condition=Ready pod -l app.kubernetes.io/instance={{ backend_release }} \
-      --timeout=10m
+      --timeout=5m
   changed_when: false
   environment: "{{ kubectl_env }}"
 

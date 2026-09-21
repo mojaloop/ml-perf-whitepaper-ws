@@ -49,3 +49,12 @@ meshConfig:
     ecdhCurves:
       - X25519
       - P-256
+  defaultConfig:
+    proxyStatsMatcher:
+      # Default proxyStatsMatcher drops per-destination-cluster Envoy stats to
+      # bound cardinality. Include the DFSP simulator outbound clusters so
+      # their connection-pool metrics (upstream_cx_active/_total, rq_active,
+      # etc.) are visible in Prometheus for diagnosing load-distribution
+      # issues. Prefix covers all 8 sim-fspNNN.local clusters.
+      inclusionPrefixes:
+        - "cluster.outbound|443||sim-fsp"

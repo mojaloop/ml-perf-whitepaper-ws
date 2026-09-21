@@ -47,6 +47,43 @@ ambient_strict: true
 ambient_strict_namespaces:
   - "{{ ns_mojaloop }}"
 
+# Helm release whose workloads carry the scrape-port exemption below
+# (app.kubernetes.io/instance). The datastores run under a different release and
+# keep their own PERMISSIVE policies, so they are untouched by it.
+ambient_app_release: moja
+
+# Ports exempted from STRICT for the app release above. portLevelMtls is only
+# valid on a selector-scoped PeerAuthentication — Istio rejects it on the
+# namespace-wide default policy — so this ships as a separate selector-scoped
+# policy. Prometheus scrapes ambient-enrolled pods over plaintext,
+# which ztunnel rejects under STRICT ("explicitly denied by
+# istio-system/istio_converted_static_strict"), so every ambient-only workload
+# reports no metrics — k6 still measures end-to-end, but every switch-side
+# handler histogram silently disappears. Sidecar-injected deployments are
+# unaffected: their proxy terminates the scrape before the policy applies.
+#
+# These are the apps' HTTP ports, not metrics-only listeners, so PERMISSIVE
+# here also allows plaintext app traffic on them. Enrolled↔enrolled calls still
+# negotiate ztunnel mTLS automatically; PERMISSIVE only permits a plaintext
+# fallback. Narrower than dropping STRICT, still a real relaxation — state it
+# when reporting any mTLS-posture result measured with this in place.
+#
+# TODO: the cleaner fix is source-side capture — Prometheus is ambient-enrolled
+# and appears in ztunnel's workload table as HBONE, yet its scrapes still
+# arrive plaintext (inbound on the app port, not 15008), so the monitoring-side
+# ztunnel is not upgrading them. Resolve that and STRICT can stay intact with
+# no exemption at all.
+ambient_permissive_scrape_ports:
+  - 3000
+  - 3001
+  - 3002
+  - 3003
+  - 3007
+  - 4000
+  - 4001
+  - 4002
+  - 6060
+
 # Datastores accept BOTH mesh mTLS and plaintext (selector PERMISSIVE
 # overriding the namespace STRICT). Required for any ENROLLED datastore
 # because (a) chart init containers (wait-for-mysql) run BEFORE a pod joins

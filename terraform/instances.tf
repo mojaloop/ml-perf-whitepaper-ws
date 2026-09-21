@@ -83,6 +83,19 @@ resource "aws_instance" "switch" {
   monitoring      = local.detailed_monitoring
   ebs_optimized   = try(each.value.performance.ebs_optimized, local.switch_defaults.performance.ebs_optimized, true)
 
+  # Grants the AWS EBS CSI driver (wherever its controller pod lands) volume
+  # management permissions via the instance's IMDS credentials — see iam.tf.
+  iam_instance_profile = aws_iam_instance_profile.ebs_csi_driver.name
+
+  # hop_limit=2 (not the provider/account default of 1) so pods — one
+  # network hop further from the instance than the host itself — can reach
+  # IMDS. Without this, the EBS CSI driver's default AWS credential chain
+  # silently gets no credentials and every volume operation fails.
+  metadata_options {
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
   root_block_device {
     volume_size = try(
       each.value.root_volume.size,

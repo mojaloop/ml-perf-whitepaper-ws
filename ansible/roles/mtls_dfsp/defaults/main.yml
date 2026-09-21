@@ -3,6 +3,18 @@ dfsp_chart: mojaloop/mojaloop-simulator
 dfsp_release: dfsp
 dfsp_version: "{{ chart_versions.mojaloop_simulator }}"
 
+# Ingress/trust mechanism for DFSP-side mTLS.
+#   istio             — Istio Gateway (istio_dfsp role) terminates inbound,
+#                        the scheme-adapter's own sidecar originates outbound;
+#                        app's inbuilt TLS disabled. Default — fixes the
+#                        ssl-passthrough connection-pinning problem (see
+#                        dfsp-ssl-passthrough-connection-pinning.md). Requires
+#                        istio_dfsp to have already run for this scenario.
+#   nginx-passthrough — legacy: nginx ssl-passthrough + the scheme-adapter's
+#                        own inbuilt TLS. Superseded; kept only for rollback
+#                        (per_fsp_nginx_passthrough.yml).
+dfsp_mtls_mode: istio
+
 mtls_shared_secret_name: mtls-shared-creds
 dfsp_tls_secret:       "{{ repo_root }}/certs/dfsp-tls-secret.yaml"
 dfsp_passthrough_tmpl: "{{ repo_root }}/manifests/mtls/dfsp-passthrough.yaml.j2"

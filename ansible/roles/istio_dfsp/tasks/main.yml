@@ -1,0 +1,17 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure istio helm repo is present
+  ansible.builtin.shell: |
+    helm repo add istio {{ helm_repos.istio }} 2>/dev/null || true
+    helm repo update istio
+  changed_when: false
+  environment: "{{ helm_repo_env }}"
+
+- name: Per-DFSP Istio install + mTLS wiring
+  ansible.builtin.include_tasks: per_fsp.yml
+  loop: "{{ dfsp_indices }}"
+  loop_control:
+    loop_var: fsp_idx

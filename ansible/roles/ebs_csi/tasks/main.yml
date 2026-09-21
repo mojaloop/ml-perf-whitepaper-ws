@@ -1,0 +1,36 @@
+---
+- name: Pre-flight
+  ansible.builtin.import_role:
+    name: _common
+
+- name: Ensure the aws-ebs-csi-driver helm repo is present
+  ansible.builtin.shell: |
+    helm repo add aws-ebs-csi-driver {{ ebs_csi_helm_repo }} 2>/dev/null || true
+    helm repo update aws-ebs-csi-driver
+  changed_when: false
+  environment: "{{ helm_repo_env }}"
+
+- name: Render EBS CSI driver helm values
+  ansible.builtin.template:
+    src: ebs-csi-values.yaml.j2
+    dest: "{{ scenario_artifacts_dir }}/ebs-csi-values.yaml"
+    mode: '0600'
+
+- name: Install/upgrade the AWS EBS CSI driver
+  ansible.builtin.shell: |
+    helm --kubeconfig={{ kc_switch }} -n {{ ebs_csi_namespace }} upgrade --install \
+      {{ ebs_csi_release }} aws-ebs-csi-driver/aws-ebs-csi-driver \
+      --version {{ ebs_csi_version }} \
+      -f {{ scenario_artifacts_dir }}/ebs-csi-values.yaml \
+      --wait --timeout 10m
+  register: _ebs_csi_helm
+  changed_when: "'has been upgraded' in _ebs_csi_helm.stdout or 'has been deployed' in _ebs_csi_helm.stdout"
+  environment: "{{ kubectl_env }}"
+
+- name: Apply StorageClasses
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f {{ item }}
+  loop: "{{ ebs_csi_storage_class_manifests }}"
+  register: _ebs_csi_sc
+  changed_when: "'created' in _ebs_csi_sc.stdout or 'configured' in _ebs_csi_sc.stdout"
+  environment: "{{ kubectl_env }}"

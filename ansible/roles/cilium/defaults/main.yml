@@ -107,6 +107,11 @@ cilium_encryption_type: wireguard
 
 cilium_rollout_timeout: 300s
 
+# CoreDNS replicas — raised off the MicroK8s default of 1 (SPOF + bottleneck
+# under this stack's per-connection DNS volume). Keep a multiple of, or at
+# least spread across, the node count so a single node loss can't take DNS out.
+coredns_replicas: 3
+
 # Optional egress lockdown: default-deny egress for the mojaloop namespace,
 # allowing only cluster-internal traffic, kube-dns, and the 8 DFSP sim hosts
 # on :443. Audit the full egress inventory (image pulls, AWS APIs, etc.)

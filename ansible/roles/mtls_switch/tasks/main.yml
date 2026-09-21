@@ -8,7 +8,7 @@
     helm repo add istio {{ helm_repos.istio }} 2>/dev/null || true
     helm repo update istio
   changed_when: false
-  environment: "{{ kubectl_env }}"
+  environment: "{{ helm_repo_env }}"
 
 # --- Leg A inbound: free nginx :443, install Istio, ingress GW, switch cert
 # + inbound Gateway/VS + upstream connection pools ---
@@ -29,7 +29,7 @@
       nginx-ingress-microk8s-controller --type=json \
       -p='[{"op":"remove","path":"/spec/template/spec/containers/0/ports/{{ _nginx_https_idx.stdout }}"}]'
     kubectl --kubeconfig={{ kc_switch }} -n ingress rollout status \
-      daemonset nginx-ingress-microk8s-controller --timeout=180s
+      daemonset nginx-ingress-microk8s-controller --timeout=600s
   changed_when: true
   environment: "{{ kubectl_env }}"
 

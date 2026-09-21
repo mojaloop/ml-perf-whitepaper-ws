@@ -5,6 +5,11 @@
 global:
   security:
     allowInsecureImages: true
+  # Propagates to every subchart's own auto-created ServiceAccount (kafka,
+  # mysql, mongodb) — patching the `default` SA alone doesn't reach these,
+  # since each subchart uses its own dedicated SA, not `default`.
+  imagePullSecrets:
+    - name: dockerhub-secret
 
 ## Reference: https://github.com/bitnami/charts/blob/main/bitnami/kafka/values.yaml
 kafka:
@@ -140,6 +145,30 @@ mysql:
       registry: docker.io
       repository: bitnamilegacy/mysqld-exporter
       tag: 0.17.2
+    # eventswaits: wait-event breakdown by type (mutex/IO/lock), needs
+    # performance_schema=ON. processlist: live per-state thread-count
+    # distribution. slave_status: replication lag and IO/SQL thread state —
+    # without it a replicated topology has no lag signal at all, and the
+    # relay-log positions it exposes (Read_Source_Log_Pos minus
+    # Exec_Source_Log_Pos) are a better backlog measure than
+    # Seconds_Behind_Source under parallel apply. innodb_metrics: history
+    # list length and purge/buffer-pool internals, none of which are
+    # reachable through global status alone.
+    # All four are fixed-cardinality — no per-table or per-query dimension.
+    # Higher-cardinality collectors (file_events, tableiowaits,
+    # eventsstatements) stay excluded: they risk repeating the Prometheus
+    # cardinality overload this campaign already hit once.
+    extraArgs:
+      primary:
+        - --collect.perf_schema.eventswaits
+        - --collect.info_schema.processlist
+        - --collect.info_schema.innodb_metrics
+        - --collect.slave_status
+      secondary:
+        - --collect.perf_schema.eventswaits
+        - --collect.info_schema.processlist
+        - --collect.info_schema.innodb_metrics
+        - --collect.slave_status
     # Service Monitor configuration for metrics
     serviceMonitor:
       enabled: true
@@ -214,11 +243,42 @@ mysql:
 
     extraFlags: |
       --max_connections=1000
+
+  ## MySQL Secondary parameters
+  secondary:
+    # Without this, a fresh secondary's local root user is deleted during
+    # bootstrap and never recreated (bitnami skips root setup in slave mode,
+    # expecting it to arrive via replication) — but the bare
+    # CHANGE REPLICATION SOURCE path this chart uses otherwise never
+    # transfers the primary's mysql.user table, so root has no valid local
+    # credential and the startup/liveness probes CrashLoopBackOff forever.
+    # This flag makes bitnami run a full mysqldump --all-databases from the
+    # primary before wiring up replication, which restores it.
+    extraEnvVars:
+      - name: MYSQL_REPLICATION_SLAVE_DUMP
+        value: "true"
+    # The dump above only runs once, on a genuinely fresh (empty-datadir)
+    # boot, and can take well over the chart's default ~165s startup-probe
+    # budget (15s delay + 10s x 15 failures) once the primary has any real
+    # data — the container gets killed mid-dump, before root's credentials
+    # are restored, permanently freezing that half-initialized state on
+    # every subsequent restart. Every restart AFTER the first one hits the
+    # fast "persisted data" path and succeeds in seconds regardless, so
+    # this only widens the one-time worst case, not normal steady-state
+    # restarts.
+    startupProbe:
+      failureThreshold: 180
+
   ## Initialize databases
   initdbScripts:
     accountLookupInit.sh: |
       #!/bin/bash
       set -e
+      # Replication mode: schema/users replicate from primary once
+      # replication starts. Skip here — a fresh replica has no usable
+      # local root credential yet (bitnami's entrypoint doesn't set one
+      # up locally for slave-mode nodes), so this would fail anyway.
+      [[ "${MYSQL_REPLICATION_MODE:-}" == "slave" ]] && exit 0
       DB_NAME=$ACCOUNT_LOOKUP_DATABASE
       DB_USER=$ACCOUNT_LOOKUP_USER
       DB_PASS=$MYSQL_PASSWORD
@@ -235,6 +295,11 @@ mysql:
     centralLedgerInit.sh: |
       #!/bin/bash
       set -e
+      # Replication mode: schema/users replicate from primary once
+      # replication starts. Skip here — a fresh replica has no usable
+      # local root credential yet (bitnami's entrypoint doesn't set one
+      # up locally for slave-mode nodes), so this would fail anyway.
+      [[ "${MYSQL_REPLICATION_MODE:-}" == "slave" ]] && exit 0
       DB_NAME=$CENTRAL_LEDGER_DATABASE
       DB_USER=$CENTRAL_LEDGER_USER
       DB_PASS=$MYSQL_PASSWORD
@@ -252,6 +317,11 @@ mysql:
     consentOracleInit.sh: |
       #!/bin/bash
       set -e
+      # Replication mode: schema/users replicate from primary once
+      # replication starts. Skip here — a fresh replica has no usable
+      # local root credential yet (bitnami's entrypoint doesn't set one
+      # up locally for slave-mode nodes), so this would fail anyway.
+      [[ "${MYSQL_REPLICATION_MODE:-}" == "slave" ]] && exit 0
       DB_NAME=$CONTENT_ORACLE_DATABASE
       DB_USER=$CONTENT_ORACLE_USER
       DB_PASS=$MYSQL_PASSWORD
@@ -268,6 +338,11 @@ mysql:
     msisdnOracleInit.sh: |
       #!/bin/bash
       set -e
+      # Replication mode: schema/users replicate from primary once
+      # replication starts. Skip here — a fresh replica has no usable
+      # local root credential yet (bitnami's entrypoint doesn't set one
+      # up locally for slave-mode nodes), so this would fail anyway.
+      [[ "${MYSQL_REPLICATION_MODE:-}" == "slave" ]] && exit 0
       DB_NAME=$MSISDN_ORACLE_DATABASE
       DB_USER=$MSISDN_ORACLE_USER
       DB_PASS=$MYSQL_PASSWORD
@@ -284,6 +359,11 @@ mysql:
     authSvcInit.sh: |-
       #!/bin/bash
       set -e
+      # Replication mode: schema/users replicate from primary once
+      # replication starts. Skip here — a fresh replica has no usable
+      # local root credential yet (bitnami's entrypoint doesn't set one
+      # up locally for slave-mode nodes), so this would fail anyway.
+      [[ "${MYSQL_REPLICATION_MODE:-}" == "slave" ]] && exit 0
       DB_NAME=$AUTH_SVC_DATABASE
       DB_USER=$AUTH_SVC_USER
       DB_PASS=$MYSQL_PASSWORD

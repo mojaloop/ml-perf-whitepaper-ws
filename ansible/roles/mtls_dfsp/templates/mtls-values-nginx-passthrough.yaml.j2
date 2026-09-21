@@ -1,0 +1,17 @@
+# SUPERSEDED by Istio-managed mTLS (ansible/roles/istio_dfsp) — this overlay
+# enables the scheme-adapter's OWN inbuilt TLS, terminated behind nginx
+# ssl-passthrough, which load-balances once per TCP connection rather than
+# per HTTP request (see dfsp-ssl-passthrough-connection-pinning.md). Kept,
+# unmodified, only for dfsp_mtls_mode=nginx-passthrough (legacy rollback —
+# see ansible/roles/mtls_dfsp/tasks/per_fsp_nginx_passthrough.yml). The
+# active template (mtls-values.yaml.j2) disables both flags instead; Istio
+# terminates/originates mTLS on both legs.
+simulators:
+  {{ fsp_name }}:
+    config:
+      schemeAdapter:
+        secrets:
+          tlsSecretName: {{ mtls_shared_secret_name }}
+        env:
+          OUTBOUND_MUTUAL_TLS_ENABLED: true
+          INBOUND_MUTUAL_TLS_ENABLED: true

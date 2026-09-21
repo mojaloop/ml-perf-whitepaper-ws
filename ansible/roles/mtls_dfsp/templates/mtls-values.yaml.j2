@@ -1,3 +1,16 @@
+# Istio (ansible/roles/istio_dfsp) now terminates inbound mTLS at the DFSP
+# Gateway and originates outbound mTLS from the scheme-adapter's own sidecar
+# — the app's inbuilt TLS is redundant and, for inbound, was the reason
+# nginx ssl-passthrough load-balanced per-TCP-connection instead of
+# per-request (dfsp-ssl-passthrough-connection-pinning.md). Both flags are
+# explicitly false (not omitted): this overlay runs with --reuse-values, so
+# an omitted key would leave a prior true value in place instead of
+# disabling it.
+#
+# tlsSecretName is left set so the chart doesn't generate its own redundant
+# self-signed secret (see mojaloop-simulator's templates/secret.yaml) — the
+# app never reads it with both flags false, but istio_dfsp reads the same
+# underlying Secret to build its own trust chain.
 simulators:
   {{ fsp_name }}:
     config:
@@ -5,5 +18,5 @@ simulators:
         secrets:
           tlsSecretName: {{ mtls_shared_secret_name }}
         env:
-          OUTBOUND_MUTUAL_TLS_ENABLED: true
-          INBOUND_MUTUAL_TLS_ENABLED: true
+          OUTBOUND_MUTUAL_TLS_ENABLED: false
+          INBOUND_MUTUAL_TLS_ENABLED: false

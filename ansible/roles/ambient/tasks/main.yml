@@ -8,7 +8,7 @@
     helm repo add istio {{ helm_repos.istio }} 2>/dev/null || true
     helm repo update istio
   changed_when: false
-  environment: "{{ kubectl_env }}"
+  environment: "{{ helm_repo_env }}"
 
 - name: Assert istiod is installed (run make mtls first)
   ansible.builtin.shell: |
@@ -84,6 +84,37 @@
   loop: "{{ ambient_strict_namespaces }}"
   register: _pa
   changed_when: "'created' in _pa.stdout or 'configured' in _pa.stdout"
+  environment: "{{ kubectl_env }}"
+
+# Prometheus scrapes ambient-enrolled pods plaintext, which ztunnel rejects under
+# namespace STRICT — every ambient-only workload then reports no metrics at all.
+# portLevelMtls is only valid on a selector-scoped policy, so this targets the
+# app release rather than the namespace; the datastores (a different release)
+# keep their own PERMISSIVE policies. mtls.mode stays STRICT here, so only the
+# listed ports are relaxed. See ambient_permissive_scrape_ports for the caveats.
+- name: Apply PERMISSIVE scrape ports for app workloads
+  when: ambient_strict and (ambient_permissive_scrape_ports | length) > 0
+  ansible.builtin.shell: |
+    kubectl --kubeconfig={{ kc_switch }} apply -f - <<'EOF'
+    apiVersion: security.istio.io/v1
+    kind: PeerAuthentication
+    metadata:
+      name: permissive-scrape-ports
+      namespace: {{ ns_mojaloop }}
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/instance: {{ ambient_app_release }}
+      mtls:
+        mode: STRICT
+      portLevelMtls:
+    {% for _port in ambient_permissive_scrape_ports %}
+        "{{ _port }}":
+          mode: PERMISSIVE
+    {% endfor %}
+    EOF
+  register: _pa_scrape
+  changed_when: "'created' in _pa_scrape.stdout or 'configured' in _pa_scrape.stdout"
   environment: "{{ kubectl_env }}"
 
 # HBONE rides port 15008 pod-to-pod, and ambient rewrites kubelet probes to

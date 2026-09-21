@@ -8,7 +8,7 @@
     helm repo add mojaloop {{ helm_repos.mojaloop }} 2>/dev/null || true
     helm repo update mojaloop
   changed_when: false
-  environment: "{{ kubectl_env }}"
+  environment: "{{ helm_repo_env }}"
 
 # overrides/dfsp.yaml's scenario-wide replica counts — same file the dfsp
 # role reads, loaded again here since this runs as a separate playbook.
@@ -27,8 +27,16 @@
     dfsp_backend_replicas_default: "{{ _dfsp_override.dfsp_backend_replicas_default | default(dfsp_backend_replicas_default) }}"
     dfsp_backend_replicas: "{{ _dfsp_override.dfsp_backend_replicas | default(dfsp_backend_replicas) }}"
 
-- name: Per-DFSP mTLS loop
+- name: Per-DFSP mTLS loop (Istio-managed — default)
+  when: dfsp_mtls_mode == 'istio'
   ansible.builtin.include_tasks: per_fsp.yml
+  loop: "{{ dfsp_indices }}"
+  loop_control:
+    loop_var: fsp_idx
+
+- name: Per-DFSP mTLS loop (legacy nginx ssl-passthrough — rollback only)
+  when: dfsp_mtls_mode == 'nginx-passthrough'
+  ansible.builtin.include_tasks: per_fsp_nginx_passthrough.yml
   loop: "{{ dfsp_indices }}"
   loop_control:
     loop_var: fsp_idx

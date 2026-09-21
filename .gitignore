@@ -2,6 +2,8 @@
 kubeconfig-*
 *.log
 .DS_Store
+__pycache__/
+*.pyc
 # Top-level _-prefixed dirs (_ext-rs/, _legacy/, _test/) — root-only, not nested.
 /_*
 

@@ -34,6 +34,16 @@ https_proxy: "socks5://127.0.0.1:1080"
 kubectl_env:
   HTTPS_PROXY: "{{ https_proxy }}"
 
+# Chart repos are on the public internet, not in the VPC. Their indexes run to
+# tens of MB, and pushing one through the SOCKS tunnel is slow enough to
+# truncate mid-download, so `helm repo add/update` clears the proxy — the
+# inherited shell environment carries it otherwise.
+helm_repo_env:
+  HTTPS_PROXY: ""
+  https_proxy: ""
+  ALL_PROXY: ""
+  all_proxy: ""
+
 # Chart versions — pinned defaults. Override per-scenario in the scenario's
 # versions.yml (key: scenario_chart_versions); _common merges it on top of
 # these. Consume the merged result as chart_versions.* everywhere.
@@ -56,6 +66,17 @@ ns_dfsps: dfsps
 ns_istio: istio-system
 ns_k6_test: k6-test
 ns_k6_operator: k6-operator
+
+# DFSP-side Istio ingressgateway NodePort (Leg A termination, istio_dfsp role).
+# DFSP clusters are single-node with no NLB in front (the switch dials each
+# DFSP's real node IP directly via hostAliases), and nginx-ingress already
+# owns hostPort 443 there (DFSP clusters run Calico, not Cilium, so hostPort
+# works). Rather than evict nginx from :443, the DFSP Istio gateway claims
+# this distinct NodePort instead — no coexistence conflict, nginx untouched.
+# The switch's outbound ServiceEntry (mtls_switch role) dials this port
+# directly on each DFSP node IP in place of literal :443. Shared here because
+# both istio_dfsp (producer) and mtls_switch (consumer) need the same value.
+dfsp_istio_gateway_nodeport: 30443
 
 # Helm repo URLs.
 helm_repos:

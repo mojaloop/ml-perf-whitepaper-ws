@@ -8,7 +8,7 @@
     helm repo add grafana {{ helm_repos.grafana }} 2>/dev/null || true
     helm repo update grafana
   changed_when: false
-  environment: "{{ kubectl_env }}"
+  environment: "{{ helm_repo_env }}"
 
 - name: Ensure k6-test namespace
   ansible.builtin.shell: |

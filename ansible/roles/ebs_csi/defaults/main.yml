@@ -1,0 +1,9 @@
+---
+ebs_csi_helm_repo: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+ebs_csi_release: aws-ebs-csi-driver
+ebs_csi_version: "2.62.0"  # chart version; driver appVersion 1.62.0
+ebs_csi_namespace: kube-system
+
+ebs_csi_storage_class_manifests:
+  - "{{ repo_root }}/manifests/storage/ebs-gp3-encrypted-storageclass.yaml"
+  - "{{ repo_root }}/manifests/storage/ebs-io2-encrypted-storageclass.yaml"

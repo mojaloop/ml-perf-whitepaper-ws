@@ -141,7 +141,7 @@
   ansible.builtin.shell: |
     kubectl --kubeconfig={{ kc_fsp }} -n {{ ns_dfsps }} patch deployment dfsp-sim-{{ fsp_name }}-cache \
       --type=strategic -p '{"spec":{"template":{"spec":{"containers":[
-        {"name":"cache","args":["--maxmemory","200mb","--maxmemory-policy","allkeys-lru","--save",""]}
+        {"name":"cache","args":["--maxmemory","{{ dfsp_cache_maxmemory }}","--maxmemory-policy","allkeys-lru","--save",""]}
       ]}}}}'
   changed_when: false
   environment: "{{ kubectl_env }}"

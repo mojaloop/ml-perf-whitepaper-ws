@@ -1,7 +1,7 @@
 import json, os
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
-from gen_dashboards import target, panel, dashboard, write, expand_with_p99, text_panel
+from gen_dashboards import target, panel, dashboard, write, expand_with_p99, text_panel, row
 
 # ---------------------------------------------------------------------------
 # 4. Central-Ledger (Transfer Legs)
@@ -531,4 +531,275 @@ write("fsp-capacity.json", dashboard(
     ["fsp", "dfsp", "capacity", "whitepaper"],
 ))
 
-print("done: central-ledger, als, quoting, ml-adapter, mysql, kafka, fsp")
+# ---------------------------------------------------------------------------
+# 8. Leg Breakdown — four collapsible sections (Leg Latency, then one per
+# phase). Each phase section follows the same pattern: the physical-path hops
+# (payer FSP -> switch -> payee FSP -> back), the switch-side internal steps
+# behind those hops, then the handler-vs-inter-stage composition. Transfer
+# additionally carries the Kafka queueing estimate and wide-span closure
+# panels — it's the only leg with enough exported Kafka lag data to support
+# them.
+# ---------------------------------------------------------------------------
+
+leg_latency_panels = [
+    panel(
+        "Leg latency — avg: discovery / quote / transfer",
+        [
+            target('histogram_avg(sum(rate(k6_discovery_time_seconds[$__rate_interval])))', "discovery avg"),
+            target('histogram_avg(sum(rate(k6_quote_time_seconds[$__rate_interval])))', "quote avg"),
+            target('histogram_avg(sum(rate(k6_transfer_time_seconds[$__rate_interval])))', "transfer avg"),
+        ],
+        unit="s",
+        desc="How much time is spent in each phase — discovery (party lookup), quote, and transfer. Means are additive across stages (unlike the p50/p95/p99 panels below), so this is also the reference line every composition/hop-breakdown panel in the sections below is measured against.",
+    ),
+    panel(
+        "Leg latency — p50: discovery / quote / transfer",
+        [
+            target('histogram_quantile(0.50, sum(rate(k6_discovery_time_seconds[$__rate_interval])))', "discovery p50"),
+            target('histogram_quantile(0.50, sum(rate(k6_quote_time_seconds[$__rate_interval])))', "quote p50"),
+            target('histogram_quantile(0.50, sum(rate(k6_transfer_time_seconds[$__rate_interval])))', "transfer p50"),
+        ],
+        unit="s",
+    ),
+    panel(
+        "Leg latency — p95: discovery / quote / transfer",
+        [
+            target('histogram_quantile(0.95, sum(rate(k6_discovery_time_seconds[$__rate_interval])))', "discovery p95"),
+            target('histogram_quantile(0.95, sum(rate(k6_quote_time_seconds[$__rate_interval])))', "quote p95"),
+            target('histogram_quantile(0.95, sum(rate(k6_transfer_time_seconds[$__rate_interval])))', "transfer p95"),
+        ],
+        unit="s",
+    ),
+    panel(
+        "Leg latency — p99: discovery / quote / transfer",
+        [
+            target('histogram_quantile(0.99, sum(rate(k6_discovery_time_seconds[$__rate_interval])))', "discovery p99"),
+            target('histogram_quantile(0.99, sum(rate(k6_quote_time_seconds[$__rate_interval])))', "quote p99"),
+            target('histogram_quantile(0.99, sum(rate(k6_transfer_time_seconds[$__rate_interval])))', "transfer p99"),
+        ],
+        unit="s",
+        desc="Duplicates the phase-p99 panel on the k6 dashboard, kept here too so this dashboard is self-contained for a full leg breakdown.",
+    ),
+]
+
+discovery_panels = [
+    panel(
+        "Discovery leg — payer FSP -> switch -> payee FSP -> back (mean)",
+        [
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="destination",namespace="mojaloop",destination_service_name="moja-account-lookup-service",source_workload="istio-ingressgateway"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="destination",namespace="mojaloop",destination_service_name="moja-account-lookup-service",source_workload="istio-ingressgateway"}[$__rate_interval])) / 1000',
+                "1. payer FSP -> switch (ingress)"
+            ),
+            target('sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval]))', "2. switch: ALS handler"),
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace="mojaloop",source_workload="moja-account-lookup-service",destination_service_name=~"sim-fsp.*[.]local"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace="mojaloop",source_workload="moja-account-lookup-service",destination_service_name=~"sim-fsp.*[.]local"}[$__rate_interval])) / 1000',
+                "3. switch -> payee FSP (forward) / switch -> payer FSP (relay)"
+            ),
+            target('sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation="parties"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation="parties"}[$__rate_interval]))', "4. payee FSP round trip"),
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace=~"dfsps|",source_workload=~"dfsp-sim-fsp.*-scheme-adapter",destination_service_name="account-lookup-service.local"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace=~"dfsps|",source_workload=~"dfsp-sim-fsp.*-scheme-adapter",destination_service_name="account-lookup-service.local"}[$__rate_interval])) / 1000',
+                "5. payee FSP -> switch (callback)"
+            ),
+        ],
+        unit="s",
+        desc="One line per hop along the physical path: payer FSP's request enters the switch (1), the account-lookup-service handles it (2), the switch calls out to an FSP — both the forward-to-payee lookup and the relay-back-to-payer share the same Istio destination label so line 3 is the two combined, not separable further (3), the payee FSP's own round trip including its backend call (4), and the payee's callback landing back on the switch (5). Aggregated across all 8 FSPs — a single slow FSP is averaged in, not broken out.",
+    ),
+    panel(
+        "Discovery leg — switch-side internal steps (mean)",
+        [
+            target('sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval]))', "GET ingress handler"),
+            target('sum(rate(moja_getEndpoint_sum[$__rate_interval])) / sum(rate(moja_getEndpoint_count[$__rate_interval]))', "getEndpoint (participant cache)"),
+            target('sum(rate(moja_fetchParticipant_sum[$__rate_interval])) / sum(rate(moja_fetchParticipant_count[$__rate_interval]))', "fetchParticipant"),
+            target('sum(rate(moja_fetchParticipants_sum[$__rate_interval])) / sum(rate(moja_fetchParticipants_count[$__rate_interval]))', "fetchParticipants"),
+            target('sum(rate(moja_getParticipant_sum[$__rate_interval])) / sum(rate(moja_getParticipant_count[$__rate_interval]))', "getParticipant"),
+            target('sum(rate(moja_sendRequest_sum[$__rate_interval])) / sum(rate(moja_sendRequest_count[$__rate_interval]))', "sendRequest (oracle call to DFSP)"),
+            target('sum(rate(moja_ing_putPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_putPartiesByTypeAndID_count[$__rate_interval]))', "PUT ingress handler (callback processing)"),
+        ],
+        unit="s",
+        desc="What line 2 ('switch: ALS handler') on the panel above is actually made of, plus the switch-side step that processes the payee's callback (which that panel's line 5 hands off to). Ordered roughly as the code executes: GET ingress -> participant-endpoint cache lookup -> participant registry lookup(s) -> the outbound oracle/DFSP call -> PUT ingress handling the callback. getEndpoint/getParticipant near zero means the participant cache is doing its job; fetchParticipant/fetchParticipants and sendRequest carry the real internal cost.",
+    ),
+    panel(
+        "Discovery leg composition (mean): handler time vs. inter-stage",
+        [
+            target('sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval]))', "ALS party-lookup handler"),
+            target(
+                'histogram_avg(sum(rate(k6_discovery_time_seconds[$__rate_interval])))'
+                ' - (sum(rate(moja_ing_getPartiesByTypeAndID_sum[$__rate_interval])) / sum(rate(moja_ing_getPartiesByTypeAndID_count[$__rate_interval])))',
+                "inter-stage (derived remainder)"
+            ),
+        ],
+        unit="s",
+        stack=True,
+        desc="ALS ingress handler mean vs. everything else in the discovery leg (oracle lookup, Kafka-adjacent hops, DFSP round trip).",
+    ),
+]
+
+quote_panels = [
+    panel(
+        "Quote leg — payer FSP -> switch -> payee FSP -> back (mean)",
+        [
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace="istio-system",destination_service_name="moja-quoting-service",source_workload="istio-ingressgateway"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace="istio-system",destination_service_name="moja-quoting-service",source_workload="istio-ingressgateway"}[$__rate_interval])) / 1000',
+                "1. payer FSP -> switch (ingress)"
+            ),
+            target('sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))', "2. switch: quoting-service handler"),
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace="mojaloop",source_workload="moja-quoting-service-handler",destination_service_name=~"sim-fsp.*[.]local"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace="mojaloop",source_workload="moja-quoting-service-handler",destination_service_name=~"sim-fsp.*[.]local"}[$__rate_interval])) / 1000',
+                "3. switch -> payee FSP (forward) / switch -> payer FSP (relay)"
+            ),
+            target('sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation="quotes"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation="quotes"}[$__rate_interval]))', "4. payee FSP round trip"),
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace=~"dfsps|",source_workload=~"dfsp-sim-fsp.*-scheme-adapter",destination_service_name="quoting-service.local"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace=~"dfsps|",source_workload=~"dfsp-sim-fsp.*-scheme-adapter",destination_service_name="quoting-service.local"}[$__rate_interval])) / 1000',
+                "5. payee FSP -> switch (callback)"
+            ),
+        ],
+        unit="s",
+        desc="Same physical-path shape as discovery: payer FSP's POST /quotes enters the switch (1), quoting-service handles it (2), the switch calls out to an FSP — forward-to-payee and relay-back-to-payer share the same Istio destination label, not separable further (3), the payee FSP's own round trip including its backend call (4), and the payee's PUT /quotes/id callback landing back on the switch (5). Aggregated across all 8 FSPs.",
+    ),
+    panel(
+        "Quote leg — switch-side internal steps (mean)",
+        [
+            target('sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))', "POST ingress handler"),
+            target('sum(rate(moja_model_quote_sum{queryName="quote_validateQuoteRequest"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName="quote_validateQuoteRequest"}[$__rate_interval]))', "validateQuoteRequest"),
+            target('sum(rate(moja_model_quote_sum{queryName="quote_handleQuoteRequest"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName="quote_handleQuoteRequest"}[$__rate_interval]))', "handleQuoteRequest"),
+            target('sum(rate(moja_model_quote_sum{queryName="quote_forwardQuoteRequest"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName="quote_forwardQuoteRequest"}[$__rate_interval]))', "forwardQuoteRequest (send to payee)"),
+            target('sum(rate(moja_quotes_id_put_sum[$__rate_interval])) / sum(rate(moja_quotes_id_put_count[$__rate_interval]))', "PUT/id ingress handler (callback processing)"),
+            target('sum(rate(moja_model_quote_sum{queryName="quote_handleQuoteUpdate"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName="quote_handleQuoteUpdate"}[$__rate_interval]))', "handleQuoteUpdate"),
+            target('sum(rate(moja_model_quote_sum{queryName="quote_forwardQuoteUpdate"}[$__rate_interval])) / sum(rate(moja_model_quote_count{queryName="quote_forwardQuoteUpdate"}[$__rate_interval]))', "forwardQuoteUpdate (relay to payer)"),
+        ],
+        unit="s",
+        desc="What lines 2 and 5 on the panel above are actually made of, in code order: POST ingress -> validate -> handle -> forward-to-payee (line 3's app-level view) -> [payee round trip] -> PUT ingress -> handle-update -> forward-to-payer (also line 3's app-level view, other direction). quoting-service runs SIMPLE_ROUTING_MODE — no DB query anywhere in this leg, moja_model_quote here is application function time, not database time despite the metric name.",
+    ),
+    panel(
+        "Quote leg composition (mean): handler time vs. inter-stage",
+        [
+            target('sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval]))', "quotes-post handler"),
+            target('sum(rate(moja_quotes_id_put_sum[$__rate_interval])) / sum(rate(moja_quotes_id_put_count[$__rate_interval]))', "quotes-put handler"),
+            target(
+                'histogram_avg(sum(rate(k6_quote_time_seconds[$__rate_interval])))'
+                ' - (sum(rate(moja_quotes_post_sum[$__rate_interval])) / sum(rate(moja_quotes_post_count[$__rate_interval])))'
+                ' - (sum(rate(moja_quotes_id_put_sum[$__rate_interval])) / sum(rate(moja_quotes_id_put_count[$__rate_interval])))',
+                "inter-stage (derived remainder)"
+            ),
+        ],
+        unit="s",
+        stack=True,
+        desc="quoting-service runs SIMPLE_ROUTING_MODE (validate + forward, no persistence, no DB query) — expect the handler lines near zero and inter-stage to account for almost the entire leg. group-quotes-handler-post/-put export no Kafka lag data in this cluster, so inter-stage can't be broken out into a queueing estimate the way transfer's can below.",
+    ),
+]
+
+transfer_panels = [
+    panel(
+        "Transfer leg — payer FSP -> switch -> payee FSP -> back (mean)",
+        [
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace="istio-system",destination_service_name="moja-ml-api-adapter-service",source_workload="istio-ingressgateway"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace="istio-system",destination_service_name="moja-ml-api-adapter-service",source_workload="istio-ingressgateway"}[$__rate_interval])) / 1000',
+                "1. payer FSP -> switch (ingress)"
+            ),
+            target('sum(rate(moja_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_transfer_prepare_count[$__rate_interval]))', "2. switch: prepare handler"),
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace="mojaloop",source_workload="moja-ml-api-adapter-handler-notification",destination_service_name=~"sim-fsp.*[.]local"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace="mojaloop",source_workload="moja-ml-api-adapter-handler-notification",destination_service_name=~"sim-fsp.*[.]local"}[$__rate_interval])) / 1000',
+                "3. switch -> payee FSP (PREPARE forward + notify)"
+            ),
+            target('sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation="transfers"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation="transfers"}[$__rate_interval]))', "4. payee FSP round trip"),
+            target(
+                'sum(rate(istio_request_duration_milliseconds_sum{reporter="source",namespace=~"dfsps|",source_workload=~"dfsp-sim-fsp.*-scheme-adapter",destination_service_name="ml-api-adapter.local"}[$__rate_interval]))'
+                ' / sum(rate(istio_request_duration_milliseconds_count{reporter="source",namespace=~"dfsps|",source_workload=~"dfsp-sim-fsp.*-scheme-adapter",destination_service_name="ml-api-adapter.local"}[$__rate_interval])) / 1000',
+                "5. payee FSP -> switch (fulfil callback)"
+            ),
+            target('sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval]))', "6. switch: fulfil handler"),
+        ],
+        unit="s",
+        desc="Same physical-path shape as discovery/quote, extended for transfer's genuine two-phase prepare/fulfil flow: payer FSP's POST /transfers enters the switch (1), the prepare handler commits it (2), the switch forwards PREPARE to the payee (3, blended with the later notify call on the same Istio label), the payee's own round trip including its backend call (4), the payee's PUT /transfers fulfil callback landing back on the switch (5), and the fulfil handler committing it (6). Aggregated across all 8 FSPs. Position-batch and notification — real costs, but not on this direct path — are broken out in the internal-steps panel below.",
+    ),
+    panel(
+        "Transfer leg — switch-side internal steps (mean)",
+        [
+            target('sum(rate(moja_model_transfer_sum{queryName="facade_saveTransferPrepared_transaction"}[$__rate_interval])) / sum(rate(moja_model_transfer_count{queryName="facade_saveTransferPrepared_transaction"}[$__rate_interval]))', "prepare DB commit"),
+            target('sum(rate(moja_model_transfer_sum{queryName="facade_savePayeeTransferResponse"}[$__rate_interval])) / sum(rate(moja_model_transfer_count{queryName="facade_savePayeeTransferResponse"}[$__rate_interval]))', "fulfil DB commit"),
+            target('sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval]))', "position-batch commit (fires x2/transfer)"),
+            target('sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval]))', "notification handler (fires x2/transfer)"),
+        ],
+        unit="s",
+        desc="How much of lines 2 and 6 on the panel above is actually MySQL commit time (prepare/fulfil DB commit — a subset of those handler means, not additional), plus the two off-path switch steps every transfer also pays for: the position-batch commit and the notification fan-out, each firing once on the prepare side and once on the fulfil side (means shown here are per-firing; the composition panel below doubles them to get each one's true contribution to the leg).",
+    ),
+    panel(
+        "Transfer leg composition (mean): handler time vs. inter-stage",
+        [
+            target('sum(rate(moja_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_transfer_prepare_count[$__rate_interval]))', "prepare handler"),
+            target('sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval]))', "fulfil handler"),
+            target('2 * (sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval])))', "position-batch handler (x2/transfer)"),
+            target('2 * (sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval])))', "notification handler (x2/transfer)"),
+            target(
+                'histogram_avg(sum(rate(k6_transfer_time_seconds[$__rate_interval])))'
+                ' - (sum(rate(moja_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_transfer_prepare_count[$__rate_interval])))'
+                ' - (sum(rate(moja_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_transfer_fulfil_count[$__rate_interval])))'
+                ' - 2 * (sum(rate(moja_transfer_position_batch_sum[$__rate_interval])) / sum(rate(moja_transfer_position_batch_count[$__rate_interval])))'
+                ' - 2 * (sum(rate(moja_notification_event_sum[$__rate_interval])) / sum(rate(moja_notification_event_count[$__rate_interval])))',
+                "inter-stage (derived remainder)"
+            ),
+        ],
+        unit="s",
+        stack=True,
+        desc="Stacked mean components of the transfer leg. position-batch and notification are each doubled — both fire once on the prepare side and once on the fulfil side per transfer. 'inter-stage' is not a real metric: it's the k6-measured transfer mean minus the four handler means, i.e. time spent queued in Kafka between stages. If this goes negative, a handler mean has drifted above its actual share (check for a metric-name/label mismatch before trusting the other lines).",
+    ),
+    panel(
+        "Transfer leg — Kafka inter-stage queueing (estimated: lag / consumption rate)",
+        [
+            target(
+                'sum(kafka_consumergroup_lag_sum{consumergroup="cl-group-transfer-prepare"}) / sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_count{topic="topic-transfer-prepare"}[$__rate_interval]))',
+                "topic-transfer-prepare queueing"
+            ),
+            target(
+                'sum(kafka_consumergroup_lag_sum{consumergroup="cl-group-transfer-position-batch"}) / sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_count{topic="topic-transfer-position-batch"}[$__rate_interval]))',
+                "topic-transfer-position-batch queueing (both firings)"
+            ),
+            target(
+                'sum(kafka_consumergroup_lag_sum{consumergroup="ml-group-notification-event"}) / sum(rate(kafka_server_brokertopicmetrics_messagesinpersec_count{topic="topic-notification-event"}[$__rate_interval]))',
+                "topic-notification-event queueing (both firings)"
+            ),
+        ],
+        unit="s",
+        stack=True,
+        desc="Crude produce-to-consume delay estimate (lag messages / consumption rate) for the three transfer-path topics whose consumer groups actually export lag. topic-transfer-fulfil (cl-group-transfer-fulfil) exports no lag data in this cluster and is missing from this panel entirely — do not read its absence as zero queueing. Assumes roughly steady-state draining; treat as directional, not exact.",
+    ),
+    panel(
+        "Transfer leg — wide-span closure",
+        [
+            target('sum(rate(moja_tx_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_prepare_count[$__rate_interval]))', "tx_transfer_prepare (wide span)"),
+            target('sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation="transfers"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation="transfers"}[$__rate_interval]))', "DFSP round trip"),
+            target('sum(rate(moja_tx_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_fulfil_count[$__rate_interval]))', "tx_transfer_fulfil (wide span)"),
+            target(
+                'histogram_avg(sum(rate(k6_transfer_time_seconds[$__rate_interval])))'
+                ' - (sum(rate(moja_tx_transfer_prepare_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_prepare_count[$__rate_interval])))'
+                ' - (sum(rate(mojaloop_connector_callback_latency_seconds_sum{operation="transfers"}[$__rate_interval])) / sum(rate(mojaloop_connector_callback_latency_seconds_count{operation="transfers"}[$__rate_interval])))'
+                ' - (sum(rate(moja_tx_transfer_fulfil_sum[$__rate_interval])) / sum(rate(moja_tx_transfer_fulfil_count[$__rate_interval])))',
+                "residual (closure check)"
+            ),
+        ],
+        unit="s",
+        stack=True,
+        desc="tx_transfer_prepare/tx_transfer_fulfil are wide-span app histograms that already CONTAIN every hop in the panels above (including their Kafka inter-stage time) plus their own commit cost — they are not additional legs. Summed with the DFSP round trip that sits between them, this should stack to within a few percent of the k6 transfer mean: the cleanest available proof that the transfer leg is fully accounted for end to end.",
+    ),
+]
+
+leg_panels = [
+    row("Leg Latency — by Phase", leg_latency_panels),
+    row("Discovery Phase — Breakdown", discovery_panels),
+    row("Quote Phase — Breakdown", quote_panels),
+    row("Transfer Phase — Breakdown", transfer_panels),
+]
+write("leg-breakdown.json", dashboard(
+    "Transfer / Quote / Discovery — Leg Breakdown", "leg-breakdown", leg_panels,
+    ["latency", "leg-breakdown", "whitepaper"],
+))
+
+print("done: central-ledger, als, quoting, ml-adapter, mysql, kafka, fsp, leg-breakdown")

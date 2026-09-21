@@ -132,6 +132,15 @@ data:
             action: keep
           - source_labels: [__meta_kubernetes_pod_node_name]
             target_label: node
+        # Keep only the shippable set at scrape time, not just on remote_write.
+        # The agent WALs everything it scrapes and filters on the way out, so
+        # the discarded bulk (envoy /stats from 32 sidecars, most of cadvisor)
+        # grows the WAL faster than a CPU-bound remote_write drains it — which
+        # is what OOMs the agent when it replays that WAL on restart.
+        metric_relabel_configs: &keep_only
+          - source_labels: [__name__]
+            regex: "{{ dfsp_mon_keep_metrics_regex }}"
+            action: keep
 
       # kubelet cAdvisor — per-container CPU/mem/net (scheme-adapter + sim).
       # honor_timestamps:false — cAdvisor stamps samples with its own
@@ -150,6 +159,7 @@ data:
         relabel_configs:
           - source_labels: [__meta_kubernetes_node_name]
             target_label: node
+        metric_relabel_configs: *keep_only
 
       # kubelet itself (runtime/pod counts)
       - job_name: kubelet
@@ -163,6 +173,7 @@ data:
         relabel_configs:
           - source_labels: [__meta_kubernetes_node_name]
             target_label: node
+        metric_relabel_configs: *keep_only
 
       # sdk-scheme-adapter / sim app metrics — opt-in via pod annotation
       # prometheus.io/scrape=true (no-op until the SDK /metrics is enabled).
@@ -186,9 +197,48 @@ data:
             target_label: pod
           - source_labels: [__meta_kubernetes_pod_node_name]
             target_label: node
+        metric_relabel_configs: *keep_only
+
+      # Envoy/istio-proxy stats — the scheme-adapter's injected sidecar
+      # (dfsps ns) and this cluster's own istio-ingressgateway (istio-system
+      # ns), both installed by the istio_dfsp role. Port 15090 is Envoy's own
+      # admin/stats endpoint; every istio-proxy container carries it under
+      # the standard Istio-assigned port name "http-envoy-prom" regardless of
+      # namespace, which is what this job filters on (not container name —
+      # cheaper relabel, same result). Yields istio_requests_total /
+      # istio_request_duration_milliseconds with reporter=source|destination
+      # labels — comparing "destination" at the gateway vs at the
+      # scheme-adapter sidecar is what isolates the gateway-hop cost from
+      # in-pod sidecar/app time. NOT raw envoy_* stats: those are suppressed
+      # by istiod's default proxyStatsMatcher (see common/istiod-values.yaml)
+      # except for a prefix list tailored to the switch's own egress
+      # clusters, which doesn't match anything on the DFSP side — the
+      # higher-level istio_* metrics are unaffected by that matcher and are
+      # the right ones to use here regardless (see repo's own perf
+      # measurement traps: prefer istio_request_duration_milliseconds over
+      # raw envoy_http_*).
+      - job_name: dfsp-istio-proxy
+        metrics_path: /stats/prometheus
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [{{ dfsp_mon_app_namespace }}, {{ ns_istio }}]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            regex: http-envoy-prom
+            action: keep
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+        metric_relabel_configs: *keep_only
 
     remote_write:
       - url: {{ dfsp_mon_remote_write_url }}
+        # Backstop for the scrape-time metric_relabel_configs above — catches
+        # any job added later without the &keep_only filter.
         write_relabel_configs:
           - source_labels: [__name__]
             regex: "{{ dfsp_mon_keep_metrics_regex }}"
@@ -236,7 +286,9 @@ spec:
             periodSeconds: 10
           resources:
             requests: {cpu: 50m, memory: 128Mi}
-            limits: {cpu: 500m, memory: 512Mi}
+            limits:
+              cpu: "{{ dfsp_mon_agent_cpu_limit[fsp_name] | default(dfsp_mon_agent_cpu_limit_default) }}"
+              memory: "{{ dfsp_mon_agent_memory_limit[fsp_name] | default(dfsp_mon_agent_memory_limit_default) }}"
           volumeMounts:
             - {name: config, mountPath: /etc/prometheus}
             - {name: data, mountPath: /data}
