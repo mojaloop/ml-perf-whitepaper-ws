@@ -10,23 +10,6 @@
   changed_when: false
   environment: "{{ helm_repo_env }}"
 
-# overrides/dfsp.yaml's scenario-wide replica counts — same file the dfsp
-# role reads, loaded again here since this runs as a separate playbook.
-- name: Stat scenario dfsp.yaml override
-  ansible.builtin.stat:
-    path: "{{ scenario_overrides_dir }}/dfsp.yaml"
-  register: _scenario_dfsp_stat
-
-- name: Load scenario replica counts from dfsp.yaml
-  when: _scenario_dfsp_stat.stat.exists
-  vars:
-    _dfsp_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
-  ansible.builtin.set_fact:
-    dfsp_sdk_replicas_default: "{{ _dfsp_override.dfsp_sdk_replicas_default | default(dfsp_sdk_replicas_default) }}"
-    dfsp_sdk_replicas: "{{ _dfsp_override.dfsp_sdk_replicas | default(dfsp_sdk_replicas) }}"
-    dfsp_backend_replicas_default: "{{ _dfsp_override.dfsp_backend_replicas_default | default(dfsp_backend_replicas_default) }}"
-    dfsp_backend_replicas: "{{ _dfsp_override.dfsp_backend_replicas | default(dfsp_backend_replicas) }}"
-
 - name: Per-DFSP mTLS loop (Istio-managed — default)
   when: dfsp_mtls_mode == 'istio'
   ansible.builtin.include_tasks: per_fsp.yml

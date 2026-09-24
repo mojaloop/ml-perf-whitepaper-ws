@@ -1,0 +1,18 @@
+# Per-scenario chart versions (merged onto ansible _common chart_versions_default).
+# Loaded by the _common role from this scenario's own versions.yml.
+scenario_chart_versions:
+  mojaloop: "17.3.0"
+  mojaloop_backend: "17.1.0"
+  mojaloop_simulator: "15.10.0"
+
+# v17.3.0 isn't published to the mojaloop Helm repo yet — install from the
+# local checkout instead. Remove this once a released chart covers this
+# version, so future runs go back to the published repo.
+mojaloop_chart_path: "/Users/shashi/Modusbox/DEV/ML/dev/test/helm/mojaloop"
+
+# mysql.architecture: replication (overrides/backend.yaml) means the mysql
+# chart only creates mysqldb-primary/mysqldb-secondary Services, not a
+# plain `mysqldb` one — every mojoloop service's db_host config still
+# expects `mysqldb`. See ansible/roles/backend/defaults/main.yml for why
+# this is intentionally decoupled from backend_replication_mode.
+backend_mysql_service_alias: true

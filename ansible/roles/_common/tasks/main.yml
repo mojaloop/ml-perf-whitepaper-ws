@@ -15,6 +15,23 @@
     file: "{{ scenario_dir }}/versions.yml"
   when: _versions_stat.stat.exists
 
+# overrides/dfsp.yaml is dual-purpose: `simulators:` is a Helm values overlay
+# (the dfsp role filters it per-FSP and passes only that subtree to Helm),
+# while every other top-level key is an ansible variable — per-FSP replica
+# counts, cache and agent sizing, sidecar pool ceilings. Loaded wholesale here
+# rather than key-by-key in each consuming role, so adding a variable to the
+# file is enough to make it take effect. All keys are namespaced (dfsp_*,
+# mtls_sidecar_*, simulators), so this cannot shadow an unrelated role's vars.
+- name: Check for per-scenario DFSP overrides
+  ansible.builtin.stat:
+    path: "{{ scenario_overrides_dir }}/dfsp.yaml"
+  register: _dfsp_overrides_stat
+
+- name: Load per-scenario DFSP overrides (overrides/dfsp.yaml)
+  ansible.builtin.include_vars:
+    file: "{{ scenario_overrides_dir }}/dfsp.yaml"
+  when: _dfsp_overrides_stat.stat.exists
+
 - name: Verify SOCKS tunnel is up
   ansible.builtin.wait_for:
     host: 127.0.0.1

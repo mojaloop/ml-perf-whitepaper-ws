@@ -16,6 +16,10 @@
       Re-run `make terraform-apply SCENARIO={{ scenario }}` to regenerate
       the inventory, then `make dfsp-monitoring`.
 
+# Agent resource limits are sized to a scenario's per-FSP series volume, so
+# they live in that scenario's overrides/dfsp.yaml alongside the replica counts
+# that drive that volume. _common loads that file.
+
 - name: Per-DFSP loop
   ansible.builtin.include_tasks: per_fsp.yml
   loop: "{{ dfsp_indices }}"

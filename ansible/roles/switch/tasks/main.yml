@@ -63,6 +63,11 @@
   changed_when: false
   environment: "{{ kubectl_env }}"
 
+- name: Resolve chart reference (local override vs published repo)
+  ansible.builtin.set_fact:
+    _moja_chart_ref: "{{ mojaloop_chart_path if (mojaloop_chart_path | length > 0) else mojaloop_chart }}"
+    _moja_version_arg: "{{ '' if (mojaloop_chart_path | length > 0) else '--version ' + mojaloop_version }}"
+
 - name: Helm install/upgrade Mojaloop switch
   when: _helm_need.stdout != 'skip'
   ansible.builtin.shell: |
@@ -77,8 +82,8 @@
     # rollout-status waits at the end of this role, which run AFTER the
     # patches and the single Recreate rollout they trigger.
     helm --kubeconfig={{ kc_switch }} -n {{ ns_mojaloop }} upgrade --install \
-      {{ mojaloop_release }} {{ mojaloop_chart }} \
-      --version {{ mojaloop_version }} \
+      {{ mojaloop_release }} {{ _moja_chart_ref }} \
+      {{ _moja_version_arg }} \
       {{ _moja_values_args }} \
       --force-conflicts --take-ownership \
       --timeout 15m

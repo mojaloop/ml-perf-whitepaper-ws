@@ -7,37 +7,60 @@
 # Sim backend replicas per FSP (single-threaded process, ~1 core each).
 # Backend CPU load is driven by the DESTINATION role only (payee-side
 # party/quote/transfer lookups) — source-only FSPs measure ~0 backend
-# CPU regardless of traffic share, so only fsp202 (destination under the
-# skewed fsp201->fsp202 pairing) needs more than 1. Every backend pod is
-# seeded individually by `make provision`.
+# CPU regardless of traffic share, so only the payees are scaled. Every
+# backend pod is seeded individually by `make provision`.
 dfsp_backend_replicas_default: 1
 dfsp_backend_replicas:
   fsp202: 4
+  fsp204: 4
+  fsp206: 4
+  fsp208: 4
 
-# scheme-adapter replicas per FSP. fsp201/fsp202 carry the skewed
-# fsp201->fsp202 pairing's traffic concentration (up to 70%/49% of total
-# volume) and need headroom above the flat-weight baseline; both nodes are
-# sized c7i.4xlarge (16 vCPU, see aws.yaml). fsp203-208 run above the role
-# default too (c7i.2xlarge, 8 vCPU each).
-dfsp_sdk_replicas_default: 4
+# scheme-adapter replicas per FSP. `fspPairs` (overrides/k6.yaml) spreads
+# load evenly over four payer->payee pairs, so all eight FSPs carry an equal
+# share on identically sized nodes (c7i.4xlarge, 16 vCPU — see aws.yaml).
+# A scenario override replaces the role's map rather than merging into it,
+# so every FSP is listed.
+dfsp_sdk_replicas_default: 24
 dfsp_sdk_replicas:
-  fsp201: 32
-  fsp202: 32
-  fsp203: 12
-  fsp204: 12
-  fsp205: 12
-  fsp206: 12
-  fsp207: 12
-  fsp208: 12
+  fsp201: 24
+  fsp202: 24
+  fsp203: 24
+  fsp204: 24
+  fsp205: 24
+  fsp206: 24
+  fsp207: 24
+  fsp208: 24
 
-# Redis cache maxmemory. At 200mb the caches sit at the ceiling and evict
-# continuously (allkeys-lru) under sustained load. Measured harmless: what gets
-# evicted is state for completed transfers, and keyspace_misses stays at 0, so
-# no lookup ever fails to find its key. There is memory headroom to raise this,
-# but doing so changes SDK cache behaviour and therefore what the scenario
-# measures, so it stays at the role default.
+# Redis cache maxmemory. At 200mb the caches evict continuously (allkeys-lru)
+# under sustained load rather than as occasional housekeeping, and these nodes
+# have 32GB free, so there is room to raise it. Raising it changes SDK cache
+# behaviour and therefore what the scenario measures, so it stays at the role
+# default until that is measured deliberately.
 dfsp_cache_maxmemory: 200mb
 
+# dfsp-prometheus-agent resources. At the role default (512Mi/500m) the
+# agent OOMKills at this scenario's per-FSP series volume: remote_write
+# can't drain fast enough, so the WAL grows until replaying it on restart
+# exceeds the limit again, blacking out that FSP's metrics for the rest of
+# the run. Raised for every FSP, since all eight carry an equal share.
+dfsp_mon_agent_memory_limit_default: 2Gi
+dfsp_mon_agent_cpu_limit_default: "2"
+
+# Circuit-breaker ceilings on the switch's outbound DestinationRule to each FSP
+# (ansible/roles/mtls_switch). They bound how many connections and in-flight
+# requests Envoy opens per FSP before rejecting with URX/connect-fail, so they
+# are ceilings rather than allocations — an unused ceiling costs nothing, while
+# too low a one drops traffic under burst. Uniform because every FSP carries an
+# equal share of load; the role default (500) leaves little headroom at a 25%
+# share.
+mtls_sidecar_max_connections_default: 3000
+mtls_sidecar_http2_max_requests_default: 3000
+
+# Requests per connection before Envoy recycles it — purely a handshake-
+# amortization tradeoff, since the DFSP ingress load-balances every request
+# independently and connection reuse does not pin traffic to one pod.
+mtls_sidecar_max_requests_per_connection: 100
 
 simulators:
   fsp201:
@@ -50,8 +73,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"
@@ -69,8 +90,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"
@@ -88,8 +107,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"
@@ -107,8 +124,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"
@@ -126,8 +141,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"
@@ -145,8 +158,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"
@@ -164,8 +175,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"
@@ -183,8 +192,6 @@ simulators:
         env:
           ENABLE_TEST_FEATURES: "false"
           LOG_LEVEL: "info"
-          API_TYPE: "iso20022"
-          ILP_VERSION: "4"
         image:
           repository: mojaloop/sdk-scheme-adapter
           tag: "v24.20.0"

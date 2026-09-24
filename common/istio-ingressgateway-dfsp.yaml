@@ -40,17 +40,31 @@ service:
 # net.ipv4.ip_unprivileged_port_start=0 already lets the non-root container
 # (uid 1337) bind to :443.
 
-# Single-node cluster: this pod shares the node with 4-32 scheme-adapter
-# replicas plus sim-backend/cache. Sized down from the switch's gateway
-# (4 vCPU limit on an 8-vCPU-node fleet) to fit the smallest DFSP instance
-# (c7i.xlarge, fsp203-208) with headroom left for the app pods — verify
-# against real load before trusting this on fsp201/fsp202's larger 4xlarge
-# nodes, where a higher limit may be worth it given their ~70%/49% traffic
-# share (see dfsp-ssl-passthrough-connection-pinning.md).
+# Single-node cluster: this pod shares the node with 4-64 scheme-adapter
+# replicas plus sim-backend/cache. Unlike the switch — where an NLB spreads
+# inbound traffic across a 20-pod DaemonSet — each DFSP has exactly ONE gateway
+# pod, so a single FSP's entire inbound switch traffic lands on it. At 2000 TPS
+# a 70%-share payer drives ~3,700 req/s through this one pod (3 callbacks per
+# transaction: ALS result, quote result, final notification).
+#
+# cpu limit drives Envoy's worker count: Istio derives `concurrency` from the
+# CPU limit, so a 1-core limit yields `server.concurrency: 1` — a single worker
+# thread for all of it, regardless of node size. Measured cost is ~226us of
+# gateway CPU per request, so one worker saturates near ~3,700 req/s; at that
+# point it sits at ~83% utilization and M/M/1 queueing adds ~4x the service
+# time to EVERY request (measured: 107ms mean switch->FSP, against 4ms of
+# actual scheme-adapter work). 4 cores gives 4 workers and ~18,000 req/s of
+# headroom. This is a limit, not a request, so the smaller fsp203-208 nodes
+# only consume what they use (measured 0.15-0.3 cores).
+#
+# memory: 512Mi peaked at 489Mi (95%) under sustained 2000 TPS load with
+# repeated OOMKill restarts — Envoy's per-connection stats grow with connection
+# count and churn. 2Gi matches the switch gateway and the switch sidecars,
+# where the same 512Mi/1Gi ceiling caused the same failure.
 resources:
   requests:
     cpu: 100m
     memory: 128Mi
   limits:
-    cpu: "1"
-    memory: 512Mi
+    cpu: "4"
+    memory: 2Gi
