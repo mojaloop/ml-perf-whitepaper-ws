@@ -305,6 +305,17 @@ published to the Mojaloop Helm repository.
 Prometheus via remote_write; `make istio-telemetry` scrapes Istio
 proxy/sidecar metrics into it. Both are included in `make deploy`.
 
+Two query traps follow from how these metrics arrive:
+
+- **`istio_requests_total` is scraped twice** in scenarios running
+  `make istio-telemetry` — once from the Istio proxy job and once from the
+  application pod job — so any query over it must pin the `job` label or it
+  double-counts.
+- **DFSP node metrics carry a `cluster="fspNNN"` label** from remote_write
+  rather than the switch's label scheme, so a `group_left` join against
+  `node_uname_info` can return an empty result for the whole query rather
+  than a partial one.
+
 ### Accessing Prometheus and Grafana
 
 Clusters are private — start the tunnel first, then port-forward through
@@ -354,16 +365,22 @@ on the tunnel network, via NodePort `30090` (`kps.prometheus.service` in
 - **`kubectl`/`helm` need the tunnel** — clusters are private; run
   `make tunnel` first, then `export HTTPS_PROXY=socks5://127.0.0.1:1080`
   for ad-hoc `kubectl` use.
-- **Re-running `make dfsp` wipes simulator state** — it restarts the
-  mojaloop-simulator backend, dropping registered parties. Re-run
-  `onboard -> provision -> smoke` (and `mtls` for mtls-wireguard scenarios)
-  before the next `load`.
+- **Simulator state is in-memory** — re-running `make dfsp`, any
+  mojaloop-simulator backend pod restart, or a node reboot drops registered
+  parties. Re-run `onboard -> provision -> smoke` (and `mtls` for
+  mtls-wireguard scenarios) before the next `load`.
 - **`make switch` skips Helm when nothing changed** — it stamps a checksum
   of the chart version plus values files in `artifacts/switch-helm.sum` and
   only runs Helm when they differ (a full Helm pass triggers two
   switch-wide rollouts). Configmap and topology-patch changes still apply
   and roll only the affected deployments. Force a full Helm run by deleting
   the stamp file, or with `EXTRA='-e switch_helm_force=true'`.
+- **The EBS CSI node plugin needs `node.kubeletPath` set for MicroK8s**
+  (`ansible/roles/ebs_csi/templates/ebs-csi-values.yaml.j2`). The chart
+  default `/var/lib/kubelet` assumes vanilla Kubernetes; MicroK8s's kubelet
+  root is `/var/snap/microk8s/common/var/lib/kubelet`. Without it,
+  `NodeStageVolume` fails with `mkdir /var/snap: read-only file system` and
+  every PVC-backed pod sits at `Init:0/1` even though its PVC shows `Bound`.
 
 ## Phase 1
 
