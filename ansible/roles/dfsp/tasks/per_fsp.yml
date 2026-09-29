@@ -60,25 +60,19 @@
 
 # ---- helm install simulator ----
 
-# _scenario_dfsp_stat was already registered once in main.yml (it also reads
-# dfsp.yaml's scenario-wide replica counts). Here we only need the Helm
-# overlay under `simulators.<this-fsp>.*` — replica counts and any other
-# ansible-facing top-level key are NOT forwarded to Helm, only `simulators`.
-# Without this filtering every cluster's chart would render Deployments for
-# all 8 sims (24 deployments/cluster vs. the 3 actually needed).
-- name: "fsp{{ fsp_idx }}: load + filter scenario override to this FSP"
-  when: _scenario_dfsp_stat.stat.exists
+# Helm gets only the overlay under `simulators.<this-fsp>.*`; every other
+# top-level key in overrides/dfsp.yaml is an ansible variable and must not be
+# forwarded. Without this filtering each cluster's chart would render
+# Deployments for all 8 sims (24 deployments/cluster vs. the 3 actually needed).
+- name: "fsp{{ fsp_idx }}: filter scenario override to this FSP"
+  when: _dfsp_overrides_stat.stat.exists
   block:
-    - name: "fsp{{ fsp_idx }}: load full override"
-      ansible.builtin.set_fact:
-        _full_override: "{{ lookup('file', scenario_overrides_dir + '/dfsp.yaml') | from_yaml }}"
-
     # Built as a single Jinja expression (native dict) — Ansible templates
     # dict values but not dict keys, so a YAML mapping with a templated key
     # would ship the literal string "{{ fsp_name }}" to Helm.
     - name: "fsp{{ fsp_idx }}: build per-FSP override (simulators only)"
       ansible.builtin.set_fact:
-        _per_fsp_override: "{{ {'simulators': {fsp_name: (_full_override.simulators | default({})).get(fsp_name, {})}} }}"
+        _per_fsp_override: "{{ {'simulators': {fsp_name: (simulators | default({})).get(fsp_name, {})}} }}"
 
     - name: "fsp{{ fsp_idx }}: write filtered override to artifacts"
       ansible.builtin.copy:
@@ -88,7 +82,7 @@
 
 - name: "fsp{{ fsp_idx }}: build scenario override -f arg"
   ansible.builtin.set_fact:
-    _fsp_override_arg: "{{ '--values ' ~ scenario_artifacts_dir ~ '/dfsp-' ~ fsp_name ~ '-override.yaml' if _scenario_dfsp_stat.stat.exists else '' }}"
+    _fsp_override_arg: "{{ '--values ' ~ scenario_artifacts_dir ~ '/dfsp-' ~ fsp_name ~ '-override.yaml' if _dfsp_overrides_stat.stat.exists else '' }}"
 
 - name: "fsp{{ fsp_idx }}: helm install simulator"
   ansible.builtin.shell: |

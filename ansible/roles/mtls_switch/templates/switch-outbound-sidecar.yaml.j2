@@ -77,12 +77,12 @@ spec:
   trafficPolicy:
     connectionPool:
       tcp:
-        maxConnections: {{ mtls_sidecar_max_connections }}
+        maxConnections: {{ mtls_sidecar_max_connections[fsp] | default(mtls_sidecar_max_connections_default) }}
         connectTimeout: 10s
         tcpKeepalive: { time: 600s, interval: 75s, probes: 9 }
       http:
         http1MaxPendingRequests: 1000
-        http2MaxRequests: {{ mtls_sidecar_http2_max_requests }}
+        http2MaxRequests: {{ mtls_sidecar_http2_max_requests[fsp] | default(mtls_sidecar_http2_max_requests_default) }}
         maxRequestsPerConnection: {{ mtls_sidecar_max_requests_per_connection }}
         idleTimeout: 35s
         h2UpgradePolicy: DO_NOT_UPGRADE

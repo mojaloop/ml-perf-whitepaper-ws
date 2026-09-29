@@ -30,27 +30,14 @@ dfsp_sdk_replicas:
   fsp207: 12
   fsp208: 12
 
-# Cache maxmemory (role default 200mb, sized for the smaller 500tps nodes).
-# At 200mb, caches evict continuously (allkeys-lru) under steady 1000tps
-# load rather than as occasional housekeeping; nodes here have 15-30GB
-# with 6.8GB+ available even on the smallest FSP, so 2gb is comfortable
-# headroom.
-dfsp_cache_maxmemory: 2gb
+# Redis cache maxmemory. At 200mb the caches sit at the ceiling and evict
+# continuously (allkeys-lru) under sustained load. Measured harmless: what gets
+# evicted is state for completed transfers, and keyspace_misses stays at 0, so
+# no lookup ever fails to find its key. There is memory headroom to raise this,
+# but doing so changes SDK cache behaviour and therefore what the scenario
+# measures, so it stays at the role default.
+dfsp_cache_maxmemory: 200mb
 
-# dfsp-prometheus-agent resources (role default 512Mi/500m, sized for the
-# smaller 500tps scenarios' lower per-FSP replica counts). fsp201/fsp202
-# run 32 scheme-adapter replicas on 32-core nodes — roughly 4x the series
-# volume of the other six — and their agents OOMKill at the default under
-# 1000tps load: remote_write can't drain fast enough, so the WAL grows
-# until replaying it on restart exceeds the limit again, blacking out that
-# FSP's metrics for the duration. Only these two are bumped; the other six
-# run fine at the default.
-dfsp_mon_agent_memory_limit:
-  fsp201: 2Gi
-  fsp202: 2Gi
-dfsp_mon_agent_cpu_limit:
-  fsp201: "2"
-  fsp202: "2"
 
 simulators:
   fsp201:

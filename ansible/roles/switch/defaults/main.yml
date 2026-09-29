@@ -1,5 +1,11 @@
 ---
 mojaloop_chart: mojaloop/mojaloop
+# Optional local chart directory (e.g. an unreleased chart checked out
+# locally, not yet published to the repo above) — set via this scenario's
+# versions.yml. When non-empty, the helm task installs from this path
+# instead of the published repo and omits --version (meaningless for a
+# local directory chart). Empty = today's repo-based behavior, unchanged.
+mojaloop_chart_path: ""
 mojaloop_release: moja
 mojaloop_version: "{{ chart_versions.mojaloop }}"
 
